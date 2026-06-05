@@ -401,3 +401,25 @@ a:hover { text-decoration: underline; }
 }
 
 .btn-group { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1rem; }
+
+.ai-section {
+  background: #f0f7ff;
+  padding: 1.25rem;
+  border-radius: var(--radius);
+  border-left: 4px solid #2980b9;
+  margin: 1.5rem 0;
+}
+
+.ai-section h4 { color: #1a5276; margin: 1rem 0 0.5rem; font-size: 0.95rem; }
+
+.doc-list li:last-child { border-bottom: none !important; }
+
+input[type="file"] {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px dashed #ccc;
+  border-radius: 8px;
+  background: #fafbfc;
+}
+
+.raw-data-admin summary { user-select: none; }

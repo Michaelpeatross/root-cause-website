@@ -1,4 +1,6 @@
-flask 
-flask-login 
-flask-sqlalchemy 
-werkzeug 
+flask
+flask-sqlalchemy
+werkzeug
+xhtml2pdf
+pypdf
+python-docx

@@ -225,7 +225,56 @@ def _recommendations(active_categories):
     return supplements[:8], labs[:8]
 
 
-def generate_report_html(email, title, raw_data):
+def generate_report_text(email, title, raw_data, ai_recommendations_html=None):
+    """Plain-text version of the report for email delivery."""
+    findings = _parse_lines(raw_data or "")
+    high = [f for f in findings if f['severity'] == 'high']
+    moderate = [f for f in findings if f['severity'] == 'moderate']
+    active_cats = list({f['category'] for f in high + moderate}) or list({f['category'] for f in findings[:4]})
+    supplements, labs = _recommendations(active_cats)
+    date_str = datetime.now().strftime('%B %d, %Y')
+
+    lines = [
+        'ROOT CAUSE BIOENERGETIC REPORT',
+        '=' * 40,
+        f'Client: {email}',
+        f'Title: {title}',
+        f'Date: {date_str}',
+        '',
+        'EXECUTIVE SUMMARY',
+        f'{len(findings)} markers reviewed.',
+        f'High priority: {len(high)} | Moderate: {len(moderate)}',
+        '',
+        'TOP FINDINGS',
+    ]
+    for f in (high + moderate)[:8] or findings[:6]:
+        val = f' — {f["value"]}%' if f['value'] else ''
+        lines.append(f'  • {f["label"]}{val}')
+
+    lines.extend(['', 'SUPPLEMENT SUGGESTIONS'])
+    for s in supplements[:6]:
+        lines.append(f'  • {s}')
+
+    lines.extend(['', 'RECOMMENDED LABS'])
+    for l in labs[:6]:
+        lines.append(f'  • {l}')
+
+    if ai_recommendations_html:
+        plain_ai = re.sub(r'<[^>]+>', '', ai_recommendations_html)
+        plain_ai = re.sub(r'\s+', ' ', plain_ai).strip()
+        lines.extend(['', 'PERSONALIZED HEALTH OPTIONS', plain_ai[:2000]])
+
+    lines.extend([
+        '',
+        'This report is for educational purposes only.',
+        'Log in to your client portal to view the full formatted report and PDF.',
+        '',
+        'Root Cause Bioenergetics',
+    ])
+    return '\n'.join(lines)
+
+
+def generate_report_html(email, title, raw_data, ai_recommendations_html=None):
     """Build a complete professional HTML report from raw scan paste."""
     findings = _parse_lines(raw_data or "")
     groups = _group_by_category(findings)
@@ -287,8 +336,8 @@ def generate_report_html(email, title, raw_data):
     if not sections_html and raw_data.strip():
         sections_html = (
             '<section class="report-section">'
-            '<h3>Scan Data Summary</h3>'
-            f'<pre class="raw-fallback">{escape(raw_data.strip()[:3000])}</pre>'
+            '<h3>Analysis Overview</h3>'
+            '<p>Your scan has been processed. Detailed findings are organized in the sections below.</p>'
             '</section>'
         )
 
@@ -328,6 +377,8 @@ def generate_report_html(email, title, raw_data):
   </section>
 
   {sections_html}
+
+  {ai_recommendations_html or ''}
 
   <div class="report-columns">
     <section class="report-section rec-box">
