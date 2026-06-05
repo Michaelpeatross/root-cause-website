@@ -42,15 +42,15 @@ def buy():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+        email = request.form.get('email')
+        password = request.form.get('password')
         user = User.query.filter_by(email=email).first()
         if user and check_password_hash(user.password, password):
             session['user_id'] = user.id
             session['email'] = user.email
             session['is_admin'] = user.is_admin
             flash('Logged in successfully!', 'success')
-            return redirect(url_for('dashboard' if not user.is_admin else 'admin'))
+            return redirect(url_for('admin' if user.is_admin else 'dashboard'))
         flash('Invalid email or password', 'error')
     return render_template('login.html')
 
@@ -85,41 +85,58 @@ def admin():
         return redirect(url_for('login'))
     
     if request.method == 'POST':
-        email = request.form['email']
-        title = request.form['title']
-        raw_data = request.form['raw_data']
+        email = request.form.get('email')
+        title = request.form.get('title')
+        raw_data = request.form.get('raw_data')
         action = request.form.get('action')
 
         if action == 'generate':
-            # Grok-style report generation
-            generated = f"""
-Root Cause Bioenergetic Analysis Report
+            # Grok-style easy-to-read report
+            generated_report = f"""Root Cause Bioenergetic Analysis Report
+========================================
+
 Client: {email}
+Report Title: {title}
 Date: {datetime.now().strftime('%B %d, %Y')}
 
-{title}
+**Summary of Key Findings**
+{raw_data[:600] if raw_data else 'No raw data provided...'}
 
-**Summary of Findings**
-{raw_data[:800]}...
+**Major Stress Patterns Detected**
+• Digestive system
+• Nervous system / Stress response
+• Immune / Microbial imbalances
+• Metabolic & Nutritional markers
 
-**Key Stress Areas Identified**
-• High resonance in digestive system, nervous system, etc.
+**Recommended Supplements** (You can sell these)
+• Zinc Picolinate
+• Digestive Enzymes
+• Milk Thistle / Liver Support
+• Omega-3 + Magnesium
 
-**Recommendations**
-• Supplements: Zinc, Digestive Enzymes, Milk Thistle, etc.
-• Follow-up Blood Tests: Comprehensive Thyroid, Zinc levels, etc.
+**Recommended Blood Tests**
+• Comprehensive Thyroid Panel
+• Zinc, Vitamin D, Ferritin
+• Inflammatory markers (hs-CRP)
 
-Full detailed report attached.
+Full personalized report ready for client delivery.
 """
-            report = Report(user_email=email, title=title, raw_data=raw_data, generated_report=generated, date=datetime.now().strftime('%Y-%m-%d'))
+            report = Report(
+                user_email=email,
+                title=title,
+                raw_data=raw_data,
+                generated_report=generated_report,
+                date=datetime.now().strftime('%Y-%m-%d %H:%M')
+            )
             db.session.add(report)
             db.session.commit()
-            flash('✅ Easy-to-read report generated successfully!', 'success')
+            flash('✅ Beautiful easy-to-read report generated!', 'success')
         else:
-            report = Report(user_email=email, title=title, raw_data=raw_data, date=datetime.now().strftime('%Y-%m-%d'))
+            # Just save raw data
+            report = Report(user_email=email, title=title, raw_data=raw_data, date=datetime.now().strftime('%Y-%m-%d %H:%M'))
             db.session.add(report)
             db.session.commit()
-            flash('Raw data saved.', 'success')
+            flash('Raw data saved successfully.', 'success')
 
     reports = Report.query.all()
     return render_template('admin.html', reports=reports)
@@ -127,10 +144,9 @@ Full detailed report attached.
 @app.route('/logout')
 def logout():
     session.clear()
-    flash('Logged out successfully', 'success')
+    flash('You have been logged out.', 'success')
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    import os
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
