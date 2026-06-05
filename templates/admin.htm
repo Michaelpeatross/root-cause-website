@@ -1,28 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - Root Cause</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #f0f4f0; margin: 0; }
-        header { background: linear-gradient(135deg, #0b3d2a, #1a8c7a); color: white; padding: 2rem; text-align: center; }
-        .container { max-width: 1200px; margin: 2rem auto; padding: 2rem; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { padding: 12px; border: 1px solid #ddd; }
-        th { background: #0b3d2a; color: white; }
-        .btn { background: #1a8c7a; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; }
-    </style>
+<html>
+<head><title>Admin - Root Cause</title>
+<style>body{font-family:Arial; padding:20px;} table{border-collapse:collapse; width:100%;} th,td{border:1px solid #ddd; padding:8px;}</style>
 </head>
 <body>
-    <header>
-        <h1>Root Cause Admin Panel</h1>
-    </header>
-    <div class="container">
-        <h2>Upload Raw Test Results & Generate Report</h2>
-        <p>Coming in next update: Upload your raw PDF/text files here and generate beautiful client reports.</p>
-        
-        <a href="/" class="btn">← Back to Homepage</a>
-    </div>
+    <h1>Admin Panel - Upload Reports</h1>
+    <form method="POST">
+        <input type="text" name="email" placeholder="Client Email" required><br><br>
+        <input type="text" name="title" placeholder="Report Title" required><br><br>
+        <textarea name="content" rows="10" cols="80" placeholder="Paste full report content here" required></textarea><br><br>
+        <button type="submit">Upload Report</button>
+    </form>
+
+    <h2>All Reports</h2>
+    <table>
+        <tr><th>Client</th><th>Title</th><th>Date</th></tr>
+        {% for r in reports %}
+        <tr><td>{{ r.user_email }}</td><td>{{ r.title }}</td><td>{{ r.date }}</td></tr>
+        {% endfor %}
+    </table>
+    <a href="/">Back to Home</a>
 </body>
 </html>
