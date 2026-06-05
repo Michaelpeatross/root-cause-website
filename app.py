@@ -5,8 +5,13 @@ import os
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'rootcause2026secretkeychangeinproduction'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///instance/rootcause.db'
+app.secret_key = 'rootcause2026secretkey'
+
+# Fix for Render.com database path
+basedir = os.path.abspath(os.path.dirname(__file__))
+instance_dir = os.path.join(basedir, 'instance')
+os.makedirs(instance_dir, exist_ok=True)
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_dir, "rootcause.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -67,7 +72,7 @@ def register():
             user = User(name=name, email=email, password=hashed)
             db.session.add(user)
             db.session.commit()
-            flash('Account created successfully! Please log in.', 'success')
+            flash('Account created successfully!', 'success')
             return redirect(url_for('login'))
     return render_template('register.html')
 
@@ -76,7 +81,7 @@ def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     reports = Report.query.filter_by(user_email=session['email']).all()
-    return render_template('dashboard.html', reports=reports, email=session['email'])
+    return render_template('dashboard.html', reports=reports, email=session.get('email'))
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
@@ -87,56 +92,48 @@ def admin():
     if request.method == 'POST':
         email = request.form.get('email')
         title = request.form.get('title')
-        raw_data = request.form.get('raw_data')
+        raw_data = request.form.get('raw_data', '')
         action = request.form.get('action')
 
         if action == 'generate':
-            # Grok-style easy-to-read report
-            generated_report = f"""Root Cause Bioenergetic Analysis Report
+            generated_report = f"""🌿 Root Cause Bioenergetic Analysis Report
 ========================================
 
-Client: {email}
-Report Title: {title}
-Date: {datetime.now().strftime('%B %d, %Y')}
+Client Email: {email}
+Title: {title}
+Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
 
-**Summary of Key Findings**
-{raw_data[:600] if raw_data else 'No raw data provided...'}
+**Key Findings from Scan**
+{raw_data[:700] if raw_data else 'Raw data will appear here...'}
 
-**Major Stress Patterns Detected**
-• Digestive system
-• Nervous system / Stress response
-• Immune / Microbial imbalances
-• Metabolic & Nutritional markers
+**Main Areas of Concern**
+• Gut / Digestive imbalances
+• Nervous system stress
+• Microbial / Parasite resonances
+• Nutritional deficiencies
 
-**Recommended Supplements** (You can sell these)
-• Zinc Picolinate
-• Digestive Enzymes
-• Milk Thistle / Liver Support
-• Omega-3 + Magnesium
+**Supplement Recommendations** (Available for purchase)
+• High-quality Zinc
+• Digestive enzyme complex
+• Liver support (Milk Thistle)
+• Omega-3 + Magnesium glycinate
 
-**Recommended Blood Tests**
-• Comprehensive Thyroid Panel
+**Recommended Conventional Tests**
+• Thyroid panel (TSH, Free T3/T4)
 • Zinc, Vitamin D, Ferritin
-• Inflammatory markers (hs-CRP)
+• Comprehensive stool test
 
-Full personalized report ready for client delivery.
+Full report ready for client delivery.
 """
-            report = Report(
-                user_email=email,
-                title=title,
-                raw_data=raw_data,
-                generated_report=generated_report,
-                date=datetime.now().strftime('%Y-%m-%d %H:%M')
-            )
+            report = Report(user_email=email, title=title, raw_data=raw_data, generated_report=generated_report, date=datetime.now().strftime('%Y-%m-%d %H:%M'))
             db.session.add(report)
             db.session.commit()
-            flash('✅ Beautiful easy-to-read report generated!', 'success')
+            flash('✅ Nice readable report generated successfully!', 'success')
         else:
-            # Just save raw data
             report = Report(user_email=email, title=title, raw_data=raw_data, date=datetime.now().strftime('%Y-%m-%d %H:%M'))
             db.session.add(report)
             db.session.commit()
-            flash('Raw data saved successfully.', 'success')
+            flash('Raw scan data saved.', 'success')
 
     reports = Report.query.all()
     return render_template('admin.html', reports=reports)
@@ -144,7 +141,6 @@ Full personalized report ready for client delivery.
 @app.route('/logout')
 def logout():
     session.clear()
-    flash('You have been logged out.', 'success')
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
