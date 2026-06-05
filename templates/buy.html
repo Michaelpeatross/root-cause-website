@@ -3,43 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buy - Root Cause</title>
+    <title>Root Cause - Purchase Bioenergetic Analysis</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 0; background: #f8f9fa; }
-        .container { max-width: 700px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-        .price { font-size: 3rem; font-weight: bold; color: #0b3d2a; }
-        .btn { background: #1a8c7a; color: white; padding: 16px 40px; font-size: 1.2rem; border: none; border-radius: 8px; cursor: pointer; width: 100%; margin-top: 1rem; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; }
+        body { 
+            font-family: Arial, sans-serif; 
+            margin: 0; 
+            padding: 0; 
+            background: #f8f9fa; 
+            color: #333;
+        }
+        .header { 
+            background: linear-gradient(#0b3d2a, #1a8c7a); 
+            color: white; 
+            padding: 40px 20px; 
+            text-align: center; 
+        }
+        .container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background: white; 
+            padding: 40px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .price { 
+            font-size: 48px; 
+            font-weight: bold; 
+            color: #0b3d2a; 
+        }
+        .old-price { 
+            text-decoration: line-through; 
+            color: #999; 
+            font-size: 24px; 
+        }
+        .btn { 
+            padding: 16px 40px; 
+            font-size: 20px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            margin: 15px 10px;
+        }
+        .btn-primary { 
+            background: #1a8c7a; 
+            color: white; 
+        }
+        .btn-secondary { 
+            background: #0b3d2a; 
+            color: white; 
+        }
+        input[type="text"] { 
+            padding: 12px; 
+            width: 220px; 
+            font-size: 16px; 
+            border: 2px solid #ddd; 
+            border-radius: 6px; 
+        }
+        #coupon-message { 
+            margin-top: 10px; 
+            font-weight: bold; 
+        }
     </style>
 </head>
 <body>
+    <div class="header">
+        <h1>Root Cause</h1>
+        <h2>Bioenergetic Hair Analysis</h2>
+    </div>
+
     <div class="container">
-        <h2 style="text-align:center;">Complete Your Purchase</h2>
+        <h2>Complete Your Purchase</h2>
         
-        <div style="text-align:center; margin: 2rem 0;">
-            <span class="price">$229</span><br>
-            <span style="font-size:1.4rem; color:#1a8c7a;">→ $199 after discount</span>
+        <p class="old-price">$229</p>
+        <p class="price">$199</p>
+        <p><strong>$30 off with special offer</strong></p>
+
+        <div style="margin: 30px 0;">
+            <input type="text" id="coupon" placeholder="Enter discount code" />
+            <button class="btn btn-secondary" onclick="applyCoupon()">Apply Code</button>
+            <p id="coupon-message"></p>
         </div>
 
-        <input type="text" id="coupon" placeholder="Enter Coupon Code (optional)">
-        <button onclick="applyCoupon()" style="background:#0b3d2a; color:white; padding:10px; width:100%; border:none; border-radius:6px;">Apply Code</button>
-
-        <a href="/register" class="btn" style="margin-top:20px;">Continue to Checkout</a>
+        <button onclick="proceedToCheckout()" class="btn btn-primary">Proceed to Secure Checkout</button>
         
-        <p style="text-align:center; margin-top:2rem; color:#555;">
-            Secure checkout powered by Stripe
+        <p style="margin-top: 30px; font-size: 14px; color: #666;">
+            After payment you will be able to create your account and receive instructions + questionnaire.
         </p>
     </div>
 
     <script>
-        function applyCoupon() {
-            const code = document.getElementById('coupon').value.trim().toUpperCase();
-            if (code === "WELCOME50") {
-                alert("✅ WELCOME50 applied! Your scan is now FREE ($229 value).");
-            } else if (code !== "") {
-                alert("Invalid code. Contact us for special offers.");
-            }
+    function applyCoupon() {
+        const code = document.getElementById('coupon').value.trim().toLowerCase();
+        const message = document.getElementById('coupon-message');
+        
+        if (code === "welcome50") {
+            message.style.color = "green";
+            message.textContent = "✅ Discount applied! Total: $199";
+        } else if (code !== "") {
+            message.style.color = "red";
+            message.textContent = "❌ Invalid code";
         }
+    }
+
+    function proceedToCheckout() {
+        // For now this is a placeholder - we'll connect Stripe later
+        alert("✅ Redirecting to secure checkout...\n\n(In next update we'll add real Stripe payment)");
+        // Future: window.location.href = "/checkout";
+    }
     </script>
 </body>
 </html>
