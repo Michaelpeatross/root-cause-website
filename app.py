@@ -5,9 +5,9 @@ import os
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'rootcause2026secretkey'
+app.secret_key = 'rootcause2026secretkeychangeinproduction'
 
-# Fix for Render.com database path
+# Better database path for Render
 basedir = os.path.abspath(os.path.dirname(__file__))
 instance_dir = os.path.join(basedir, 'instance')
 os.makedirs(instance_dir, exist_ok=True)
@@ -72,7 +72,7 @@ def register():
             user = User(name=name, email=email, password=hashed)
             db.session.add(user)
             db.session.commit()
-            flash('Account created successfully!', 'success')
+            flash('Account created successfully! Please log in.', 'success')
             return redirect(url_for('login'))
     return render_template('register.html')
 
@@ -99,41 +99,36 @@ def admin():
             generated_report = f"""🌿 Root Cause Bioenergetic Analysis Report
 ========================================
 
-Client Email: {email}
+Client: {email}
 Title: {title}
-Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
+Date: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}
 
-**Key Findings from Scan**
-{raw_data[:700] if raw_data else 'Raw data will appear here...'}
+**Key Findings**
+{raw_data[:700] if raw_data else 'Raw scan data will appear here...'}
 
-**Main Areas of Concern**
-• Gut / Digestive imbalances
+**Main Areas of Imbalance**
+• Digestive system
 • Nervous system stress
-• Microbial / Parasite resonances
-• Nutritional deficiencies
+• Microbial patterns
+• Nutritional markers
 
-**Supplement Recommendations** (Available for purchase)
-• High-quality Zinc
-• Digestive enzyme complex
-• Liver support (Milk Thistle)
-• Omega-3 + Magnesium glycinate
+**Supplement Recommendations**
+• Zinc, Digestive Enzymes, Milk Thistle, Omega-3, Magnesium
 
-**Recommended Conventional Tests**
-• Thyroid panel (TSH, Free T3/T4)
-• Zinc, Vitamin D, Ferritin
-• Comprehensive stool test
+**Recommended Blood Tests**
+• Thyroid Panel, Zinc, Vitamin D, Inflammatory markers
 
-Full report ready for client delivery.
+Full report ready for delivery.
 """
             report = Report(user_email=email, title=title, raw_data=raw_data, generated_report=generated_report, date=datetime.now().strftime('%Y-%m-%d %H:%M'))
             db.session.add(report)
             db.session.commit()
-            flash('✅ Nice readable report generated successfully!', 'success')
+            flash('✅ Easy-to-read report generated!', 'success')
         else:
             report = Report(user_email=email, title=title, raw_data=raw_data, date=datetime.now().strftime('%Y-%m-%d %H:%M'))
             db.session.add(report)
             db.session.commit()
-            flash('Raw scan data saved.', 'success')
+            flash('Raw data saved.', 'success')
 
     reports = Report.query.all()
     return render_template('admin.html', reports=reports)
@@ -141,6 +136,7 @@ Full report ready for client delivery.
 @app.route('/logout')
 def logout():
     session.clear()
+    flash('Logged out successfully', 'success')
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
