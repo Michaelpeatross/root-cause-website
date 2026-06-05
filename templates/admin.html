@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Admin Panel — Root Cause{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark); margin-bottom:0.25rem;">Admin Panel</h1>
+    <p style="color:var(--text-muted); margin-top:0;">Paste raw scan data, generate a client-ready report, and preview it instantly below.</p>
+
+    <div class="admin-grid {% if reports %}has-reports{% endif %}" style="margin-top:2rem;">
+        <div class="admin-form-panel">
+            <div class="card">
+                <h2>New Report</h2>
+                <form method="POST" id="report-form">
+                    <div class="form-group">
+                        <label for="email">Client Email</label>
+                        <input type="email" id="email" name="email" placeholder="client@email.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="title">Report Title</label>
+                        <input type="text" id="title" name="title" value="Full Scan — {{ now }}" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="raw_data">Raw Scan Data</label>
+                        <textarea id="raw_data" name="raw_data" placeholder="Paste full bioenergetic scan output here...
+
+Example lines:
+Stomach: 82%
+Candida: 76
+Thyroid: moderate stress
+Vitamin D: 45%
+Liver: 68"></textarea>
+                    </div>
+                    <div class="btn-group">
+                        <button type="submit" name="action" value="generate" class="btn btn-primary">
+                            Generate Easy-to-Read Report
+                        </button>
+                        <button type="submit" name="action" value="save" class="btn btn-outline">
+                            Save Raw Only
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="reports-panel">
+            {% if latest_report %}
+            <div class="report-card latest-report-highlight" id="latest-report">
+                <div class="report-card-header">
+                    <div>
+                        <strong>✨ Just Generated — {{ latest_report.title }}</strong><br>
+                        <span style="color:var(--text-muted); font-size:0.9rem;">{{ latest_report.user_email }} · {{ latest_report.date }}</span>
+                    </div>
+                </div>
+                <div class="report-card-body card" style="margin:0; box-shadow:none; border-radius:0 0 12px 12px;">
+                    {{ latest_report.generated_report|safe }}
+                </div>
+            </div>
+            {% endif %}
+
+            <h2 style="font-family:'Playfair Display',serif; color:var(--green-dark);">
+                Generated Reports
+                <span style="font-size:1rem; font-weight:400; color:var(--text-muted);">({{ reports|length }})</span>
+            </h2>
+
+            {% if reports %}
+                {% for r in reports %}
+                    {% if not latest_report or r.id != latest_report.id %}
+                    <div class="report-card" id="report-{{ r.id }}">
+                        <div class="report-card-header">
+                            <div>
+                                <strong>{{ r.title }}</strong><br>
+                                <span style="color:var(--text-muted); font-size:0.9rem;">{{ r.user_email }} · {{ r.date }}</span>
+                            </div>
+                            {% if r.generated_report %}
+                            <a href="#report-{{ r.id }}" class="btn btn-outline" style="padding:0.4rem 0.8rem; font-size:0.85rem;">View</a>
+                            {% else %}
+                            <span style="color:var(--text-muted); font-size:0.85rem;">Raw data only</span>
+                            {% endif %}
+                        </div>
+                        {% if r.generated_report %}
+                        <div class="report-card-body card" style="margin:0; box-shadow:none; border-radius:0 0 12px 12px;">
+                            {{ r.generated_report|safe }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+            {% else %}
+                <div class="card empty-state">
+                    <p>No reports yet. Paste scan data on the left and click <strong>Generate Easy-to-Read Report</strong>.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if latest_report %}
+<script>
+  document.getElementById('latest-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+</script>
+{% endif %}
+{% endblock %}

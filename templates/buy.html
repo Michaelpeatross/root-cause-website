@@ -1,116 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Root Cause - Purchase Bioenergetic Analysis</title>
-    <style>
-        body { 
-            font-family: Arial, sans-serif; 
-            margin: 0; 
-            padding: 0; 
-            background: #f8f9fa; 
-            color: #333;
-        }
-        .header { 
-            background: linear-gradient(#0b3d2a, #1a8c7a); 
-            color: white; 
-            padding: 40px 20px; 
-            text-align: center; 
-        }
-        .container { 
-            max-width: 600px; 
-            margin: 40px auto; 
-            background: white; 
-            padding: 40px; 
-            border-radius: 12px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            text-align: center;
-        }
-        .price { 
-            font-size: 48px; 
-            font-weight: bold; 
-            color: #0b3d2a; 
-        }
-        .old-price { 
-            text-decoration: line-through; 
-            color: #999; 
-            font-size: 24px; 
-        }
-        .btn { 
-            padding: 16px 40px; 
-            font-size: 20px; 
-            border: none; 
-            border-radius: 8px; 
-            cursor: pointer; 
-            margin: 15px 10px;
-        }
-        .btn-primary { 
-            background: #1a8c7a; 
-            color: white; 
-        }
-        .btn-secondary { 
-            background: #0b3d2a; 
-            color: white; 
-        }
-        input[type="text"] { 
-            padding: 12px; 
-            width: 220px; 
-            font-size: 16px; 
-            border: 2px solid #ddd; 
-            border-radius: 6px; 
-        }
-        #coupon-message { 
-            margin-top: 10px; 
-            font-weight: bold; 
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Root Cause</h1>
-        <h2>Bioenergetic Hair Analysis</h2>
-    </div>
+{% extends "base.html" %}
+{% block title %}Purchase — Root Cause{% endblock %}
 
-    <div class="container">
-        <h2>Complete Your Purchase</h2>
-        
-        <p class="old-price">$229</p>
-        <p class="price">$199</p>
-        <p><strong>$30 off with special offer</strong></p>
+{% block content %}
+<section class="hero" style="padding:3rem 2rem;">
+    <h1 style="font-size:2.5rem;">Complete Your Purchase</h1>
+    <p class="tagline">Bioenergetic Hair + Saliva Analysis</p>
+</section>
 
-        <div style="margin: 30px 0;">
-            <input type="text" id="coupon" placeholder="Enter discount code" />
-            <button class="btn btn-secondary" onclick="applyCoupon()">Apply Code</button>
-            <p id="coupon-message"></p>
+<div class="container" style="max-width:560px;">
+    <div class="card" style="text-align:center; margin-top:-2rem; position:relative;">
+        <p style="text-decoration:line-through; color:#999; font-size:1.25rem; margin:0;">$229</p>
+        <p style="font-size:3rem; font-weight:700; color:var(--green-dark); margin:0.25rem 0;">$199</p>
+        <p><strong>$30 off — limited time offer</strong></p>
+
+        <div style="margin:2rem 0;">
+            <input type="text" id="coupon" placeholder="Enter discount code" style="padding:0.75rem 1rem; border:2px solid #dfe6e9; border-radius:8px; width:200px; font-size:1rem;">
+            <button class="btn btn-secondary" onclick="applyCoupon()" style="margin-left:0.5rem;">Apply Code</button>
+            <p id="coupon-message" style="margin-top:0.75rem; font-weight:600;"></p>
         </div>
 
-        <button onclick="proceedToCheckout()" class="btn btn-primary">Proceed to Secure Checkout</button>
-        
-        <p style="margin-top: 30px; font-size: 14px; color: #666;">
-            After payment you will be able to create your account and receive instructions + questionnaire.
+        <button onclick="proceedToCheckout()" class="btn btn-primary" style="font-size:1.1rem; padding:1rem 2rem;">Proceed to Secure Checkout</button>
+
+        <p style="margin-top:2rem; font-size:0.9rem; color:var(--text-muted);">
+            After payment you can create your account and receive collection instructions plus your health questionnaire.
         </p>
     </div>
+</div>
 
-    <script>
-    function applyCoupon() {
-        const code = document.getElementById('coupon').value.trim().toLowerCase();
-        const message = document.getElementById('coupon-message');
-        
-        if (code === "welcome50") {
-            message.style.color = "green";
-            message.textContent = "✅ Discount applied! Total: $199";
-        } else if (code !== "") {
-            message.style.color = "red";
-            message.textContent = "❌ Invalid code";
-        }
+<script>
+function applyCoupon() {
+    const code = document.getElementById('coupon').value.trim().toLowerCase();
+    const message = document.getElementById('coupon-message');
+    if (code === 'welcome50') {
+        message.style.color = '#155724';
+        message.textContent = '✓ Discount applied! Total: $199';
+    } else if (code !== '') {
+        message.style.color = '#721c24';
+        message.textContent = 'Invalid code — try welcome50';
+    } else {
+        message.textContent = '';
     }
-
-    function proceedToCheckout() {
-        // For now this is a placeholder - we'll connect Stripe later
-        alert("✅ Redirecting to secure checkout...\n\n(In next update we'll add real Stripe payment)");
-        // Future: window.location.href = "/checkout";
-    }
-    </script>
-</body>
-</html>
+}
+function proceedToCheckout() {
+    alert('Checkout coming soon — Stripe integration will be added in the next update.');
+}
+</script>
+{% endblock %}

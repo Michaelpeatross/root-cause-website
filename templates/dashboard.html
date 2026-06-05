@@ -1,42 +1,41 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Root Cause</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #f8f9fa; margin: 0; }
-        header { background: linear-gradient(135deg, #0b3d2a, #1a8c7a); color: white; padding: 1.5rem; }
-        .container { max-width: 1000px; margin: 2rem auto; padding: 2rem; }
-        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 2rem; }
-        .status { padding: 10px 20px; border-radius: 8px; font-weight: bold; }
-        .btn { background: #1a8c7a; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block; }
-    </style>
-</head>
-<body>
-    <header>
-        <h1>Root Cause Bioenergetics</h1>
-        <p>Welcome, {{ user.name }} | <a href="/logout" style="color:white;">Logout</a></p>
-    </header>
+{% extends "base.html" %}
+{% block title %}Dashboard — Root Cause{% endblock %}
 
-    <div class="container">
-        <h2>Your Client Portal</h2>
-        
-        <div class="card">
-            <h3>Current Order Status</h3>
-            <p class="status" style="background:#fff3cd; color:#856404;">Awaiting Hair & Saliva Sample</p>
-            <a href="/instructions" class="btn">View Collection Instructions & Video Script</a>
-        </div>
+{% block content %}
+<div class="container">
+    <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark);">Welcome, {{ user.name }}</h1>
+    <p style="color:var(--text-muted);">Your personalized bioenergetic portal</p>
 
-        <div class="card">
-            <h3>Your Reports</h3>
-            <p>No completed reports yet.</p>
-            <p style="color:#666;">Once we receive your sample and process it, your full personalized report will appear here automatically.</p>
-        </div>
-
-        <div style="text-align:center; margin-top:2rem;">
-            <a href="/submit_sample" class="btn">I Have Already Sent My Sample</a>
-        </div>
+    <div class="card" style="margin-top:2rem;">
+        <h2>Order Status</h2>
+        <p style="background:#fff3cd; color:#856404; padding:0.75rem 1rem; border-radius:8px; display:inline-block; font-weight:600;">
+            Awaiting Hair &amp; Saliva Sample
+        </p>
+        <p style="margin-top:1rem;"><a href="{{ url_for('instructions') }}" class="btn btn-primary">View Collection Instructions</a></p>
     </div>
-</body>
-</html>
+
+    <div class="card">
+        <h2>Your Reports</h2>
+        {% if reports %}
+            {% for r in reports %}
+                {% if r.generated_report %}
+                <div class="report-card" style="margin-top:1.5rem;">
+                    <div class="report-card-header">
+                        <div>
+                            <strong>{{ r.title }}</strong><br>
+                            <span style="color:var(--text-muted); font-size:0.9rem;">{{ r.date }}</span>
+                        </div>
+                    </div>
+                    <div class="report-card-body card" style="margin:0; box-shadow:none;">
+                        {{ r.generated_report|safe }}
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        {% else %}
+            <p>No completed reports yet.</p>
+            <p style="color:var(--text-muted);">Once we receive and process your sample, your full personalized report will appear here.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

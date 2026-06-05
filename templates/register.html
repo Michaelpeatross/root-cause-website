@@ -1,41 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register - Root Cause</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #f8f9fa; margin: 0; }
-        .container { max-width: 500px; margin: 80px auto; padding: 2rem; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 6px; font-size: 1rem; }
-        .btn { background: #1a8c7a; color: white; padding: 14px; width: 100%; border: none; border-radius: 8px; font-size: 1.1rem; cursor: pointer; }
-        .btn:hover { background: #0b3d2a; }
-        .flash { padding: 10px; margin: 10px 0; border-radius: 6px; }
-        .error { background: #f8d7da; color: #721c24; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h2 style="text-align:center; color:#0b3d2a;">Create Your Account</h2>
-        
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="flash {{ category }}">{{ message }}</div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
+{% extends "base.html" %}
+{% block title %}Register — Root Cause{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:480px; margin-top:4rem;">
+    <div class="card">
+        <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">Create Your Account</h2>
 
         <form method="POST">
-            <input type="text" name="name" placeholder="Full Name" required>
-            <input type="email" name="email" placeholder="Email Address" required>
-            <input type="password" name="password" placeholder="Create Password" required>
-            <button type="submit" class="btn">Create Account</button>
+            <div class="form-group">
+                <label for="name">Full Name</label>
+                <input type="text" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Create Account</button>
         </form>
-        
+
         <p style="text-align:center; margin-top:1.5rem;">
-            Already have an account? <a href="/login">Login here</a>
+            Already have an account? <a href="{{ url_for('login') }}">Sign in</a>
         </p>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

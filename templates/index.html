@@ -1,67 +1,37 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Root Cause | Bioenergetic Hair Analysis</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@700&display=swap');
-        body { margin: 0; font-family: 'Inter', sans-serif; background: #f8f9fa; color: #333; }
-        .header { 
-            background: linear-gradient(135deg, #0b3d2a 0%, #1a8c7a 100%); 
-            color: white; 
-            padding: 100px 20px; 
-            text-align: center; 
-        }
-        h1 { font-family: 'Playfair Display', serif; font-size: 3.5rem; margin: 0; }
-        .tagline { font-size: 1.4rem; margin: 20px 0; }
-        .btn { 
-            padding: 16px 36px; 
-            font-size: 1.1rem; 
-            border: none; 
-            border-radius: 50px; 
-            cursor: pointer; 
-            margin: 12px; 
-            font-weight: 600;
-        }
-        .btn-primary { background: #fff; color: #0b3d2a; }
-        .btn-secondary { background: transparent; color: white; border: 2px solid white; }
-        .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; text-align: center; }
-        .features { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; margin: 60px 0; }
-        .feature { max-width: 300px; }
-        .trust { background: #fff; padding: 30px; border-radius: 12px; margin: 40px auto; max-width: 800px; }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>Root Cause</h1>
-        <p class="tagline">Bioenergetic Hair Analysis • Get to the Root of Your Health Issues</p>
-        
-        <a href="{{ url_for('buy') }}"><button class="btn btn-primary">Get Your Analysis – $199</button></a>
-        <a href="{{ url_for('login') }}"><button class="btn btn-secondary">Current Customer Login</button></a>
+{% extends "base.html" %}
+{% block title %}Root Cause | Bioenergetic Hair Analysis{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1>Root Cause</h1>
+    <p class="tagline">Bioenergetic Hair Analysis — Get to the Root of Your Health Issues</p>
+    <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis — $199</a>
+    <a href="{{ url_for('login') }}" class="btn btn-outline" style="color:white; border-color:white;">Current Customer Login</a>
+</section>
+
+<div class="container">
+    <div class="trust-banner">
+        <p><strong>Non-invasive · Personalized Report · Supplement Recommendations</strong></p>
+        <p><span style="text-decoration:line-through; color:#999;">$229</span> &nbsp;→&nbsp; <span style="color:var(--green); font-weight:700; font-size:1.2rem;">$199 today</span> ($30 off)</p>
     </div>
 
-    <div class="container">
-        <div class="trust">
-            <p><strong>Non-invasive • Personalized Report • Supplement Recommendations</strong></p>
-            <p>$229 Regular • <span style="color:#1a8c7a;">$199 Today ($30 off)</span></p>
-        </div>
+    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">Discover the Root Cause</h2>
 
-        <h2>Discover the Root Cause</h2>
-        <div class="features">
-            <div class="feature">
-                <h3>🔬 Hair + Saliva Scan</h3>
-                <p>Advanced bioenergetic testing from the comfort of home</p>
-            </div>
-            <div class="feature">
-                <h3>📊 Clear Report</h3>
-                <p>Easy-to-understand results with actionable insights</p>
-            </div>
-            <div class="feature">
-                <h3>🌱 Supplement Guidance</h3>
-                <p>Targeted recommendations based on your unique scan</p>
-            </div>
+    <div class="features">
+        <div class="feature card">
+            <h3>🔬 Hair + Saliva Scan</h3>
+            <p>Advanced bioenergetic testing from the comfort of home — no needles, no clinic visit.</p>
+        </div>
+        <div class="feature card">
+            <h3>📊 Clear Report</h3>
+            <p>Easy-to-understand results organized by body system with actionable priorities.</p>
+        </div>
+        <div class="feature card">
+            <h3>🌱 Supplement Guidance</h3>
+            <p>Targeted recommendations and lab suggestions based on your unique scan.</p>
         </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}

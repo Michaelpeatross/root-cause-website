@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Login — Root Cause{% endblock %}
+
+{% block header %}{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:440px; margin-top:4rem;">
+    <div class="card">
+        <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">Client Login</h2>
+        <p style="text-align:center; color:var(--text-muted); margin-bottom:1.5rem;">Access your reports and sample instructions</p>
+
+        <form method="POST">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Sign In</button>
+        </form>
+
+        <p style="text-align:center; margin-top:1.5rem;">
+            New customer? <a href="{{ url_for('register') }}">Create an account</a>
+        </p>
+        <p style="text-align:center; margin-top:0.5rem;">
+            <a href="{{ url_for('index') }}">← Back to home</a>
+        </p>
+    </div>
+</div>
+{% endblock %}
