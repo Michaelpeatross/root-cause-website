@@ -284,7 +284,9 @@ def _build_full_report(email, title, raw_data):
     ai_html, _source = get_health_recommendations(
         raw_data, medical_text, client_name, email
     )
-    html_report = generate_report_html(email, title, raw_data, ai_html)
+    html_report = generate_report_html(
+        email, title, raw_data, ai_html, client_name=client_name
+    )
     plain_text = generate_report_text(email, title, raw_data, ai_html)
     return html_report, plain_text, ai_html
 
@@ -301,7 +303,7 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
     )
     report.ai_recommendations = ai_html
     report.generated_report = generate_report_html(
-        email, report.title, report.raw_data, ai_html
+        email, report.title, report.raw_data, ai_html, client_name=client_name
     )
     report.plain_text = generate_report_text(
         email, report.title, report.raw_data, ai_html

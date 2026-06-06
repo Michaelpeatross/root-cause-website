@@ -5,8 +5,10 @@ from io import BytesIO
 from xhtml2pdf import pisa
 
 PDF_STYLES = """
-@page { size: letter; margin: 0.6in; }
-body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #2d3436; }
+@page { size: letter; margin: 0.55in 0.6in; }
+body { font-family: Helvetica, Arial, sans-serif; font-size: 10pt; color: #2d3436; line-height: 1.45; }
+
+/* Legacy report styles */
 .report-header { background: #0b3d2a; color: white; padding: 16px; margin-bottom: 16px; }
 .report-title { font-size: 18pt; margin: 4px 0 0; }
 .brand-tag { font-size: 8pt; text-transform: uppercase; letter-spacing: 1px; margin: 0; }
@@ -25,8 +27,57 @@ body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #2d343
 .badge-info { background: #e2e3e5; color: #383d41; }
 .rec-box { background: #f8faf9; padding: 10px; margin-bottom: 10px; }
 .report-footer { font-size: 8pt; color: #666; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 8px; }
-.ai-section { background: #f0f7ff; padding: 12px; border-left: 4px solid #2980b9; margin: 16px 0; }
+.ai-section { background: #f0f7ff; padding: 12px; border-left: 4px solid #2980b9; margin: 16px 0; page-break-inside: avoid; }
 ul { margin: 6px 0; padding-left: 18px; }
+
+/* Full Scan template styles */
+.scan-report { max-width: 100%; }
+.scan-cover { text-align: center; padding: 18px 12px 24px; border-bottom: 3px solid #1a8c7a; margin-bottom: 18px; }
+.scan-brand { font-size: 8pt; letter-spacing: 2px; text-transform: uppercase; color: #1a8c7a; margin: 0 0 8px; }
+.scan-main-title { font-size: 22pt; color: #0b3d2a; margin: 0 0 6px; font-weight: bold; }
+.scan-client-line { font-size: 13pt; color: #2d3436; margin: 0; }
+.scan-client-email { font-size: 9pt; color: #666; margin: 4px 0 0; }
+
+.scan-section { margin: 18px 0; page-break-inside: avoid; }
+.scan-section h2 { color: #0b3d2a; font-size: 14pt; border-bottom: 2px solid #d4ebe4; padding-bottom: 4px; margin: 0 0 10px; }
+.scan-section h4 { color: #1a5276; font-size: 10pt; margin: 8px 0 4px; }
+.scan-lead { color: #555; font-size: 9.5pt; margin: 0 0 10px; }
+.scan-section-intro { background: #f8faf9; padding: 10px; margin-bottom: 12px; border-left: 3px solid #1a8c7a; }
+
+.scan-legend { font-size: 8pt; color: #666; margin: 8px 0 12px; }
+.scan-legend span { display: inline-block; margin-right: 10px; }
+
+.scan-systems-grid { margin: 10px 0; }
+.scan-system-pill { display: inline-block; background: #e8f5f1; color: #0b3d2a; padding: 5px 10px; margin: 3px; border-radius: 4px; font-size: 9pt; font-weight: bold; }
+
+.scan-notes { background: #fff8e6; padding: 10px; margin-top: 10px; border-left: 3px solid #f0c040; }
+.scan-notes h4 { margin-top: 0; color: #856404; }
+
+.scan-columns { display: block; margin-top: 8px; }
+.scan-col { display: inline-block; width: 23%; vertical-align: top; padding: 0 1% 12px 0; }
+.scan-list { margin: 0; padding-left: 14px; font-size: 9pt; }
+.scan-list li { margin-bottom: 2px; }
+.scan-nutrient-block { font-size: 9pt; white-space: pre-wrap; margin: 0; }
+.scan-muted { color: #888; font-size: 9pt; font-style: italic; }
+
+.scan-imbalance-card { background: #fafcfb; border: 1px solid #dceee8; padding: 10px 12px; margin: 10px 0; page-break-inside: avoid; }
+.scan-imbalance-card h4 { color: #0b3d2a; font-size: 10pt; margin: 0 0 6px; text-transform: uppercase; }
+.scan-imbalance-card p { margin: 4px 0; font-size: 9.5pt; }
+
+.scan-hormone-item { margin: 8px 0; padding-bottom: 8px; border-bottom: 1px solid #eee; }
+.scan-hormone-item h4 { margin: 0 0 4px; color: #1a5276; }
+
+.scan-summary p { margin: 0 0 8px; font-size: 10pt; }
+
+.scan-remedy-card { border: 1px solid #e0e0e0; padding: 10px; margin: 8px 0; page-break-inside: avoid; }
+.scan-remedy-card h4 { margin: 0 0 4px; color: #0b3d2a; }
+.scan-remedy-card p { margin: 3px 0; font-size: 9pt; }
+.scan-price { font-weight: bold; color: #1a8c7a; }
+
+.scan-disclaimer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #ccc; font-size: 8pt; color: #666; }
+.scan-raw-fallback { font-size: 8pt; white-space: pre-wrap; background: #f5f5f5; padding: 10px; }
+
+.page-break { page-break-before: auto; }
 """
 
 

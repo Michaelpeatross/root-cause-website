@@ -172,9 +172,74 @@ a:hover { text-decoration: underline; }
 
 /* ---- Bio Report Styles ---- */
 
-.bio-report {
+.bio-report,
+.scan-report {
   font-size: 0.95rem;
   line-height: 1.65;
+}
+
+.scan-cover {
+  text-align: center;
+  padding: 1.5rem 1rem 2rem;
+  border-bottom: 3px solid var(--green-light);
+  margin-bottom: 1.5rem;
+}
+
+.scan-main-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.85rem;
+  color: var(--green-dark);
+  margin: 0.25rem 0;
+}
+
+.scan-client-line { font-size: 1.1rem; color: var(--text-muted); margin: 0; }
+.scan-section h2 {
+  font-family: 'Playfair Display', serif;
+  color: var(--green-dark);
+  border-bottom: 2px solid var(--green-light);
+  padding-bottom: 0.35rem;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.scan-system-pill {
+  display: inline-block;
+  background: #e8f5f1;
+  color: var(--green-dark);
+  padding: 0.35rem 0.75rem;
+  margin: 0.2rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.scan-col {
+  display: inline-block;
+  width: 23%;
+  vertical-align: top;
+  padding: 0 1% 1rem 0;
+}
+
+.scan-imbalance-card {
+  background: #fafcfb;
+  border: 1px solid #dceee8;
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin: 0.75rem 0;
+}
+
+.scan-remedy-card {
+  border: 1px solid #e8ecea;
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin: 0.65rem 0;
+}
+
+.scan-disclaimer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ddd;
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .report-header {

@@ -4,6 +4,7 @@ from html import escape
 from datetime import datetime
 
 from affiliate_links import supplement_list_html, lab_list_html, match_supplement_link, match_lab_links
+from scan_template import generate_template_report_html, uses_template_format
 
 SEVERITY_HIGH = 70
 SEVERITY_MODERATE = 45
@@ -279,8 +280,14 @@ def generate_report_text(email, title, raw_data, ai_recommendations_html=None):
     return '\n'.join(lines)
 
 
-def generate_report_html(email, title, raw_data, ai_recommendations_html=None):
+def generate_report_html(email, title, raw_data, ai_recommendations_html=None, client_name=None):
     """Build a complete professional HTML report from raw scan paste."""
+    if uses_template_format(raw_data or ''):
+        return generate_template_report_html(
+            email, title, raw_data, client_name=client_name,
+            ai_recommendations_html=ai_recommendations_html,
+        )
+
     findings = _parse_lines(raw_data or "")
     groups = _group_by_category(findings)
     high_count = sum(1 for f in findings if f["severity"] == "high")
