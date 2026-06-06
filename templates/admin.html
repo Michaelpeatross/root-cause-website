@@ -4,13 +4,13 @@
 {% block content %}
 <div class="container">
     <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark); margin-bottom:0.25rem;">Admin Panel</h1>
-    <p style="color:var(--text-muted); margin-top:0;">Generate reports, create PDFs, email clients, and review raw scan data (admin-only).</p>
+    <p style="color:var(--text-muted); margin-top:0;">Upload scan PDFs or paste raw data — Grok uses both to generate client reports.</p>
 
     <div class="admin-grid {% if reports %}has-reports{% endif %}" style="margin-top:2rem;">
         <div class="admin-form-panel">
             <div class="card">
                 <h2>New Report</h2>
-                <form method="POST" id="report-form">
+                <form method="POST" id="report-form" enctype="multipart/form-data">
                     <div class="form-group">
                         <label for="email">Client Email</label>
                         <input type="email" id="email" name="email" placeholder="client@email.com" required>
@@ -20,8 +20,15 @@
                         <input type="text" id="title" name="title" value="Full Scan — {{ now }}" required>
                     </div>
                     <div class="form-group">
-                        <label for="raw_data">Raw Scan Data <span style="font-weight:400; color:var(--text-muted);">(admin-only)</span></label>
-                        <textarea id="raw_data" name="raw_data" placeholder="Paste full bioenergetic scan output here..."></textarea>
+                        <label for="scan_pdfs">Upload Scan PDFs</label>
+                        <input type="file" id="scan_pdfs" name="scan_pdfs" accept=".pdf" multiple>
+                        <p style="font-size:0.85rem; color:var(--text-muted); margin:0.4rem 0 0;">
+                            Upload one or more bioenergetic scan PDFs. Text is extracted automatically for Grok.
+                        </p>
+                    </div>
+                    <div class="form-group">
+                        <label for="raw_data">Or Paste Raw Scan Data <span style="font-weight:400; color:var(--text-muted);">(admin-only)</span></label>
+                        <textarea id="raw_data" name="raw_data" placeholder="Optional: paste raw scan text here, or rely on PDF upload above. You can also use both."></textarea>
                     </div>
                     <div class="btn-group">
                         <button type="submit" name="action" value="generate" class="btn btn-primary">
@@ -44,6 +51,7 @@
                         <span style="color:var(--text-muted); font-size:0.9rem;">{{ latest_report.user_email }} · {{ latest_report.date }}</span>
                         {% if latest_report.pdf_filename %}<span style="color:var(--green); font-size:0.85rem;"> · PDF saved</span>{% endif %}
                         {% if latest_report.email_sent %}<span style="color:var(--green); font-size:0.85rem;"> · Emailed</span>{% endif %}
+                        {% if latest_report.scan_pdfs %}<span style="color:var(--green); font-size:0.85rem;"> · {{ latest_report.scan_pdfs|length }} scan PDF(s)</span>{% endif %}
                     </div>
                     {% if latest_report.pdf_filename %}
                     <a href="{{ url_for('download_report_pdf', report_id=latest_report.id) }}" class="btn btn-outline" style="padding:0.4rem 0.8rem; font-size:0.85rem;">Download PDF</a>
@@ -52,6 +60,19 @@
                 <div class="report-card-body card" style="margin:0; box-shadow:none; border-radius:0 0 12px 12px;">
                     {{ latest_report.generated_report|safe }}
                 </div>
+                {% if latest_report.scan_pdfs %}
+                <details style="padding:1rem 1.5rem; background:#f0f9f6; border-top:1px solid #dceee8;">
+                    <summary style="cursor:pointer; font-weight:600; color:var(--green-dark);">📎 Uploaded Scan PDFs (Admin Only)</summary>
+                    <ul style="list-style:none; padding:0; margin-top:0.75rem;">
+                        {% for s in latest_report.scan_pdfs %}
+                        <li style="padding:0.4rem 0;">
+                            <a href="{{ url_for('download_scan_pdf', scan_id=s.id) }}">{{ s.original_name }}</a>
+                            <span style="color:var(--text-muted); font-size:0.85rem;"> — {{ s.uploaded_at }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </details>
+                {% endif %}
                 {% if latest_report.raw_data %}
                 <details class="raw-data-admin" style="padding:1rem 1.5rem; background:#fff8e6; border-top:1px solid #f0e0b0;">
                     <summary style="cursor:pointer; font-weight:600; color:#856404;">🔒 Raw Scan Data (Admin Only)</summary>
@@ -76,6 +97,7 @@
                                 <span style="color:var(--text-muted); font-size:0.9rem;">{{ r.user_email }} · {{ r.date }}</span>
                                 {% if r.pdf_filename %}<span style="font-size:0.8rem; color:var(--green);">PDF</span>{% endif %}
                                 {% if r.email_sent %}<span style="font-size:0.8rem; color:var(--green);">Emailed</span>{% endif %}
+                                {% if r.scan_pdfs %}<span style="font-size:0.8rem; color:var(--green);">{{ r.scan_pdfs|length }} scan PDF(s)</span>{% endif %}
                             </div>
                             <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
                                 {% if r.generated_report and r.raw_data %}
@@ -95,6 +117,18 @@
                             {{ r.generated_report|safe }}
                         </div>
                         {% endif %}
+                        {% if r.scan_pdfs %}
+                        <details style="padding:1rem 1.5rem; background:#f0f9f6; border-top:1px solid #dceee8;">
+                            <summary style="cursor:pointer; font-weight:600; color:var(--green-dark);">📎 Uploaded Scan PDFs (Admin Only)</summary>
+                            <ul style="list-style:none; padding:0; margin-top:0.75rem;">
+                                {% for s in r.scan_pdfs %}
+                                <li style="padding:0.4rem 0;">
+                                    <a href="{{ url_for('download_scan_pdf', scan_id=s.id) }}">{{ s.original_name }}</a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </details>
+                        {% endif %}
                         {% if r.raw_data %}
                         <details class="raw-data-admin" style="padding:1rem 1.5rem; background:#fff8e6; border-top:1px solid #f0e0b0;">
                             <summary style="cursor:pointer; font-weight:600; color:#856404;">🔒 Raw Scan Data (Admin Only)</summary>
@@ -108,7 +142,7 @@
                 {% endfor %}
             {% else %}
                 <div class="card empty-state">
-                    <p>No reports yet. Paste scan data and click <strong>Generate Report + PDF + Email Client</strong>.</p>
+                    <p>No reports yet. Upload scan PDFs or paste data, then click <strong>Generate Report + PDF + Email Client</strong>.</p>
                 </div>
             {% endif %}
         </div>

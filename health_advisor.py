@@ -78,15 +78,16 @@ def _grok_recommendations(scan_raw, medical_text, client_name, client_email):
         return None
 
     prompt = f"""You are a holistic health advisor for Root Cause Bioenergetics.
-Analyze the client's bioenergetic scan data and any uploaded medical document text.
+Analyze the client's bioenergetic scan data (may include text pasted by the practitioner
+and/or text extracted from uploaded scan PDFs) plus any client medical documents.
 Provide clear, actionable health options (not diagnoses).
 
 Client: {client_name} ({client_email})
 
-BIOENERGETIC SCAN DATA:
-{scan_raw[:8000]}
+BIOENERGETIC SCAN DATA (paste + PDF extracts):
+{scan_raw[:12000]}
 
-UPLOADED MEDICAL DOCUMENTS:
+CLIENT MEDICAL DOCUMENTS (labs, records from client portal):
 {medical_text[:8000] if medical_text else 'None uploaded yet.'}
 
 Respond in HTML only (no markdown). Use this structure:

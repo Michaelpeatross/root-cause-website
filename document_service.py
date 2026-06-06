@@ -77,3 +77,50 @@ def combined_document_text(documents):
         if doc.extracted_text:
             parts.append(f'--- {doc.original_name} ---\n{doc.extracted_text}')
     return '\n\n'.join(parts)[:40000]
+
+
+def process_scan_pdf_uploads(file_list, upload_dir):
+    """
+    Process admin-uploaded scan PDFs.
+    Returns list of dicts: stored_filename, original_name, extracted_text.
+    """
+    if not file_list:
+        return []
+
+    results = []
+    for file_storage in file_list:
+        if not file_storage or not file_storage.filename:
+            continue
+        original = secure_filename(file_storage.filename)
+        if os.path.splitext(original)[1].lower() != '.pdf':
+            raise ValueError(f'"{original}" is not a PDF. Only PDF scan files are supported here.')
+
+        file_storage.seek(0, os.SEEK_END)
+        size = file_storage.tell()
+        file_storage.seek(0)
+        if size > MAX_UPLOAD_BYTES:
+            raise ValueError(f'"{original}" is too large (max 16 MB).')
+
+        os.makedirs(upload_dir, exist_ok=True)
+        stored = f'{uuid.uuid4().hex}.pdf'
+        path = os.path.join(upload_dir, stored)
+        file_storage.save(path)
+        text = extract_text(path, original)
+        results.append({
+            'stored_filename': stored,
+            'original_name': original,
+            'extracted_text': text,
+        })
+    return results
+
+
+def merge_scan_sources(pasted_text, pdf_results):
+    """Combine pasted raw data and extracted PDF text into one admin-stored record."""
+    parts = []
+    if pasted_text and pasted_text.strip():
+        parts.append(pasted_text.strip())
+    for pdf in pdf_results:
+        parts.append(
+            f'--- SCAN PDF: {pdf["original_name"]} ---\n{pdf["extracted_text"]}'
+        )
+    return '\n\n'.join(parts)

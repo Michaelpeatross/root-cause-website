@@ -10,7 +10,10 @@ from datetime import datetime
 from report_generator import generate_report_html, generate_report_text
 from pdf_service import save_report_pdf, pdf_to_bytes
 from email_service import send_report_email
-from document_service import save_upload, extract_text, combined_document_text
+from document_service import (
+    save_upload, extract_text, combined_document_text,
+    process_scan_pdf_uploads, merge_scan_sources,
+)
 from health_advisor import get_health_recommendations
 
 app = Flask(__name__)
@@ -22,9 +25,11 @@ instance_dir = os.path.join(basedir, 'instance')
 uploads_dir = os.path.join(basedir, 'uploads')
 reports_dir = os.path.join(uploads_dir, 'reports')
 documents_dir = os.path.join(uploads_dir, 'documents')
+scan_pdfs_dir = os.path.join(uploads_dir, 'scan_pdfs')
 os.makedirs(instance_dir, exist_ok=True)
 os.makedirs(reports_dir, exist_ok=True)
 os.makedirs(documents_dir, exist_ok=True)
+os.makedirs(scan_pdfs_dir, exist_ok=True)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_dir, "rootcause.db")}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -60,6 +65,17 @@ class ClientDocument(db.Model):
     original_name = db.Column(db.String(200))
     extracted_text = db.Column(db.Text)
     uploaded_at = db.Column(db.String(50))
+
+
+class ReportScanPdf(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    report_id = db.Column(db.Integer, db.ForeignKey('report.id'), nullable=False)
+    stored_filename = db.Column(db.String(200), nullable=False)
+    original_name = db.Column(db.String(200))
+    extracted_text = db.Column(db.Text)
+    uploaded_at = db.Column(db.String(50))
+
+    report = db.relationship('Report', backref=db.backref('scan_pdfs', lazy=True))
 
 
 def ensure_admin_user():
@@ -117,7 +133,7 @@ def migrate_schema():
                         conn.execute(text(f'ALTER TABLE report ADD COLUMN {col} {col_type}'))
                         conn.commit()
 
-    if 'client_document' not in tables:
+    if 'client_document' not in tables or 'report_scan_pdf' not in tables:
         db.create_all()
 
 
@@ -150,6 +166,19 @@ def _client_display_name(email):
     return email.split('@')[0]
 
 
+def _attach_scan_pdfs_to_report(report, pdf_results):
+    """Link uploaded scan PDFs to a report record."""
+    for pdf in pdf_results:
+        entry = ReportScanPdf(
+            report_id=report.id,
+            stored_filename=pdf['stored_filename'],
+            original_name=pdf['original_name'],
+            extracted_text=pdf['extracted_text'],
+            uploaded_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
+        )
+        db.session.add(entry)
+
+
 def _build_full_report(email, title, raw_data):
     """Generate HTML report with AI recommendations, PDF, and email."""
     docs = _get_client_documents(email)
@@ -162,6 +191,16 @@ def _build_full_report(email, title, raw_data):
     html_report = generate_report_html(email, title, raw_data, ai_html)
     plain_text = generate_report_text(email, title, raw_data, ai_html)
     return html_report, plain_text, ai_html
+
+
+def _process_admin_scan_input(pasted_text):
+    """Handle pasted text plus any uploaded scan PDFs from the admin form."""
+    pdf_results = process_scan_pdf_uploads(
+        request.files.getlist('scan_pdfs'),
+        scan_pdfs_dir,
+    )
+    combined = merge_scan_sources(pasted_text, pdf_results)
+    return combined, pdf_results
 
 
 def _save_pdf_for_report(report, html_report):
@@ -326,6 +365,19 @@ def download_report_pdf(report_id):
     )
 
 
+@app.route('/admin/scan-pdf/<int:scan_id>')
+def download_scan_pdf(scan_id):
+    if not session.get('is_admin'):
+        abort(403)
+    scan = ReportScanPdf.query.get_or_404(scan_id)
+    return send_from_directory(
+        scan_pdfs_dir,
+        scan.stored_filename,
+        as_attachment=True,
+        download_name=scan.original_name,
+    )
+
+
 @app.route('/documents/<int:doc_id>')
 def download_document(doc_id):
     if not session.get('user_id'):
@@ -382,44 +434,75 @@ def admin():
 
         elif not email:
             flash('Client email is required.', 'error')
-        elif action == 'generate':
-            if not raw_data.strip():
-                flash('Paste raw scan data before generating a report.', 'error')
-            else:
-                html_report, plain_text, ai_html = _build_full_report(email, title, raw_data)
-                report = Report(
-                    user_email=email,
-                    title=title,
-                    raw_data=raw_data,
-                    generated_report=html_report,
-                    plain_text=plain_text,
-                    ai_recommendations=ai_html,
-                    date=datetime.now().strftime('%Y-%m-%d %H:%M'),
-                )
-                db.session.add(report)
-                db.session.commit()
-
-                pdf_ok = _save_pdf_for_report(report, html_report)
-                email_ok, email_msg = _email_report_to_client(report, html_report, plain_text)
-                db.session.commit()
-
-                latest_report = report
-                if pdf_ok and email_ok:
-                    flash(f'Report saved to client portal, PDF created, and emailed to {email}.', 'success')
-                elif pdf_ok:
-                    flash(f'Report saved and PDF created. {email_msg}', 'error')
-                else:
-                    flash(f'Report saved to portal. PDF/email issue: {email_msg}', 'error')
         else:
-            report = Report(
-                user_email=email,
-                title=title,
-                raw_data=raw_data,
-                date=datetime.now().strftime('%Y-%m-%d %H:%M'),
-            )
-            db.session.add(report)
-            db.session.commit()
-            flash('Raw scan data saved to client record (admin-only visibility).', 'success')
+            try:
+                combined_raw, pdf_results = _process_admin_scan_input(raw_data)
+            except ValueError as exc:
+                flash(str(exc), 'error')
+                combined_raw, pdf_results = '', []
+
+            if action == 'generate':
+                if not combined_raw.strip():
+                    flash('Paste raw scan data or upload at least one scan PDF.', 'error')
+                else:
+                    html_report, plain_text, ai_html = _build_full_report(
+                        email, title, combined_raw
+                    )
+                    report = Report(
+                        user_email=email,
+                        title=title,
+                        raw_data=combined_raw,
+                        generated_report=html_report,
+                        plain_text=plain_text,
+                        ai_recommendations=ai_html,
+                        date=datetime.now().strftime('%Y-%m-%d %H:%M'),
+                    )
+                    db.session.add(report)
+                    db.session.commit()
+
+                    if pdf_results:
+                        _attach_scan_pdfs_to_report(report, pdf_results)
+                        db.session.commit()
+
+                    pdf_ok = _save_pdf_for_report(report, html_report)
+                    email_ok, email_msg = _email_report_to_client(
+                        report, html_report, plain_text
+                    )
+                    db.session.commit()
+
+                    latest_report = report
+                    pdf_note = (
+                        f' ({len(pdf_results)} scan PDF{"s" if len(pdf_results) != 1 else ""} processed)'
+                        if pdf_results else ''
+                    )
+                    if pdf_ok and email_ok:
+                        flash(
+                            f'Report saved to client portal, PDF created, and emailed to {email}.{pdf_note}',
+                            'success',
+                        )
+                    elif pdf_ok:
+                        flash(f'Report saved and PDF created. {email_msg}{pdf_note}', 'error')
+                    else:
+                        flash(f'Report saved to portal. PDF/email issue: {email_msg}', 'error')
+            elif action == 'save':
+                if not combined_raw.strip():
+                    flash('Paste raw scan data or upload at least one scan PDF.', 'error')
+                else:
+                    report = Report(
+                        user_email=email,
+                        title=title,
+                        raw_data=combined_raw,
+                        date=datetime.now().strftime('%Y-%m-%d %H:%M'),
+                    )
+                    db.session.add(report)
+                    db.session.commit()
+                    if pdf_results:
+                        _attach_scan_pdfs_to_report(report, pdf_results)
+                        db.session.commit()
+                    flash(
+                        'Raw scan data saved to client record (admin-only visibility).',
+                        'success',
+                    )
 
     reports = Report.query.order_by(Report.id.desc()).all()
     now = datetime.now().strftime('%b %d, %Y')
