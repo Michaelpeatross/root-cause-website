@@ -134,6 +134,11 @@ def parse_date_from_text(text):
 
 def _doc_reference_date(doc):
     """Best estimate of when a medical test was performed."""
+    if getattr(doc, 'grok_date', None):
+        try:
+            return datetime.strptime(doc.grok_date, '%Y-%m-%d')
+        except ValueError:
+            pass
     if getattr(doc, 'test_date', None):
         try:
             return datetime.strptime(doc.test_date, '%Y-%m-%d')
@@ -167,18 +172,32 @@ def filter_recent_medical_documents(documents, reference_date=None, years=1):
     return recent
 
 
-def combined_document_text(documents, recent_only=True, reference_date=None):
-    """Merge extracted text from client documents (optionally last 12 months only)."""
-    docs = filter_recent_medical_documents(documents, reference_date) if recent_only else documents
+def combined_document_text(documents, recent_only=False, reference_date=None, max_chars=80000):
+    """Merge extracted text from client documents (all by default; set recent_only=True to filter)."""
+    docs = list(
+        filter_recent_medical_documents(documents, reference_date) if recent_only else documents
+    )
+    if not docs:
+        return ''
+
+    docs.sort(key=_doc_reference_date)
+    budget = max_chars or 80000
+    per_doc = max(2500, budget // len(docs))
+
     parts = []
     for doc in docs:
-        if doc.extracted_text:
-            test_dt = _doc_reference_date(doc)
-            date_label = test_dt.strftime('%Y-%m-%d')
-            parts.append(
-                f'--- {doc.original_name} (test date ~{date_label}) ---\n{doc.extracted_text}'
-            )
-    return '\n\n'.join(parts)[:40000]
+        if not doc.extracted_text:
+            continue
+        test_dt = _doc_reference_date(doc)
+        date_label = test_dt.strftime('%Y-%m-%d')
+        doc_label = getattr(doc, 'grok_label', None) or doc.original_name
+        excerpt = doc.extracted_text[:per_doc]
+        if len(doc.extracted_text) > per_doc:
+            excerpt += '\n[... document truncated for length ...]'
+        parts.append(
+            f'--- {doc_label} (Grok date ~{date_label}; uploaded as {doc.original_name}) ---\n{excerpt}'
+        )
+    return '\n\n'.join(parts)[:budget]
 
 
 def process_scan_pdf_uploads(file_list, upload_dir):

@@ -1,0 +1,18 @@
+# Render Blueprint — persistent disk keeps database + uploads across redeploys.
+# Disks require a paid plan (Starter or higher).
+services:
+  - type: web
+    name: root-cause-website
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DATA_DIR
+        value: /opt/render/project/src/data
+    disk:
+      name: rootcause-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1

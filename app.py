@@ -4,6 +4,7 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 from datetime import datetime
 from collections import OrderedDict
@@ -14,39 +15,47 @@ from pdf_service import save_report_pdf, pdf_to_bytes
 from document_service import (
     save_upload, save_multiple_uploads, extract_text, combined_document_text,
     process_scan_pdf_uploads, merge_scan_sources,
-    parse_date_from_text, filter_recent_medical_documents,
+    parse_date_from_text,
 )
 from client_portal import get_personalized_recommendations
-from health_advisor import get_health_recommendations
+from health_advisor import get_health_recommendations, classify_medical_document
 from notification_service import (
     notify_client_analysis_update, notify_admin_analysis_request,
     deliver_report_to_client,
 )
 from stripe_service import create_checkout_session, stripe_configured
+from persistent_storage import setup_persistent_paths
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'rootcause2026secretkey')
 app.config['MAX_CONTENT_LENGTH'] = 80 * 1024 * 1024
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-_site_https = os.environ.get('SITE_URL', '').startswith('https')
-app.config['SESSION_COOKIE_SECURE'] = (
-    os.environ.get('SESSION_COOKIE_SECURE', 'true' if _site_https else 'false').lower() == 'true'
-)
+# Use RENDER (auto-set on Render.com), not SITE_URL — SITE_URL=https breaks local HTTP sessions.
+_on_render = bool(os.environ.get('RENDER'))
+_cookie_secure_env = os.environ.get('SESSION_COOKIE_SECURE', '').lower()
+if _cookie_secure_env == 'true':
+    app.config['SESSION_COOKIE_SECURE'] = True
+elif _cookie_secure_env == 'false':
+    app.config['SESSION_COOKIE_SECURE'] = False
+else:
+    app.config['SESSION_COOKIE_SECURE'] = _on_render
 app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 14
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-instance_dir = os.path.join(basedir, 'instance')
-uploads_dir = os.path.join(basedir, 'uploads')
-reports_dir = os.path.join(uploads_dir, 'reports')
-documents_dir = os.path.join(uploads_dir, 'documents')
-scan_pdfs_dir = os.path.join(uploads_dir, 'scan_pdfs')
-os.makedirs(instance_dir, exist_ok=True)
-os.makedirs(reports_dir, exist_ok=True)
-os.makedirs(documents_dir, exist_ok=True)
-os.makedirs(scan_pdfs_dir, exist_ok=True)
+_storage = setup_persistent_paths(basedir)
+data_dir = _storage['data_dir']
+instance_dir = _storage['instance_dir']
+uploads_dir = _storage['uploads_dir']
+reports_dir = _storage['reports_dir']
+documents_dir = _storage['documents_dir']
+scan_pdfs_dir = _storage['scan_pdfs_dir']
 
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(instance_dir, "rootcause.db")}'
+if os.environ.get('RENDER'):
+    print(f'[Root Cause] Persistent data directory: {data_dir}')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = _storage['database_uri']
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -85,6 +94,8 @@ class ClientDocument(db.Model):
     original_name = db.Column(db.String(200))
     extracted_text = db.Column(db.Text)
     test_date = db.Column(db.String(20))
+    grok_label = db.Column(db.String(200))
+    grok_date = db.Column(db.String(20))
     uploaded_at = db.Column(db.String(50))
 
 
@@ -161,23 +172,52 @@ def migrate_schema():
 
     if 'client_document' in tables:
         doc_cols = {c['name'] for c in inspector.get_columns('client_document')}
-        if 'test_date' not in doc_cols:
-            with db.engine.connect() as conn:
-                conn.execute(text('ALTER TABLE client_document ADD COLUMN test_date VARCHAR(20)'))
-                conn.commit()
+        for col, col_type in {
+            'test_date': 'VARCHAR(20)',
+            'grok_label': 'VARCHAR(200)',
+            'grok_date': 'VARCHAR(20)',
+        }.items():
+            if col not in doc_cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text(f'ALTER TABLE client_document ADD COLUMN {col} {col_type}'))
+                    conn.commit()
 
     if 'client_document' not in tables or 'report_scan_pdf' not in tables:
         db.create_all()
 
 
+def _normalize_email(email):
+    return (email or '').strip().lower()
+
+
+def _normalize_stored_emails():
+    """Keep user emails lowercase so login always matches registration."""
+    from sqlalchemy import inspect
+    if 'user' not in inspect(db.engine).get_table_names():
+        return
+    seen = set()
+    for user in User.query.order_by(User.id).all():
+        normalized = _normalize_email(user.email)
+        if not normalized:
+            continue
+        if normalized in seen:
+            continue
+        if user.email != normalized:
+            conflict = User.query.filter(
+                db.func.lower(User.email) == normalized,
+                User.id != user.id,
+            ).first()
+            if not conflict:
+                user.email = normalized
+        seen.add(normalized)
+    db.session.commit()
+
+
 with app.app_context():
     db.create_all()
     migrate_schema()
+    _normalize_stored_emails()
     ensure_admin_user()
-
-
-def _normalize_email(email):
-    return (email or '').strip().lower()
 
 
 def _user_owns_report(report):
@@ -190,6 +230,25 @@ def _get_client_documents(email):
     return ClientDocument.query.filter(
         db.func.lower(ClientDocument.user_email) == _normalize_email(email)
     ).order_by(ClientDocument.id.desc()).all()
+
+
+def _apply_document_classification(doc):
+    """Store Grok-inferred document name and test date on a ClientDocument."""
+    meta = classify_medical_document(doc.extracted_text, doc.original_name)
+    doc.grok_label = (meta.get('document_name') or 'Medical document')[:200]
+    doc.grok_date = meta.get('test_date')
+
+
+def _ensure_document_labels(documents):
+    """Backfill Grok labels for documents uploaded before classification existed."""
+    updated = False
+    for doc in documents:
+        if doc.grok_label:
+            continue
+        _apply_document_classification(doc)
+        updated = True
+    if updated:
+        db.session.commit()
 
 
 def _client_display_name(email):
@@ -214,8 +273,7 @@ def _attach_scan_pdfs_to_report(report, pdf_results):
 
 def _medical_context(email):
     docs = _get_client_documents(email)
-    recent = filter_recent_medical_documents(docs)
-    return combined_document_text(docs, recent_only=True), len(recent)
+    return combined_document_text(docs, recent_only=False), len(docs)
 
 
 def _build_full_report(email, title, raw_data):
@@ -232,7 +290,7 @@ def _build_full_report(email, title, raw_data):
 
 
 def _regenerate_report_analysis(report, notify_client=False, notify_admin=False):
-    """Re-run Grok analysis using scan data + recent medical documents."""
+    """Re-run Grok analysis using scan data + all uploaded medical documents."""
     email = report.user_email
     medical_text, doc_count = _medical_context(email)
     client_name = _client_display_name(email)
@@ -285,6 +343,97 @@ def _group_reports_by_date(reports):
             label = date_key
         groups.setdefault(label, []).append(report)
     return groups
+
+
+def _parse_report_datetime(date_str):
+    if not date_str:
+        return None
+    for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%d'):
+        try:
+            return datetime.strptime(date_str[:16] if ' ' in date_str else date_str[:10], fmt)
+        except ValueError:
+            continue
+    return None
+
+
+def _last_scan_bucket(days):
+    """Map days since last scan to admin follow-up bucket."""
+    if days <= 1:
+        return '1_day'
+    if days <= 7:
+        return '1_week'
+    if days <= 30:
+        return '1_month'
+    if days <= 60:
+        return '2_months'
+    if days <= 90:
+        return '3_months'
+    if days < 180:
+        return '5_months'
+    return '6_months_plus'
+
+
+def _group_clients_by_last_scan():
+    """Group clients by how long ago their most recent scan was."""
+    bucket_defs = [
+        ('1_day', 'Within 1 day'),
+        ('1_week', '1 day – 1 week'),
+        ('1_month', '1 week – 1 month'),
+        ('2_months', '1 – 2 months'),
+        ('3_months', '2 – 3 months'),
+        ('5_months', '3 – 5 months'),
+        ('6_months_plus', '6 months & older'),
+    ]
+    buckets = {key: {'key': key, 'label': label, 'clients': []} for key, label in bucket_defs}
+
+    reports = Report.query.order_by(Report.id.desc()).all()
+    latest_by_email = {}
+    for report in reports:
+        email = _normalize_email(report.user_email)
+        report_dt = _parse_report_datetime(report.date)
+        existing = latest_by_email.get(email)
+        if not existing:
+            latest_by_email[email] = (report, report_dt)
+            continue
+        existing_dt = existing[1]
+        if report_dt and (not existing_dt or report_dt > existing_dt):
+            latest_by_email[email] = (report, report_dt)
+
+    users = {
+        _normalize_email(u.email): u
+        for u in User.query.filter(User.is_admin == False).all()
+    }
+    now = datetime.now()
+
+    for email, (report, report_dt) in latest_by_email.items():
+        if not report_dt:
+            continue
+        days = (now - report_dt).total_seconds() / 86400
+        bucket_key = _last_scan_bucket(days)
+        user = users.get(email)
+        name = (user.name if user and user.name else email.split('@')[0])
+        days_display = max(0, int(days))
+        if days_display == 0:
+            days_label = 'today'
+        elif days_display == 1:
+            days_label = '1 day ago'
+        else:
+            days_label = f'{days_display} days ago'
+
+        buckets[bucket_key]['clients'].append({
+            'email': email,
+            'name': name,
+            'last_scan_date': report.date,
+            'last_scan_title': report.title,
+            'days_ago': days_display,
+            'days_label': days_label,
+            'approved': bool(report.approved),
+        })
+
+    for bucket in buckets.values():
+        bucket['clients'].sort(key=lambda c: c['days_ago'])
+
+    return [buckets[key] for key, _label in bucket_defs]
 
 
 def _process_admin_scan_input(pasted_text):
@@ -386,14 +535,18 @@ def instructions():
 
 def _find_user_by_email(email):
     """Case-insensitive user lookup."""
-    if not email:
+    normalized = _normalize_email(email)
+    if not normalized:
         return None
-    user = User.query.filter(db.func.lower(User.email) == email).first()
-    if not user:
-        user = User.query.filter(
-            db.func.lower(User.email) == _normalize_email(email)
-        ).first()
-    return user
+    return User.query.filter(db.func.lower(User.email) == normalized).first()
+
+
+def _start_user_session(user):
+    session.permanent = True
+    session['user_id'] = user.id
+    session['email'] = user.email
+    session['name'] = user.name or user.email.split('@')[0]
+    session['is_admin'] = bool(user.is_admin)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -422,13 +575,9 @@ def login():
 
         user = _find_user_by_email(email)
         if user and user.password and check_password_hash(user.password, password):
-            session.permanent = True
-            session['user_id'] = user.id
-            session['email'] = user.email
-            session['name'] = user.name or user.email.split('@')[0]
-            session['is_admin'] = bool(user.is_admin)
+            _start_user_session(user)
             flash('Welcome back!', 'success')
-            return redirect(url_for('admin') if user.is_admin else 'dashboard')
+            return redirect(url_for('admin') if user.is_admin else url_for('dashboard'))
 
         if not user:
             has_reports = Report.query.filter(
@@ -445,26 +594,75 @@ def login():
         elif not user.password:
             flash('Account needs a password. Use "Forgot password" below to set one.', 'error')
         else:
-            flash('Incorrect password. Try again or use Forgot Password.', 'error')
+            flash(
+                f'Incorrect password for {raw_email}. Use Forgot Password to reset it.',
+                'error',
+            )
 
-    return render_template('login.html')
+    return render_template('login.html', email=request.args.get('email', ''))
 
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
-        email = _normalize_email(request.form.get('email'))
+        raw_email = request.form.get('email', '').strip()
+        email = _normalize_email(raw_email)
         password = request.form.get('password', '')
-        if _find_user_by_email(email):
+        confirm = request.form.get('confirm_password', '')
+        if not email:
+            flash('A valid email is required.', 'error')
+        elif len(password) < 6:
+            flash('Password must be at least 6 characters.', 'error')
+        elif password != confirm:
+            flash('Passwords do not match.', 'error')
+        elif _find_user_by_email(email):
             flash('Email already registered. Please log in.', 'error')
+            return redirect(url_for('login', email=email))
         else:
             user = User(name=name, email=email, password=generate_password_hash(password))
             db.session.add(user)
             db.session.commit()
-            flash('Account created! Please log in.', 'success')
-            return redirect(url_for('login'))
+            _start_user_session(user)
+            flash('Account created — welcome to your portal!', 'success')
+            return redirect(url_for('dashboard'))
     return render_template('register.html')
+
+
+def _client_user_info(email):
+    user = User.query.filter(db.func.lower(User.email) == _normalize_email(email)).first()
+    return {
+        'name': (user.name if user and user.name else email.split('@')[0]),
+        'phone': user.phone if user else '',
+        'email': email,
+    }
+
+
+def _build_dashboard_context(email):
+    reports = Report.query.filter(
+        db.func.lower(Report.user_email) == _normalize_email(email),
+        Report.generated_report.isnot(None),
+        Report.approved == True,
+    ).order_by(Report.id.desc()).all()
+    documents = _get_client_documents(email)
+    _ensure_document_labels(documents)
+    latest_report = reports[0] if reports else None
+    return {
+        'reports': reports,
+        'reports_by_date': _group_reports_by_date(reports),
+        'documents': documents,
+        'recommendations': get_personalized_recommendations(latest_report, documents),
+        'stripe_ready': stripe_configured(),
+        'user': _client_user_info(email),
+    }
+
+
+def _render_client_dashboard(email, admin_preview=False):
+    return render_template(
+        'dashboard.html',
+        admin_preview=admin_preview,
+        **_build_dashboard_context(email),
+    )
 
 
 @app.route('/dashboard', methods=['GET', 'POST'])
@@ -515,6 +713,7 @@ def dashboard():
                         test_date=test_date,
                         uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
                     )
+                    _apply_document_classification(doc)
                     db.session.add(doc)
                     count += 1
                 db.session.commit()
@@ -537,36 +736,27 @@ def dashboard():
                 db.session.commit()
                 flash(
                     f'Updated Grok analysis sent! Used {doc_count} medical document(s) '
-                    f'from the past year. {" ".join(m for m in msgs if m)}',
+                    f'from all uploaded medical documents. {" ".join(m for m in msgs if m)}',
                     'success',
                 )
             else:
                 flash('No scan report available yet. Contact your practitioner.', 'error')
 
-    reports = Report.query.filter(
-        db.func.lower(Report.user_email) == _normalize_email(email),
-        Report.generated_report.isnot(None),
-        Report.approved == True,
-    ).order_by(Report.id.desc()).all()
-    documents = _get_client_documents(email)
-    user_obj = User.query.get(session['user_id'])
-    reports_by_date = _group_reports_by_date(reports)
-    latest_report = reports[0] if reports else None
-    recommendations = get_personalized_recommendations(latest_report, documents)
+    return _render_client_dashboard(email)
 
-    return render_template(
-        'dashboard.html',
-        reports=reports,
-        reports_by_date=reports_by_date,
-        documents=documents,
-        recommendations=recommendations,
-        stripe_ready=stripe_configured(),
-        user={
-            'name': session.get('name', 'Client'),
-            'phone': user_obj.phone if user_obj else '',
-            'email': email,
-        },
-    )
+
+@app.route('/admin/client-portal')
+def admin_client_portal():
+    if not session.get('is_admin'):
+        flash('Admin access required.', 'error')
+        return redirect(url_for('login'))
+
+    email = _normalize_email(request.args.get('email'))
+    if not email:
+        flash('Client email is required.', 'error')
+        return redirect(url_for('admin'))
+
+    return _render_client_dashboard(email, admin_preview=True)
 
 
 @app.route('/reports/<int:report_id>')
@@ -666,7 +856,7 @@ def admin():
                     report.approved = False
                 db.session.commit()
                 flash(
-                    f'AI recommendations refreshed ({doc_count} recent medical doc(s) included). '
+                    f'AI recommendations refreshed ({doc_count} medical document(s) included). '
                     f'{"Re-approve to send updates to client." if was_approved else "Review and approve to send."}',
                     'success',
                 )
@@ -743,11 +933,13 @@ def admin():
                     )
 
     reports = Report.query.order_by(Report.id.desc()).all()
+    client_scan_buckets = _group_clients_by_last_scan()
     now = datetime.now().strftime('%b %d, %Y')
     return render_template(
         'admin.html',
         reports=reports,
         latest_report=latest_report,
+        client_scan_buckets=client_scan_buckets,
         now=now,
     )
 

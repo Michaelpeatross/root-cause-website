@@ -3,13 +3,12 @@ from datetime import datetime
 
 from report_generator import _parse_lines, _recommendations
 from affiliate_links import supplement_list_html, lab_list_html
-from document_service import filter_recent_medical_documents
 
 
 def get_personalized_recommendations(latest_report, all_documents):
     """
     Build supplement and lab recommendation HTML from the latest approved scan
-    plus medical documents from the past 12 months.
+    plus all uploaded medical documents.
     """
     if not latest_report or not latest_report.raw_data:
         return {
@@ -26,26 +25,25 @@ def get_personalized_recommendations(latest_report, all_documents):
     if not active_cats and findings:
         active_cats = list({f['category'] for f in findings[:8]})
 
-    recent_docs = filter_recent_medical_documents(all_documents or [])
-    if recent_docs:
-        for doc in recent_docs:
-            if doc.extracted_text:
-                doc_findings = _parse_lines(doc.extracted_text[:5000])
-                for f in doc_findings:
-                    if f['category'] not in active_cats:
-                        active_cats.append(f['category'])
+    all_docs = all_documents or []
+    for doc in all_docs:
+        if doc.extracted_text:
+            doc_findings = _parse_lines(doc.extracted_text[:5000])
+            for f in doc_findings:
+                if f['category'] not in active_cats:
+                    active_cats.append(f['category'])
 
     supplements, labs = _recommendations(active_cats[:8])
 
     updated = latest_report.analysis_updated or latest_report.approved_at or latest_report.date
-    if recent_docs:
+    if all_docs:
         updated = datetime.now().strftime('%Y-%m-%d %H:%M')
 
     doc_note = ''
-    if recent_docs:
+    if all_docs:
         doc_note = (
             f'<p class="rec-note"><em>Updated from your latest scan and '
-            f'{len(recent_docs)} medical document(s) from the past 12 months.</em></p>'
+            f'all {len(all_docs)} uploaded medical document(s).</em></p>'
         )
 
     return {

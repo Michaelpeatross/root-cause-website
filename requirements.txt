@@ -1,6 +1,7 @@
 flask
 flask-sqlalchemy
 werkzeug
+gunicorn
 xhtml2pdf
 pypdf
 python-docx
