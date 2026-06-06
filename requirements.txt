@@ -4,5 +4,7 @@ werkzeug
 gunicorn
 xhtml2pdf
 pypdf
+pymupdf
+pdfplumber
 python-docx
 stripe

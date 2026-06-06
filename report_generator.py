@@ -280,9 +280,12 @@ def generate_report_text(email, title, raw_data, ai_recommendations_html=None):
     return '\n'.join(lines)
 
 
-def generate_report_html(email, title, raw_data, ai_recommendations_html=None, client_name=None):
+def generate_report_html(
+    email, title, raw_data, ai_recommendations_html=None, client_name=None,
+    prefer_template=False,
+):
     """Build a complete professional HTML report from raw scan paste."""
-    if uses_template_format(raw_data or ''):
+    if prefer_template or uses_template_format(raw_data or '', title=title):
         return generate_template_report_html(
             email, title, raw_data, client_name=client_name,
             ai_recommendations_html=ai_recommendations_html,

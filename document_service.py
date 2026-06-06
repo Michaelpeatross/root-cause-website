@@ -67,25 +67,71 @@ def save_multiple_uploads(file_list, upload_dir):
     return results, []
 
 
-def extract_text(file_path, original_name):
+def _pdf_extraction_failed(text):
+    return (text or '').startswith('[PDF uploaded:')
+
+
+def _extract_pdf_text(file_path, max_pages=40, max_chars=60000):
+    """Extract text from a PDF using multiple backends for vendor scan compatibility."""
+    parts = []
+
+    try:
+        from pypdf import PdfReader
+        reader = PdfReader(file_path, strict=False)
+        if getattr(reader, 'is_encrypted', False):
+            try:
+                reader.decrypt('')
+            except Exception:
+                pass
+        for page in reader.pages[:max_pages]:
+            parts.append(page.extract_text() or '')
+        text = '\n'.join(parts).strip()
+        if len(text) >= 80:
+            return text[:max_chars]
+    except Exception:
+        pass
+
+    try:
+        import fitz
+        doc = fitz.open(file_path)
+        try:
+            text = '\n'.join(
+                doc[i].get_text() for i in range(min(len(doc), max_pages))
+            ).strip()
+            if len(text) >= 80:
+                return text[:max_chars]
+        finally:
+            doc.close()
+    except Exception:
+        pass
+
+    try:
+        import pdfplumber
+        with pdfplumber.open(file_path) as pdf:
+            text = '\n'.join(
+                (page.extract_text() or '') for page in pdf.pages[:max_pages]
+            ).strip()
+            if len(text) >= 80:
+                return text[:max_chars]
+    except Exception:
+        pass
+
+    return ''
+
+
+def extract_text(file_path, original_name, *, max_pages=30, max_chars=20000):
     """Extract readable text from an uploaded document."""
     ext = os.path.splitext(original_name or file_path)[1].lower()
 
     if ext == '.txt':
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            return f.read()[:20000]
+            return f.read()[:max_chars]
 
     if ext == '.pdf':
-        try:
-            from pypdf import PdfReader
-            reader = PdfReader(file_path)
-            parts = []
-            for page in reader.pages[:30]:
-                text = page.extract_text() or ''
-                parts.append(text)
-            return '\n'.join(parts)[:20000]
-        except Exception:
-            return f'[PDF uploaded: {original_name} — text extraction unavailable]'
+        text = _extract_pdf_text(file_path, max_pages=max_pages, max_chars=max_chars)
+        if text:
+            return text
+        return f'[PDF uploaded: {original_name} — text extraction unavailable]'
 
     if ext == '.docx':
         try:
@@ -226,11 +272,12 @@ def process_scan_pdf_uploads(file_list, upload_dir):
         stored = f'{uuid.uuid4().hex}.pdf'
         path = os.path.join(upload_dir, stored)
         file_storage.save(path)
-        text = extract_text(path, original)
+        text = extract_text(path, original, max_pages=40, max_chars=60000)
         results.append({
             'stored_filename': stored,
             'original_name': original,
             'extracted_text': text,
+            'extraction_ok': not _pdf_extraction_failed(text),
         })
     return results
 
@@ -245,3 +292,21 @@ def merge_scan_sources(pasted_text, pdf_results):
             f'--- SCAN PDF: {pdf["original_name"]} ---\n{pdf["extracted_text"]}'
         )
     return '\n\n'.join(parts)
+
+
+def scan_pdf_extraction_issues(pdf_results):
+    """Return user-facing warnings for scan PDFs that failed text extraction."""
+    issues = []
+    for pdf in pdf_results or []:
+        text = pdf.get('extracted_text') or ''
+        if _pdf_extraction_failed(text):
+            issues.append(
+                f'Could not read text from "{pdf.get("original_name", "scan PDF")}". '
+                'Paste the scan text below or re-upload the PDF.'
+            )
+        elif len(text.strip()) < 200:
+            issues.append(
+                f'Very little text extracted from "{pdf.get("original_name", "scan PDF")}" '
+                f'({len(text.strip())} characters). The report may be incomplete.'
+            )
+    return issues

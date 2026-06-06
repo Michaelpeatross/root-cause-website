@@ -14,7 +14,7 @@ from pdf_service import save_report_pdf, pdf_to_bytes
 
 from document_service import (
     save_upload, save_multiple_uploads, extract_text, combined_document_text,
-    process_scan_pdf_uploads, merge_scan_sources,
+    process_scan_pdf_uploads, merge_scan_sources, scan_pdf_extraction_issues,
     parse_date_from_text,
 )
 from client_portal import get_personalized_recommendations
@@ -276,16 +276,26 @@ def _medical_context(email):
     return combined_document_text(docs, recent_only=False), len(docs)
 
 
-def _build_full_report(email, title, raw_data):
+def _prefer_full_scan_template(title, raw_data, pdf_results=None):
+    """Use the Full Scan PDF layout when a bio scan PDF was uploaded or detected."""
+    if pdf_results and any(p.get('extraction_ok') for p in pdf_results):
+        return True
+    from scan_template import uses_template_format
+    return uses_template_format(raw_data or '', title=title)
+
+
+def _build_full_report(email, title, raw_data, pdf_results=None):
     """Generate HTML report with AI recommendations, PDF, and email."""
     medical_text, _doc_count = _medical_context(email)
     client_name = _client_display_name(email)
+    prefer_template = _prefer_full_scan_template(title, raw_data, pdf_results)
 
     ai_html, _source = get_health_recommendations(
         raw_data, medical_text, client_name, email
     )
     html_report = generate_report_html(
-        email, title, raw_data, ai_html, client_name=client_name
+        email, title, raw_data, ai_html, client_name=client_name,
+        prefer_template=prefer_template,
     )
     plain_text = generate_report_text(email, title, raw_data, ai_html)
     return html_report, plain_text, ai_html
@@ -303,7 +313,8 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
     )
     report.ai_recommendations = ai_html
     report.generated_report = generate_report_html(
-        email, report.title, report.raw_data, ai_html, client_name=client_name
+        email, report.title, report.raw_data, ai_html, client_name=client_name,
+        prefer_template=_prefer_full_scan_template(report.title, report.raw_data),
     )
     report.plain_text = generate_report_text(
         email, report.title, report.raw_data, ai_html
@@ -984,8 +995,10 @@ def admin():
                     flash('Paste raw scan data or upload at least one scan PDF.', 'error')
                 else:
                     _, doc_count = _medical_context(email)
+                    for issue in scan_pdf_extraction_issues(pdf_results):
+                        flash(issue, 'error')
                     html_report, plain_text, ai_html = _build_full_report(
-                        email, title, combined_raw
+                        email, title, combined_raw, pdf_results=pdf_results
                     )
                     report = Report(
                         user_email=email,

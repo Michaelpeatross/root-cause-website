@@ -290,15 +290,40 @@ def _render_hormones(items):
     return ''.join(parts)
 
 
-def uses_template_format(raw_text):
-    lower = (raw_text or '').lower()
+def _scan_body_text(raw_text):
+    """Strip admin PDF wrappers so detection runs on scan content only."""
+    text = raw_text or ''
+    if '--- SCAN PDF:' not in text:
+        return text
+    chunks = []
+    for block in re.split(r'---\s*SCAN PDF:[^\n]*---\s*', text, flags=re.I):
+        block = block.strip()
+        if block and not block.startswith('[PDF uploaded:'):
+            chunks.append(block)
+    return '\n\n'.join(chunks) if chunks else text
+
+
+def uses_template_format(raw_text, title=None):
+    body = _scan_body_text(raw_text)
+    lower = body.lower()
+    if re.match(r'^full\s+scan\b', lower.strip()):
+        return True
+    if title and 'full scan' in title.lower() and len(body.strip()) >= 200:
+        return True
+    if _find_sections(body):
+        return True
     markers = (
         'system performance',
         'metabolic test results',
         'balancing remedies',
-        'sensitivi',
-        'nutri',
+        'better sleep scan',
+        'hormone test results',
+        'energetic sensiti',
+        'energetic nutri',
+        'energetic toxins',
+        'energetic hormonal',
         'you tested with',
+        'personalized client summary',
     )
     return sum(1 for m in markers if m in lower) >= 2
 
@@ -307,15 +332,16 @@ def generate_template_report_html(
     email, title, raw_data, client_name=None, ai_recommendations_html=None,
 ):
     """Build HTML report styled like the Full Scan PDF template."""
-    sections = _find_sections(raw_data)
+    scan_text = _scan_body_text(raw_data)
+    sections = _find_sections(scan_text)
     scan_title, display_name, scan_date = _extract_title_info(
-        raw_data, client_name, title
+        scan_text, client_name, title
     )
 
     sys_text = sections.get('system_performance', '')
     if not sys_text:
-        first_section = re.search(r'energ.{0,6}c\s+sensiti', raw_data, re.I)
-        sys_text = raw_data[:first_section.start()] if first_section else raw_data[:4000]
+        first_section = re.search(r'energ.{0,6}c\s+sensiti', scan_text, re.I)
+        sys_text = scan_text[:first_section.start()] if first_section else scan_text[:4000]
     systems, sys_notes, stressed = _parse_systems(sys_text)
     sensitivities = _parse_category_columns(
         sections.get('sensitivities', ''), SENSITIVITY_CATEGORIES
@@ -351,11 +377,11 @@ def generate_template_report_html(
         )
 
     raw_fallback = ''
-    if not sections and raw_data.strip():
+    if not sections and scan_text.strip():
         raw_fallback = (
             '<section class="scan-section">'
             '<h3>Scan Data</h3>'
-            f'<pre class="scan-raw-fallback">{escape(raw_data[:15000])}</pre>'
+            f'<pre class="scan-raw-fallback">{escape(scan_text[:15000])}</pre>'
             '</section>'
         )
 
