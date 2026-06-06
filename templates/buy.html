@@ -13,36 +13,40 @@
         <p style="font-size:3rem; font-weight:700; color:var(--green-dark); margin:0.25rem 0;">$199</p>
         <p><strong>$30 off — limited time offer</strong></p>
 
-        <div style="margin:2rem 0;">
-            <input type="text" id="coupon" placeholder="Enter discount code" style="padding:0.75rem 1rem; border:2px solid #dfe6e9; border-radius:8px; width:200px; font-size:1rem;">
-            <button class="btn btn-secondary" onclick="applyCoupon()" style="margin-left:0.5rem;">Apply Code</button>
-            <p id="coupon-message" style="margin-top:0.75rem; font-weight:600;"></p>
-        </div>
+        <form method="POST" action="{{ url_for('create_checkout') }}" style="margin:2rem 0;">
+            <div class="form-group" style="text-align:left;">
+                <label for="email">Email (optional — pre-fills checkout)</label>
+                <input type="email" id="email" name="email" placeholder="you@email.com">
+            </div>
+            <div class="form-group" style="text-align:left;">
+                <label for="coupon">Discount code</label>
+                <input type="text" id="coupon" name="coupon" placeholder="e.g. welcome50" value="">
+            </div>
 
-        <button onclick="proceedToCheckout()" class="btn btn-primary" style="font-size:1.1rem; padding:1rem 2rem;">Proceed to Secure Checkout</button>
+            {% if stripe_ready %}
+            <button type="submit" class="btn btn-primary" style="font-size:1.1rem; padding:1rem 2rem; width:100%;">
+                Pay Securely — $199
+            </button>
+            <p style="margin-top:1rem; font-size:0.9rem; color:var(--text-muted);">
+                <strong>Credit card</strong> · <strong>Apple Pay</strong> · <strong>Google Pay</strong> · <strong>Stripe Link</strong><br>
+                Powered by Stripe — among the lowest processing fees (~2.9% + 30¢)
+            </p>
+            <div style="display:flex; justify-content:center; gap:0.75rem; margin-top:0.75rem; flex-wrap:wrap; font-size:0.85rem; color:var(--text-muted);">
+                <span>💳 Visa / Mastercard / Amex</span>
+                <span> Apple Pay</span>
+                <span> Link</span>
+            </div>
+            {% else %}
+            <p style="color:#856404; background:#fff3cd; padding:0.75rem; border-radius:8px;">
+                Online checkout is being configured. Contact us to complete your order, or
+                <a href="{{ url_for('register') }}">create a free account</a> in the meantime.
+            </p>
+            {% endif %}
+        </form>
 
-        <p style="margin-top:2rem; font-size:0.9rem; color:var(--text-muted);">
-            After payment you can create your account and receive collection instructions plus your health questionnaire.
+        <p style="margin-top:1.5rem; font-size:0.9rem; color:var(--text-muted);">
+            After payment, <a href="{{ url_for('register') }}">create your free account</a> for sample instructions and your client portal.
         </p>
     </div>
 </div>
-
-<script>
-function applyCoupon() {
-    const code = document.getElementById('coupon').value.trim().toLowerCase();
-    const message = document.getElementById('coupon-message');
-    if (code === 'welcome50') {
-        message.style.color = '#155724';
-        message.textContent = '✓ Discount applied! Total: $199';
-    } else if (code !== '') {
-        message.style.color = '#721c24';
-        message.textContent = 'Invalid code — try welcome50';
-    } else {
-        message.textContent = '';
-    }
-}
-function proceedToCheckout() {
-    alert('Checkout coming soon — Stripe integration will be added in the next update.');
-}
-</script>
 {% endblock %}

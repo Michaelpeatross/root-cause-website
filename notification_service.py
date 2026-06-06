@@ -61,6 +61,44 @@ def send_sms(to_number, message):
         return False, f'SMS failed: {exc}'
 
 
+def deliver_report_to_client(
+    client_email, client_name, client_phone, report_title, plain_text,
+    pdf_bytes=None, send_email=True, send_sms=True,
+):
+    """Send report to client via selected channels. Returns list of status messages."""
+    site = os.environ.get('SITE_URL', 'https://root-cause-website.onrender.com')
+    results = []
+
+    if send_email:
+        subject = f'Your Root Cause Report: {report_title}'
+        body = (
+            f'Hi {client_name},\n\n'
+            f'Your personalized Root Cause bioenergetic report is ready.\n\n'
+            f'{plain_text[:2500]}\n\n'
+            f'View your full report and download the PDF in your client portal:\n'
+            f'{site}/login\n\n'
+            f'— Root Cause Bioenergetics'
+        )
+        ok, msg = send_plain_email(
+            client_email, subject, body, pdf_bytes, f'{report_title}.pdf'
+        )
+        results.append(('email', ok, msg))
+    else:
+        results.append(('email', None, 'Email not selected.'))
+
+    if send_sms:
+        ok, msg = send_sms(
+            client_phone,
+            f'Root Cause: Your report "{report_title}" is ready. '
+            f'Log in to your portal: {site}/login',
+        )
+        results.append(('sms', ok, msg))
+    else:
+        results.append(('sms', None, 'Text not selected.'))
+
+    return results
+
+
 def notify_client_analysis_update(client_email, client_name, client_phone, report_title, plain_text, pdf_bytes=None):
     """Email and SMS client with updated Grok analysis."""
     site = os.environ.get('SITE_URL', 'https://root-cause-website.onrender.com')
@@ -72,14 +110,14 @@ def notify_client_analysis_update(client_email, client_name, client_phone, repor
         f'Log in to your portal for the full report and PDF:\n{site}/login\n\n'
         f'— Root Cause Bioenergetics'
     )
-    email_ok, email_msg = send_plain_email(
-        client_email, subject, body, pdf_bytes, f'{report_title}.pdf'
+    results = deliver_report_to_client(
+        client_email, client_name, client_phone, report_title, plain_text,
+        pdf_bytes, send_email=True, send_sms=True,
     )
-    sms_ok, sms_msg = send_sms(
-        client_phone,
-        f'Root Cause: Your updated health analysis for "{report_title}" is ready. '
-        f'Check your email and client portal.',
-    )
+    email_ok = next((r[1] for r in results if r[0] == 'email'), False)
+    email_msg = next((r[2] for r in results if r[0] == 'email'), '')
+    sms_ok = next((r[1] for r in results if r[0] == 'sms'), False)
+    sms_msg = next((r[2] for r in results if r[0] == 'sms'), '')
     return email_ok, email_msg, sms_ok, sms_msg
 
 

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Payment Successful — Root Cause{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:520px; margin-top:3rem; text-align:center;">
+    <div class="card">
+        <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark);">Payment Successful</h1>
+        <p>Thank you for your purchase! Your bioenergetic analysis order is confirmed.</p>
+        <p style="color:var(--text-muted);">Create your free client account to receive sample collection instructions and access your portal.</p>
+        <a href="{{ url_for('register') }}" class="btn btn-primary" style="margin:0.5rem;">Create Free Account</a>
+        <a href="{{ url_for('login') }}" class="btn btn-outline" style="margin:0.5rem;">Sign In</a>
+    </div>
+</div>
+{% endblock %}

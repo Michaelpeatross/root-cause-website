@@ -10,7 +10,7 @@ from collections import OrderedDict
 
 from report_generator import generate_report_html, generate_report_text
 from pdf_service import save_report_pdf, pdf_to_bytes
-from email_service import send_report_email
+
 from document_service import (
     save_upload, extract_text, combined_document_text,
     process_scan_pdf_uploads, merge_scan_sources,
@@ -19,7 +19,9 @@ from document_service import (
 from health_advisor import get_health_recommendations
 from notification_service import (
     notify_client_analysis_update, notify_admin_analysis_request,
+    deliver_report_to_client,
 )
+from stripe_service import create_checkout_session, stripe_configured
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'rootcause2026secretkey')
@@ -61,6 +63,9 @@ class Report(db.Model):
     ai_recommendations = db.Column(db.Text)
     pdf_filename = db.Column(db.String(200))
     email_sent = db.Column(db.Boolean, default=False)
+    sms_sent = db.Column(db.Boolean, default=False)
+    approved = db.Column(db.Boolean, default=False)
+    approved_at = db.Column(db.String(50))
     date = db.Column(db.String(50))
     analysis_updated = db.Column(db.String(50))
 
@@ -135,6 +140,9 @@ def migrate_schema():
                 'ai_recommendations': 'TEXT',
                 'pdf_filename': 'VARCHAR(200)',
                 'email_sent': 'BOOLEAN DEFAULT 0',
+                'sms_sent': 'BOOLEAN DEFAULT 0',
+                'approved': 'BOOLEAN DEFAULT 0',
+                'approved_at': 'VARCHAR(50)',
                 'analysis_updated': 'VARCHAR(50)',
             }
             for col, col_type in new_cols.items():
@@ -290,19 +298,47 @@ def _save_pdf_for_report(report, html_report):
     return False
 
 
-def _email_report_to_client(report, html_report, plain_text):
-    pdf_bytes = pdf_to_bytes(html_report)
-    safe_title = report.title.replace('/', '-')[:60]
-    subject = f'Your Root Cause Report: {report.title}'
-    ok, msg = send_report_email(
+def _approve_and_send_report(report, send_email=False, send_sms=False):
+    """Mark report approved and deliver to client via selected channels."""
+    user = User.query.filter(
+        db.func.lower(User.email) == _normalize_email(report.user_email)
+    ).first()
+    client_name = _client_display_name(report.user_email)
+    client_phone = user.phone if user else ''
+
+    report.approved = True
+    report.approved_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    pdf_bytes = None
+    if report.generated_report and send_email:
+        pdf_bytes = pdf_to_bytes(report.generated_report)
+
+    results = deliver_report_to_client(
         report.user_email,
-        subject,
-        plain_text,
+        client_name,
+        client_phone,
+        report.title,
+        report.plain_text or '',
         pdf_bytes=pdf_bytes,
-        pdf_filename=f'{safe_title}.pdf',
+        send_email=send_email,
+        send_sms=send_sms,
     )
-    report.email_sent = ok
-    return ok, msg
+
+    messages = []
+    for channel, ok, msg in results:
+        if channel == 'email':
+            if send_email:
+                report.email_sent = bool(ok)
+                messages.append(msg)
+        elif channel == 'sms':
+            if send_sms:
+                report.sms_sent = bool(ok)
+                messages.append(msg)
+
+    if not send_email and not send_sms:
+        messages.append('Report approved and published to client portal (no notifications sent).')
+
+    return messages
 
 
 @app.route('/')
@@ -312,7 +348,24 @@ def index():
 
 @app.route('/buy')
 def buy():
-    return render_template('buy.html')
+    return render_template('buy.html', stripe_ready=stripe_configured())
+
+
+@app.route('/create-checkout-session', methods=['POST'])
+def create_checkout():
+    site_url = os.environ.get('SITE_URL', request.host_url.rstrip('/'))
+    email = request.form.get('email', '').strip() or None
+    coupon = request.form.get('coupon', '').strip()
+    session_url, error = create_checkout_session(site_url, email, coupon)
+    if session_url:
+        return redirect(session_url)
+    flash(error or 'Could not start checkout.', 'error')
+    return redirect(url_for('buy'))
+
+
+@app.route('/checkout/success')
+def checkout_success():
+    return render_template('checkout_success.html')
 
 
 @app.route('/instructions')
@@ -425,6 +478,7 @@ def dashboard():
     reports = Report.query.filter(
         db.func.lower(Report.user_email) == _normalize_email(email),
         Report.generated_report.isnot(None),
+        Report.approved == True,
     ).order_by(Report.id.desc()).all()
     documents = _get_client_documents(email)
     user_obj = User.query.get(session['user_id'])
@@ -450,6 +504,8 @@ def view_report(report_id):
     report = Report.query.get_or_404(report_id)
     if not _user_owns_report(report) or not report.generated_report:
         abort(403)
+    if not session.get('is_admin') and not report.approved:
+        abort(403)
     return render_template('report_view.html', report=report, user={'name': session.get('name', 'Client')})
 
 
@@ -459,6 +515,8 @@ def download_report_pdf(report_id):
         return redirect(url_for('login'))
     report = Report.query.get_or_404(report_id)
     if not _user_owns_report(report):
+        abort(403)
+    if not session.get('is_admin') and not report.approved:
         abort(403)
     if not report.pdf_filename:
         abort(404)
@@ -513,13 +571,31 @@ def admin():
         action = request.form.get('action', 'generate')
         report_id = request.form.get('report_id')
 
-        if action == 'refresh_ai' and report_id:
+        if action == 'approve' and report_id:
             report = Report.query.get(report_id)
-            if report and report.raw_data:
-                report, doc_count, _msgs = _regenerate_report_analysis(report)
+            if report and report.generated_report:
+                send_email = request.form.get('send_email') == 'on'
+                send_sms = request.form.get('send_sms') == 'on'
+                msgs = _approve_and_send_report(report, send_email, send_sms)
                 db.session.commit()
                 flash(
-                    f'AI recommendations refreshed ({doc_count} recent medical doc(s) included).',
+                    f'Report approved for {report.user_email}. ' + ' '.join(msgs),
+                    'success',
+                )
+            else:
+                flash('Report not found or not yet generated.', 'error')
+
+        elif action == 'refresh_ai' and report_id:
+            report = Report.query.get(report_id)
+            if report and report.raw_data:
+                was_approved = report.approved
+                report, doc_count, _msgs = _regenerate_report_analysis(report)
+                if was_approved:
+                    report.approved = False
+                db.session.commit()
+                flash(
+                    f'AI recommendations refreshed ({doc_count} recent medical doc(s) included). '
+                    f'{"Re-approve to send updates to client." if was_approved else "Review and approve to send."}',
                     'success',
                 )
             else:
@@ -548,6 +624,7 @@ def admin():
                         generated_report=html_report,
                         plain_text=plain_text,
                         ai_recommendations=ai_html,
+                        approved=False,
                         date=datetime.now().strftime('%Y-%m-%d %H:%M'),
                     )
                     db.session.add(report)
@@ -558,9 +635,6 @@ def admin():
                         db.session.commit()
 
                     pdf_ok = _save_pdf_for_report(report, html_report)
-                    email_ok, email_msg = _email_report_to_client(
-                        report, html_report, plain_text
-                    )
                     db.session.commit()
 
                     latest_report = report
@@ -568,15 +642,14 @@ def admin():
                         f' ({len(pdf_results)} scan PDF{"s" if len(pdf_results) != 1 else ""} processed)'
                         if pdf_results else ''
                     )
-                    if pdf_ok and email_ok:
+                    if pdf_ok:
                         flash(
-                            f'Report saved to client portal, PDF created, and emailed to {email}.{pdf_note}',
+                            f'Report generated for review — NOT sent to client yet. '
+                            f'Check email/text boxes and click Approve & Send.{pdf_note}',
                             'success',
                         )
-                    elif pdf_ok:
-                        flash(f'Report saved and PDF created. {email_msg}{pdf_note}', 'error')
                     else:
-                        flash(f'Report saved to portal. PDF/email issue: {email_msg}', 'error')
+                        flash(f'Report generated (PDF failed). Review and approve before sending.{pdf_note}', 'error')
             elif action == 'save':
                 if not combined_raw.strip():
                     flash('Paste raw scan data or upload at least one scan PDF.', 'error')

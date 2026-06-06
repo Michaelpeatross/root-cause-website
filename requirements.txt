@@ -4,3 +4,4 @@ werkzeug
 xhtml2pdf
 pypdf
 python-docx
+stripe

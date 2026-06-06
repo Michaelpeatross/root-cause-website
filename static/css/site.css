@@ -430,3 +430,11 @@ input[type="file"] {
 .lab-links a { font-weight: 600; }
 
 .scan-date-group:last-child ul li:last-child { border-bottom: none; }
+
+.approval-panel label input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  accent-color: var(--green);
+}
+
+.hero .btn { margin: 0.4rem; }
