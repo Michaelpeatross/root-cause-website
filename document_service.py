@@ -1,6 +1,8 @@
 """Handle client medical document uploads and text extraction."""
 import os
+import re
 import uuid
+from datetime import datetime, timedelta
 
 from werkzeug.utils import secure_filename
 
@@ -70,12 +72,83 @@ def extract_text(file_path, original_name):
     return f'[Document uploaded: {original_name}]'
 
 
-def combined_document_text(documents):
-    """Merge extracted text from a list of ClientDocument model instances."""
-    parts = []
+def parse_date_from_text(text):
+    """Try to extract a test/collection date from document text."""
+    if not text:
+        return None
+    patterns = [
+        (r'\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b', '%m/%d/%Y'),
+        (r'\b(\d{4})[/-](\d{1,2})[/-](\d{1,2})\b', '%Y/%m/%d'),
+        (r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})\b', '%B %d %Y'),
+        (r'\b(\d{1,2})\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})\b', '%d %B %Y'),
+        (r'\b(?:collected|collection|test date|date of service|dos|report date)[:\s]+(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b', None),
+    ]
+    for pattern, fmt in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if not match:
+            continue
+        try:
+            if fmt:
+                raw = match.group(0).replace('-', '/')
+                for try_fmt in (fmt, fmt.replace('/', '-')):
+                    try:
+                        return datetime.strptime(raw, try_fmt)
+                    except ValueError:
+                        continue
+            else:
+                m, d, y = match.group(1), match.group(2), match.group(3)
+                return datetime.strptime(f'{m}/{d}/{y}', '%m/%d/%Y')
+        except (ValueError, IndexError):
+            continue
+    return None
+
+
+def _doc_reference_date(doc):
+    """Best estimate of when a medical test was performed."""
+    if getattr(doc, 'test_date', None):
+        try:
+            return datetime.strptime(doc.test_date, '%Y-%m-%d')
+        except ValueError:
+            pass
+    if doc.extracted_text:
+        parsed = parse_date_from_text(doc.extracted_text)
+        if parsed:
+            return parsed
+    if doc.uploaded_at:
+        for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%d'):
+            try:
+                return datetime.strptime(doc.uploaded_at[:10], '%Y-%m-%d')
+            except ValueError:
+                continue
+    return datetime.now()
+
+
+def filter_recent_medical_documents(documents, reference_date=None, years=1):
+    """
+    Include medical tests from up to `years` before reference_date.
+    Uses test_date, parsed document date, or upload date.
+    """
+    ref = reference_date or datetime.now()
+    cutoff = ref - timedelta(days=365 * years)
+    recent = []
     for doc in documents:
+        test_dt = _doc_reference_date(doc)
+        if test_dt >= cutoff:
+            recent.append(doc)
+    return recent
+
+
+def combined_document_text(documents, recent_only=True, reference_date=None):
+    """Merge extracted text from client documents (optionally last 12 months only)."""
+    docs = filter_recent_medical_documents(documents, reference_date) if recent_only else documents
+    parts = []
+    for doc in docs:
         if doc.extracted_text:
-            parts.append(f'--- {doc.original_name} ---\n{doc.extracted_text}')
+            test_dt = _doc_reference_date(doc)
+            date_label = test_dt.strftime('%Y-%m-%d')
+            parts.append(
+                f'--- {doc.original_name} (test date ~{date_label}) ---\n{doc.extracted_text}'
+            )
     return '\n\n'.join(parts)[:40000]
 
 

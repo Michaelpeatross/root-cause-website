@@ -423,3 +423,10 @@ input[type="file"] {
 }
 
 .raw-data-admin summary { user-select: none; }
+
+.affiliate-note { font-size: 0.8rem; color: var(--text-muted); }
+
+.lab-links { font-size: 0.85rem; }
+.lab-links a { font-weight: 600; }
+
+.scan-date-group:last-child ul li:last-child { border-bottom: none; }

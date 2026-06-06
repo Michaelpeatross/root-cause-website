@@ -9,73 +9,127 @@
     <div class="card" style="margin-top:2rem;">
         <h2>Order Status</h2>
         <p style="background:#fff3cd; color:#856404; padding:0.75rem 1rem; border-radius:8px; display:inline-block; font-weight:600;">
-            {% if reports %}Sample processed — report{{ 's' if reports|length > 1 else '' }} available{% else %}Awaiting Hair &amp; Saliva Sample{% endif %}
+            {% if reports %}Sample processed — {{ reports|length }} scan report{{ 's' if reports|length > 1 else '' }} available{% else %}Awaiting Hair &amp; Saliva Sample{% endif %}
         </p>
         <p style="margin-top:1rem;"><a href="{{ url_for('instructions') }}" class="btn btn-primary">View Collection Instructions</a></p>
     </div>
 
+    {% if reports %}
     <div class="card">
-        <h2>Upload Medical Documents</h2>
-        <p style="color:var(--text-muted);">Upload lab results, medical records, or notes. Grok uses these with your scan to personalize health recommendations.</p>
+        <h2>Your Scan History</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Previous scans organized by date — view online or download PDF.</p>
+
+        {% for date_label, date_reports in reports_by_date.items() %}
+        <div class="scan-date-group" style="margin-top:1.25rem;">
+            <h3 style="font-family:'Playfair Display',serif; color:var(--green-dark); font-size:1.1rem; border-bottom:2px solid var(--green-light); padding-bottom:0.4rem;">{{ date_label }}</h3>
+            <ul style="list-style:none; padding:0; margin:0.5rem 0 0;">
+                {% for r in date_reports %}
+                <li style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; padding:0.65rem 0; border-bottom:1px solid #eee;">
+                    <div>
+                        <strong>{{ r.title }}</strong>
+                        {% if r.analysis_updated %}
+                        <br><small style="color:var(--text-muted);">Analysis updated {{ r.analysis_updated }}</small>
+                        {% else %}
+                        <br><small style="color:var(--text-muted);">{{ r.date }}</small>
+                        {% endif %}
+                    </div>
+                    <div style="display:flex; gap:0.4rem;">
+                        <a href="{{ url_for('view_report', report_id=r.id) }}" class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.85rem;">View Report</a>
+                        {% if r.pdf_filename %}
+                        <a href="{{ url_for('download_report_pdf', report_id=r.id) }}" class="btn btn-primary" style="padding:0.35rem 0.75rem; font-size:0.85rem;">PDF</a>
+                        {% endif %}
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+        <h2>Upload Medical Tests</h2>
+        <p style="color:var(--text-muted);">Upload blood work or medical tests from the <strong>past 12 months</strong>. Grok cross-references these with your bioenergetic scans.</p>
         <form method="POST" enctype="multipart/form-data" style="margin-top:1rem;">
             <input type="hidden" name="action" value="upload">
             <div class="form-group">
-                <input type="file" name="document" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg" required>
+                <label for="document">Medical test file (PDF, image, etc.)</label>
+                <input type="file" id="document" name="document" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg" required>
             </div>
-            <button type="submit" class="btn btn-primary">Upload Document</button>
+            <div class="form-group">
+                <label for="test_date">Test date (optional — auto-detected from file if blank)</label>
+                <input type="date" id="test_date" name="test_date">
+            </div>
+            <button type="submit" class="btn btn-primary">Upload Medical Test</button>
         </form>
 
         {% if documents %}
         <ul class="doc-list" style="margin-top:1.5rem; list-style:none; padding:0;">
             {% for d in documents %}
-            <li style="padding:0.6rem 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-                <span>📄 {{ d.original_name }} <small style="color:var(--text-muted);">({{ d.uploaded_at }})</small></span>
+            <li style="padding:0.6rem 0; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+                <span>📄 {{ d.original_name }}
+                    <small style="color:var(--text-muted);">
+                        (test: {{ d.test_date or 'unknown' }} · uploaded {{ d.uploaded_at }})
+                    </small>
+                </span>
                 <a href="{{ url_for('download_document', doc_id=d.id) }}" class="btn btn-outline" style="padding:0.3rem 0.7rem; font-size:0.85rem;">Download</a>
             </li>
             {% endfor %}
         </ul>
-        {% if reports and reports[0].generated_report %}
-        <form method="POST" style="margin-top:1rem;">
-            <input type="hidden" name="action" value="refresh_ai">
-            <button type="submit" class="btn btn-secondary">Refresh Health Recommendations</button>
-        </form>
-        {% endif %}
         {% else %}
-        <p style="color:var(--text-muted); margin-top:1rem;">No documents uploaded yet.</p>
+        <p style="color:var(--text-muted); margin-top:1rem;">No medical tests uploaded yet.</p>
         {% endif %}
     </div>
 
+    {% if reports %}
+    <div class="card" style="background:linear-gradient(135deg, #f0f9f6, #fff); border:2px solid var(--green-light);">
+        <h2>Request Updated Grok Analysis</h2>
+        <p style="color:var(--text-muted);">Re-analyze your latest scan with any medical tests you've uploaded. We'll email and text you the updated analysis, and notify your practitioner.</p>
+
+        <form method="POST" style="margin-top:1rem;">
+            <input type="hidden" name="action" value="update_phone">
+            <div class="form-group">
+                <label for="phone">Your mobile number (for SMS notifications)</label>
+                <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" placeholder="e.g. 225-555-1234">
+            </div>
+            <button type="submit" class="btn btn-outline" style="margin-bottom:1rem;">Save Phone Number</button>
+        </form>
+
+        <form method="POST">
+            <input type="hidden" name="action" value="request_analysis">
+            <button type="submit" class="btn btn-primary" style="font-size:1.05rem; padding:0.9rem 1.5rem;">
+                Request Updated Grok Analysis
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
     <div class="card">
-        <h2>Your Reports</h2>
-        <p style="color:var(--text-muted); font-size:0.9rem;">Formatted reports and PDFs appear here. Raw scan data is stored securely and visible only to your practitioner.</p>
+        <h2>Latest Report Preview</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Formatted reports only — raw scan data is visible to your practitioner only.</p>
 
         {% if reports %}
-            {% for r in reports %}
-                {% if r.generated_report %}
-                <div class="report-card" style="margin-top:1.5rem;">
-                    <div class="report-card-header">
-                        <div>
-                            <strong>{{ r.title }}</strong><br>
-                            <span style="color:var(--text-muted); font-size:0.9rem;">{{ r.date }}</span>
-                        </div>
-                        <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-                            {% if r.pdf_filename %}
-                            <a href="{{ url_for('download_report_pdf', report_id=r.id) }}" class="btn btn-primary" style="padding:0.4rem 0.9rem; font-size:0.85rem;">Download PDF</a>
-                            {% endif %}
-                            {% if r.email_sent %}
-                            <span style="font-size:0.8rem; color:var(--green); align-self:center;">✓ Emailed</span>
-                            {% endif %}
-                        </div>
+            {% set r = reports[0] %}
+            <div class="report-card" id="scan-{{ r.id }}" style="margin-top:1rem;">
+                <div class="report-card-header">
+                    <div>
+                        <strong>{{ r.title }}</strong><br>
+                        <span style="color:var(--text-muted); font-size:0.9rem;">{{ r.date }}</span>
                     </div>
-                    <div class="report-card-body card" style="margin:0; box-shadow:none;">
-                        {{ r.generated_report|safe }}
+                    <div style="display:flex; gap:0.5rem;">
+                        <a href="{{ url_for('view_report', report_id=r.id) }}" class="btn btn-outline" style="padding:0.4rem 0.9rem; font-size:0.85rem;">Full Report</a>
+                        {% if r.pdf_filename %}
+                        <a href="{{ url_for('download_report_pdf', report_id=r.id) }}" class="btn btn-primary" style="padding:0.4rem 0.9rem; font-size:0.85rem;">PDF</a>
+                        {% endif %}
                     </div>
                 </div>
-                {% endif %}
-            {% endfor %}
+                <div class="report-card-body card" style="margin:0; box-shadow:none; max-height:600px; overflow-y:auto;">
+                    {{ r.generated_report|safe }}
+                </div>
+            </div>
         {% else %}
             <p>No completed reports yet.</p>
-            <p style="color:var(--text-muted);">Once we receive and process your sample, your full personalized report will appear here automatically.</p>
+            <p style="color:var(--text-muted);">Once we receive and process your sample, your full personalized report will appear here.</p>
         {% endif %}
     </div>
 </div>

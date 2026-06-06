@@ -3,6 +3,8 @@ import re
 from html import escape
 from datetime import datetime
 
+from affiliate_links import supplement_list_html, lab_list_html, match_supplement_link, match_lab_links
+
 SEVERITY_HIGH = 70
 SEVERITY_MODERATE = 45
 
@@ -251,13 +253,16 @@ def generate_report_text(email, title, raw_data, ai_recommendations_html=None):
         val = f' — {f["value"]}%' if f['value'] else ''
         lines.append(f'  • {f["label"]}{val}')
 
-    lines.extend(['', 'SUPPLEMENT SUGGESTIONS'])
+    lines.extend(['', 'SUPPLEMENT SUGGESTIONS (Amazon)'])
     for s in supplements[:6]:
-        lines.append(f'  • {s}')
+        _label, url = match_supplement_link(s)
+        lines.append(f'  • {_label}: {url}')
 
-    lines.extend(['', 'RECOMMENDED LABS'])
+    lines.extend(['', 'RECOMMENDED LABS (online ordering)'])
     for l in labs[:6]:
-        lines.append(f'  • {l}')
+        providers = match_lab_links(l)
+        urls = ', '.join(f'{name}: {url}' for name, url, _n in providers)
+        lines.append(f'  • {l} — {urls}')
 
     if ai_recommendations_html:
         plain_ai = re.sub(r'<[^>]+>', '', ai_recommendations_html)
@@ -341,8 +346,8 @@ def generate_report_html(email, title, raw_data, ai_recommendations_html=None):
             '</section>'
         )
 
-    supp_html = "".join(f"<li>{escape(s)}</li>" for s in supplements)
-    lab_html = "".join(f"<li>{escape(l)}</li>" for l in labs)
+    supp_html = supplement_list_html(supplements)
+    lab_html = lab_list_html(labs)
 
     top_findings = [f for f in findings if f["severity"] in ("high", "moderate")][:6]
     if not top_findings:
@@ -383,12 +388,12 @@ def generate_report_html(email, title, raw_data, ai_recommendations_html=None):
   <div class="report-columns">
     <section class="report-section rec-box">
       <h3>💊 Supplement Recommendations</h3>
-      <p class="rec-note">Discuss with your practitioner before starting any new protocol.</p>
+      <p class="rec-note">Amazon affiliate links — compare prices. Discuss with your practitioner before starting any protocol.</p>
       <ul>{supp_html}</ul>
     </section>
     <section class="report-section rec-box">
       <h3>🩺 Recommended Conventional Labs</h3>
-      <p class="rec-note">These tests help confirm and monitor bioenergetic findings.</p>
+      <p class="rec-note">Low-cost walk-in and online lab options (Any Lab Test Now, Walk-In Lab, Ulta Lab Tests).</p>
       <ul>{lab_html}</ul>
     </section>
   </div>

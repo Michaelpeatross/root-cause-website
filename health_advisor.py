@@ -6,6 +6,7 @@ import urllib.error
 import urllib.request
 
 from report_generator import _parse_lines, _recommendations
+from affiliate_links import supplement_list_html, lab_list_html, enrich_html_with_affiliate_links
 
 
 def _local_recommendations_html(scan_raw, medical_text, client_name):
@@ -48,13 +49,13 @@ def _local_recommendations_html(scan_raw, medical_text, client_name):
     if not priority_lines:
         priority_lines.append('<li>Continue monitoring with your practitioner based on scan and uploaded records.</li>')
 
-    supp_li = ''.join(f'<li>{s}</li>' for s in supplements[:6])
-    lab_li = ''.join(f'<li>{l}</li>' for l in labs[:6])
+    supp_li = supplement_list_html(supplements[:6])
+    lab_li = lab_list_html(labs[:6])
     life_li = ''.join(f'<li>{l}</li>' for l in lifestyle)
 
     doc_note = ''
     if medical_text and len(medical_text.strip()) > 50:
-        doc_note = '<p><em>Recommendations incorporate your uploaded medical documents.</em></p>'
+        doc_note = '<p><em>Recommendations incorporate your uploaded medical tests from the past 12 months.</em></p>'
 
     return f"""<section class="report-section ai-section">
   <h3>🧠 Personalized Health Options for {client_name}</h3>
@@ -87,8 +88,12 @@ Client: {client_name} ({client_email})
 BIOENERGETIC SCAN DATA (paste + PDF extracts):
 {scan_raw[:12000]}
 
-CLIENT MEDICAL DOCUMENTS (labs, records from client portal):
+CLIENT MEDICAL DOCUMENTS (labs/blood tests from past 12 months only):
 {medical_text[:8000] if medical_text else 'None uploaded yet.'}
+
+Cross-reference scan findings with recent lab values where available.
+For supplements, recommend specific affordable products. For labs, mention
+Any Lab Test Now, Walk-In Lab, or Ulta Lab Tests as low-cost options.
 
 Respond in HTML only (no markdown). Use this structure:
 <section class="report-section ai-section">
@@ -138,5 +143,5 @@ def get_health_recommendations(scan_raw, medical_text, client_name, client_email
     """Return HTML block with personalized health recommendations."""
     grok_html = _grok_recommendations(scan_raw, medical_text, client_name, client_email)
     if grok_html:
-        return grok_html, 'grok'
+        return enrich_html_with_affiliate_links(grok_html), 'grok'
     return _local_recommendations_html(scan_raw, medical_text, client_name), 'local'

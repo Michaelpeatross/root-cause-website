@@ -6,6 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from datetime import datetime
+from collections import OrderedDict
 
 from report_generator import generate_report_html, generate_report_text
 from pdf_service import save_report_pdf, pdf_to_bytes
@@ -13,8 +14,12 @@ from email_service import send_report_email
 from document_service import (
     save_upload, extract_text, combined_document_text,
     process_scan_pdf_uploads, merge_scan_sources,
+    parse_date_from_text, filter_recent_medical_documents,
 )
 from health_advisor import get_health_recommendations
+from notification_service import (
+    notify_client_analysis_update, notify_admin_analysis_request,
+)
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'rootcause2026secretkey')
@@ -42,6 +47,7 @@ class User(db.Model):
     name = db.Column(db.String(100))
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200))
+    phone = db.Column(db.String(20))
     is_admin = db.Column(db.Boolean, default=False)
 
 
@@ -56,6 +62,7 @@ class Report(db.Model):
     pdf_filename = db.Column(db.String(200))
     email_sent = db.Column(db.Boolean, default=False)
     date = db.Column(db.String(50))
+    analysis_updated = db.Column(db.String(50))
 
 
 class ClientDocument(db.Model):
@@ -64,6 +71,7 @@ class ClientDocument(db.Model):
     stored_filename = db.Column(db.String(200), nullable=False)
     original_name = db.Column(db.String(200))
     extracted_text = db.Column(db.Text)
+    test_date = db.Column(db.String(20))
     uploaded_at = db.Column(db.String(50))
 
 
@@ -107,10 +115,11 @@ def migrate_schema():
 
     if 'user' in tables:
         user_cols = {c['name'] for c in inspector.get_columns('user')}
-        if 'is_admin' not in user_cols:
-            with db.engine.connect() as conn:
-                conn.execute(text('ALTER TABLE user ADD COLUMN is_admin BOOLEAN DEFAULT 0'))
-                conn.commit()
+        for col, col_type in {'is_admin': 'BOOLEAN DEFAULT 0', 'phone': 'VARCHAR(20)'}.items():
+            if col not in user_cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text(f'ALTER TABLE user ADD COLUMN {col} {col_type}'))
+                    conn.commit()
 
     report_required = {'user_email', 'title', 'raw_data', 'generated_report', 'date'}
     if 'report' in tables:
@@ -126,12 +135,20 @@ def migrate_schema():
                 'ai_recommendations': 'TEXT',
                 'pdf_filename': 'VARCHAR(200)',
                 'email_sent': 'BOOLEAN DEFAULT 0',
+                'analysis_updated': 'VARCHAR(50)',
             }
             for col, col_type in new_cols.items():
                 if col not in report_cols:
                     with db.engine.connect() as conn:
                         conn.execute(text(f'ALTER TABLE report ADD COLUMN {col} {col_type}'))
                         conn.commit()
+
+    if 'client_document' in tables:
+        doc_cols = {c['name'] for c in inspector.get_columns('client_document')}
+        if 'test_date' not in doc_cols:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE client_document ADD COLUMN test_date VARCHAR(20)'))
+                conn.commit()
 
     if 'client_document' not in tables or 'report_scan_pdf' not in tables:
         db.create_all()
@@ -179,10 +196,15 @@ def _attach_scan_pdfs_to_report(report, pdf_results):
         db.session.add(entry)
 
 
+def _medical_context(email):
+    docs = _get_client_documents(email)
+    recent = filter_recent_medical_documents(docs)
+    return combined_document_text(docs, recent_only=True), len(recent)
+
+
 def _build_full_report(email, title, raw_data):
     """Generate HTML report with AI recommendations, PDF, and email."""
-    docs = _get_client_documents(email)
-    medical_text = combined_document_text(docs)
+    medical_text, _doc_count = _medical_context(email)
     client_name = _client_display_name(email)
 
     ai_html, _source = get_health_recommendations(
@@ -191,6 +213,62 @@ def _build_full_report(email, title, raw_data):
     html_report = generate_report_html(email, title, raw_data, ai_html)
     plain_text = generate_report_text(email, title, raw_data, ai_html)
     return html_report, plain_text, ai_html
+
+
+def _regenerate_report_analysis(report, notify_client=False, notify_admin=False):
+    """Re-run Grok analysis using scan data + recent medical documents."""
+    email = report.user_email
+    medical_text, doc_count = _medical_context(email)
+    client_name = _client_display_name(email)
+    user = User.query.filter(db.func.lower(User.email) == _normalize_email(email)).first()
+
+    ai_html, _ = get_health_recommendations(
+        report.raw_data, medical_text, client_name, email
+    )
+    report.ai_recommendations = ai_html
+    report.generated_report = generate_report_html(
+        email, report.title, report.raw_data, ai_html
+    )
+    report.plain_text = generate_report_text(
+        email, report.title, report.raw_data, ai_html
+    )
+    report.analysis_updated = datetime.now().strftime('%Y-%m-%d %H:%M')
+    _save_pdf_for_report(report, report.generated_report)
+
+    messages = []
+    if notify_client:
+        pdf_bytes = pdf_to_bytes(report.generated_report)
+        e_ok, e_msg, s_ok, s_msg = notify_client_analysis_update(
+            email,
+            client_name,
+            user.phone if user else '',
+            report.title,
+            report.plain_text,
+            pdf_bytes,
+        )
+        report.email_sent = e_ok
+        messages.extend([e_msg, s_msg])
+    if notify_admin:
+        a_e_ok, a_e_msg, a_s_ok, a_s_msg = notify_admin_analysis_request(
+            client_name, email, report.title
+        )
+        messages.extend([a_e_msg, a_s_msg])
+
+    return report, doc_count, messages
+
+
+def _group_reports_by_date(reports):
+    """Organize reports into date groups for client scan history."""
+    groups = OrderedDict()
+    for report in reports:
+        date_key = (report.date or 'Unknown')[:10]
+        try:
+            dt = datetime.strptime(date_key, '%Y-%m-%d')
+            label = dt.strftime('%B %d, %Y')
+        except ValueError:
+            label = date_key
+        groups.setdefault(label, []).append(report)
+    return groups
 
 
 def _process_admin_scan_input(pasted_text):
@@ -285,7 +363,13 @@ def dashboard():
 
     if request.method == 'POST':
         action = request.form.get('action')
-        if action == 'upload':
+        if action == 'update_phone':
+            user = User.query.get(session['user_id'])
+            if user:
+                user.phone = request.form.get('phone', '').strip()
+                db.session.commit()
+                flash('Phone number saved for SMS notifications.', 'success')
+        elif action == 'upload':
             try:
                 stored, original = save_upload(
                     request.files.get('document'),
@@ -293,59 +377,80 @@ def dashboard():
                 )
                 path = os.path.join(documents_dir, stored)
                 text = extract_text(path, original)
+                upload_dt = datetime.now()
+                parsed = parse_date_from_text(text)
+                form_date = request.form.get('test_date', '').strip()
+                if form_date:
+                    test_date = form_date
+                elif parsed:
+                    test_date = parsed.strftime('%Y-%m-%d')
+                else:
+                    test_date = upload_dt.strftime('%Y-%m-%d')
+
                 doc = ClientDocument(
                     user_email=email,
                     stored_filename=stored,
                     original_name=original,
                     extracted_text=text,
-                    uploaded_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
+                    test_date=test_date,
+                    uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
                 )
                 db.session.add(doc)
                 db.session.commit()
-                flash(f'Uploaded: {original}', 'success')
+                flash(
+                    f'Uploaded: {original} (test date {test_date}). '
+                    f'Included in analysis if within the past 12 months.',
+                    'success',
+                )
             except ValueError as exc:
                 flash(str(exc), 'error')
-        elif action == 'refresh_ai':
+        elif action == 'request_analysis':
             report = Report.query.filter(
                 db.func.lower(Report.user_email) == _normalize_email(email),
                 Report.generated_report.isnot(None),
             ).order_by(Report.id.desc()).first()
             if report and report.raw_data:
-                docs = _get_client_documents(email)
-                medical_text = combined_document_text(docs)
-                ai_html, _ = get_health_recommendations(
-                    report.raw_data,
-                    medical_text,
-                    session.get('name', 'Client'),
-                    email,
+                report, doc_count, msgs = _regenerate_report_analysis(
+                    report, notify_client=True, notify_admin=True
                 )
-                report.ai_recommendations = ai_html
-                report.generated_report = generate_report_html(
-                    email, report.title, report.raw_data, ai_html
+                db.session.commit()
+                flash(
+                    f'Updated Grok analysis sent! Used {doc_count} medical document(s) '
+                    f'from the past year. {" ".join(m for m in msgs if m)}',
+                    'success',
                 )
-                report.plain_text = generate_report_text(
-                    email, report.title, report.raw_data, ai_html
-                )
-                if _save_pdf_for_report(report, report.generated_report):
-                    db.session.commit()
-                    flash('Health recommendations updated with your latest documents.', 'success')
-                else:
-                    db.session.commit()
-                    flash('Recommendations updated (PDF regeneration failed).', 'error')
             else:
-                flash('No report available to update yet.', 'error')
+                flash('No scan report available yet. Contact your practitioner.', 'error')
 
     reports = Report.query.filter(
-        db.func.lower(Report.user_email) == _normalize_email(email)
+        db.func.lower(Report.user_email) == _normalize_email(email),
+        Report.generated_report.isnot(None),
     ).order_by(Report.id.desc()).all()
     documents = _get_client_documents(email)
+    user_obj = User.query.get(session['user_id'])
+    reports_by_date = _group_reports_by_date(reports)
 
     return render_template(
         'dashboard.html',
         reports=reports,
+        reports_by_date=reports_by_date,
         documents=documents,
-        user={'name': session.get('name', 'Client')},
+        user={
+            'name': session.get('name', 'Client'),
+            'phone': user_obj.phone if user_obj else '',
+            'email': email,
+        },
     )
+
+
+@app.route('/reports/<int:report_id>')
+def view_report(report_id):
+    if not session.get('user_id'):
+        return redirect(url_for('login'))
+    report = Report.query.get_or_404(report_id)
+    if not _user_owns_report(report) or not report.generated_report:
+        abort(403)
+    return render_template('report_view.html', report=report, user={'name': session.get('name', 'Client')})
 
 
 @app.route('/reports/<int:report_id>/pdf')
@@ -411,24 +516,12 @@ def admin():
         if action == 'refresh_ai' and report_id:
             report = Report.query.get(report_id)
             if report and report.raw_data:
-                docs = _get_client_documents(report.user_email)
-                medical_text = combined_document_text(docs)
-                ai_html, _ = get_health_recommendations(
-                    report.raw_data,
-                    medical_text,
-                    _client_display_name(report.user_email),
-                    report.user_email,
-                )
-                report.ai_recommendations = ai_html
-                report.generated_report = generate_report_html(
-                    report.user_email, report.title, report.raw_data, ai_html
-                )
-                report.plain_text = generate_report_text(
-                    report.user_email, report.title, report.raw_data, ai_html
-                )
-                _save_pdf_for_report(report, report.generated_report)
+                report, doc_count, _msgs = _regenerate_report_analysis(report)
                 db.session.commit()
-                flash('AI recommendations refreshed for this client.', 'success')
+                flash(
+                    f'AI recommendations refreshed ({doc_count} recent medical doc(s) included).',
+                    'success',
+                )
             else:
                 flash('Report not found or missing raw data.', 'error')
 

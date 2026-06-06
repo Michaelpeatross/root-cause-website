@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ report.title }} — Root Cause{% endblock %}
+
+{% block content %}
+<div class="container">
+    <p><a href="{{ url_for('dashboard') }}">← Back to portal</a></p>
+
+    <div class="report-card" style="margin-top:1rem;">
+        <div class="report-card-header">
+            <div>
+                <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark); margin:0; font-size:1.5rem;">{{ report.title }}</h1>
+                <span style="color:var(--text-muted);">{{ report.date }}</span>
+                {% if report.analysis_updated %}
+                <br><small style="color:var(--green);">Analysis updated {{ report.analysis_updated }}</small>
+                {% endif %}
+            </div>
+            {% if report.pdf_filename %}
+            <a href="{{ url_for('download_report_pdf', report_id=report.id) }}" class="btn btn-primary">Download PDF</a>
+            {% endif %}
+        </div>
+        <div class="report-card-body card" style="margin:0; box-shadow:none;">
+            {{ report.generated_report|safe }}
+        </div>
+    </div>
+</div>
+{% endblock %}
