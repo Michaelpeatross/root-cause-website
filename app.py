@@ -546,16 +546,22 @@ def _save_pdf_for_report(report, html_report):
     return False
 
 
+def _publish_report_to_portal(report):
+    """Make a generated report visible on the client's portal."""
+    if not report.approved:
+        report.approved = True
+        report.approved_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+
 def _approve_and_send_report(report, send_email=False, send_sms=False):
-    """Mark report approved and deliver to client via selected channels."""
+    """Publish to client portal and optionally deliver via email/SMS."""
     user = User.query.filter(
         db.func.lower(User.email) == _normalize_email(report.user_email)
     ).first()
     client_name = _client_display_name(report.user_email)
     client_phone = user.phone if user else ''
 
-    report.approved = True
-    report.approved_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+    _publish_report_to_portal(report)
 
     pdf_bytes = None
     if report.generated_report and send_email:
@@ -584,7 +590,7 @@ def _approve_and_send_report(report, send_email=False, send_sms=False):
                 messages.append(msg)
 
     if not send_email and not send_sms:
-        messages.append('Report approved and published to client portal (no notifications sent).')
+        messages.append('Report is on the client portal (no email or text sent).')
 
     return messages
 
@@ -942,7 +948,7 @@ def admin():
                 msgs = _approve_and_send_report(report, send_email, send_sms)
                 db.session.commit()
                 flash(
-                    f'Report approved for {report.user_email}. ' + ' '.join(msgs),
+                    f'Client notified for {report.user_email}. ' + ' '.join(msgs),
                     'success',
                 )
             else:
@@ -951,14 +957,12 @@ def admin():
         elif action == 'refresh_ai' and report_id:
             report = Report.query.get(report_id)
             if report and report.raw_data:
-                was_approved = report.approved
                 report, doc_count, _msgs = _regenerate_report_analysis(report)
-                if was_approved:
-                    report.approved = False
+                _publish_report_to_portal(report)
                 db.session.commit()
                 flash(
-                    f'AI recommendations refreshed ({doc_count} medical document(s) included). '
-                    f'{"Re-approve to send updates to client." if was_approved else "Review and approve to send."}',
+                    f'AI recommendations refreshed and republished to client portal '
+                    f'({doc_count} medical document(s) included).',
                     'success',
                 )
             else:
@@ -988,9 +992,9 @@ def admin():
                         generated_report=html_report,
                         plain_text=plain_text,
                         ai_recommendations=ai_html,
-                        approved=False,
                         date=datetime.now().strftime('%Y-%m-%d %H:%M'),
                     )
+                    _publish_report_to_portal(report)
                     db.session.add(report)
                     db.session.commit()
 
@@ -1012,12 +1016,15 @@ def admin():
                             if doc_count else ' No client medical documents uploaded yet.'
                         )
                         flash(
-                            f'Report generated for {email} — NOT sent to client yet.'
-                            f'{doc_note} Review and click Approve & Send.{pdf_note}',
+                            f'Report published to {email} client portal.{doc_note}'
+                            f' Client can view it now — optionally send email/text below.{pdf_note}',
                             'success',
                         )
                     else:
-                        flash(f'Report generated (PDF failed). Review and approve before sending.{pdf_note}', 'error')
+                        flash(
+                            f'Report published to client portal (PDF failed).{pdf_note}',
+                            'error',
+                        )
             elif action == 'save':
                 if not combined_raw.strip():
                     flash('Paste raw scan data or upload at least one scan PDF.', 'error')

@@ -1,28 +1,30 @@
-{% if r.generated_report and not r.approved %}
-<div class="approval-panel" style="padding:1.25rem 1.5rem; background:#fff8e6; border-top:2px solid #f0c040;">
-    <h4 style="margin:0 0 0.75rem; color:#856404;">⏳ Pending Your Approval — Not visible to client yet</h4>
+{% if r.generated_report %}
+<div class="approval-panel" style="padding:1.25rem 1.5rem; background:{% if r.approved %}#f0f9f6{% else %}#fff8e6{% endif %}; border-top:2px solid {% if r.approved %}var(--green-light){% else %}#f0c040{% endif %};">
+    {% if r.approved %}
+    <h4 style="margin:0 0 0.75rem; color:var(--green-dark);">✓ On client portal since {{ r.approved_at or 'now' }}</h4>
+    <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 0.75rem;">
+        The client can view this report, recommendations, and PDF in their dashboard.
+    </p>
+    {% else %}
+    <h4 style="margin:0 0 0.75rem; color:#856404;">⏳ Not on client portal yet</h4>
+    {% endif %}
     <form method="POST" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center;">
         <input type="hidden" name="action" value="approve">
         <input type="hidden" name="report_id" value="{{ r.id }}">
         <label style="display:flex; align-items:center; gap:0.4rem; font-weight:600; cursor:pointer;">
-            <input type="checkbox" name="send_email" checked> Send Email
+            <input type="checkbox" name="send_email" {% if not r.email_sent %}checked{% endif %}> Send Email
         </label>
         <label style="display:flex; align-items:center; gap:0.4rem; font-weight:600; cursor:pointer;">
             <input type="checkbox" name="send_sms"> Send Text (SMS)
         </label>
         <button type="submit" class="btn btn-primary" style="padding:0.6rem 1.2rem;">
-            Approve &amp; Send to Client
+            {% if r.approved %}Notify Client{% else %}Publish &amp; Notify Client{% endif %}
         </button>
     </form>
+    {% if r.email_sent or r.sms_sent %}
     <p style="font-size:0.85rem; color:var(--text-muted); margin:0.75rem 0 0;">
-        Review the report above first. Client will see it in their portal only after you approve.
+        {% if r.email_sent %}Emailed{% endif %}{% if r.email_sent and r.sms_sent %} · {% endif %}{% if r.sms_sent %}Texted{% endif %}
     </p>
-</div>
-{% elif r.approved %}
-<div style="padding:0.75rem 1.5rem; background:#d4edda; border-top:1px solid #c3e6cb; font-size:0.9rem; color:#155724;">
-    ✓ Approved {{ r.approved_at or '' }}
-    {% if r.email_sent %} · Emailed{% endif %}
-    {% if r.sms_sent %} · Texted{% endif %}
-    · Visible in client portal
+    {% endif %}
 </div>
 {% endif %}
