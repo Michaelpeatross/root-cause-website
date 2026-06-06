@@ -503,6 +503,49 @@ a:hover { text-decoration: underline; }
   font-style: italic;
 }
 
+.admin-client-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--green-dark);
+  background: #f0f9f6;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  border-left: 3px solid var(--green);
+}
+
+.client-select-list {
+  width: 100%;
+  padding: 0.35rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.9rem;
+}
+
+.client-select-list option {
+  padding: 0.35rem 0.25rem;
+}
+
+.awaiting-scan-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.awaiting-scan-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.65rem 0;
+  border-bottom: 1px solid #dce9f5;
+}
+
+.awaiting-scan-list li:last-child {
+  border-bottom: none;
+}
+
 .empty-state {
   text-align: center;
   padding: 3rem;

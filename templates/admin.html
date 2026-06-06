@@ -6,6 +6,50 @@
     <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark); margin-bottom:0.25rem;">Admin Panel</h1>
     <p style="color:var(--text-muted); margin-top:0;">Generate reports for review — approve before sending to clients via email and/or text.</p>
 
+    {% if client_groups.awaiting_with_docs or client_groups.awaiting_accounts %}
+    <div class="card awaiting-scan-panel" style="margin-top:1.5rem; border:2px solid #2980b9; background:linear-gradient(135deg, #f0f7ff, #fff);">
+        <h2 style="margin-bottom:0.25rem;">Clients Awaiting First Scan</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin:0 0 1rem;">
+            New accounts and clients who uploaded medical documents but don't have a scan report yet.
+        </p>
+
+        {% if client_groups.awaiting_with_docs %}
+        <h3 style="font-size:0.95rem; color:#1a5276; margin:0 0 0.5rem;">📄 Uploaded medical documents — ready for scan analysis</h3>
+        <ul class="awaiting-scan-list">
+            {% for c in client_groups.awaiting_with_docs %}
+            <li>
+                <div>
+                    <strong>{{ c.name }}</strong>
+                    <span class="client-bucket-email">{{ c.email }}</span>
+                    <div class="client-bucket-meta">
+                        {{ c.doc_count }} medical document{{ 's' if c.doc_count != 1 else '' }} uploaded
+                        {% if c.latest_upload %} · last upload {{ c.latest_upload }}{% endif %}
+                        {% if c.has_account %} · account created{% else %} · uploads only (no login yet){% endif %}
+                    </div>
+                </div>
+                <a href="{{ url_for('admin', client=c.email) }}#report-form" class="btn btn-primary" style="font-size:0.8rem; padding:0.3rem 0.65rem;">Create Report</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if client_groups.awaiting_accounts %}
+        <h3 class="awaiting-accounts-heading" style="font-size:0.95rem; color:var(--green-dark); margin:0 0 0.5rem;{% if client_groups.awaiting_with_docs %} margin-top:1rem;{% endif %}">👤 Registered accounts — no uploads yet</h3>
+        <ul class="awaiting-scan-list">
+            {% for c in client_groups.awaiting_accounts %}
+            <li>
+                <div>
+                    <strong>{{ c.name }}</strong>
+                    <span class="client-bucket-email">{{ c.email }}</span>
+                </div>
+                <a href="{{ url_for('admin', client=c.email) }}#report-form" class="btn btn-outline" style="font-size:0.8rem; padding:0.3rem 0.65rem;">Create Report</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="card client-scan-buckets" style="margin-top:1.5rem;">
         <h2 style="margin-bottom:0.25rem;">Clients by Last Scan</h2>
         <p style="color:var(--text-muted); font-size:0.9rem; margin:0 0 1rem;">Grouped by time since each client's most recent scan.</p>
@@ -28,7 +72,10 @@
                             {{ c.last_scan_title }} · {{ c.last_scan_date }} · {{ c.days_label }}
                             {% if not c.approved %}<span class="client-bucket-pending">pending</span>{% endif %}
                         </div>
-                        <a href="{{ url_for('admin_client_portal', email=c.email) }}" class="btn btn-outline client-portal-link">View Client Portal</a>
+                        <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.35rem;">
+                            <a href="{{ url_for('admin', client=c.email) }}#report-form" class="btn btn-primary client-portal-link">Create Report</a>
+                            <a href="{{ url_for('admin_client_portal', email=c.email) }}" class="btn btn-outline client-portal-link">View Portal</a>
+                        </div>
                     </li>
                     {% endfor %}
                 </ul>
@@ -46,8 +93,53 @@
                 <h2>New Report</h2>
                 <form method="POST" id="report-form" enctype="multipart/form-data">
                     <div class="form-group">
-                        <label for="email">Client Email</label>
-                        <input type="email" id="email" name="email" placeholder="client@email.com" required>
+                        <label for="client_filter">Select Client</label>
+                        <input type="search" id="client_filter" placeholder="Search by name or email..." autocomplete="off"
+                               style="margin-bottom:0.5rem; width:100%; padding:0.55rem 0.75rem; border:1px solid #ddd; border-radius:8px;">
+                        <select id="client_email" name="client_email" required size="8" class="client-select-list">
+                            <option value="">— Choose a client —</option>
+                            {% if client_groups.awaiting_with_docs %}
+                            <optgroup label="Uploaded docs — awaiting scan">
+                                {% for c in client_groups.awaiting_with_docs %}
+                                <option value="{{ c.email }}" data-docs="{{ c.doc_count }}" data-reports="{{ c.report_count }}" data-search="{{ c.name|lower }} {{ c.email|lower }}"
+                                    {% if selected_client == c.email %}selected{% endif %}>
+                                    {{ c.name }} ({{ c.email }}) — {{ c.doc_count }} doc{{ 's' if c.doc_count != 1 else '' }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                            {% if client_groups.awaiting_accounts %}
+                            <optgroup label="New accounts — no uploads yet">
+                                {% for c in client_groups.awaiting_accounts %}
+                                <option value="{{ c.email }}" data-docs="{{ c.doc_count }}" data-reports="{{ c.report_count }}" data-search="{{ c.name|lower }} {{ c.email|lower }}"
+                                    {% if selected_client == c.email %}selected{% endif %}>
+                                    {{ c.name }} ({{ c.email }})
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                            {% if client_groups.with_reports %}
+                            <optgroup label="Clients with past scans">
+                                {% for c in client_groups.with_reports %}
+                                <option value="{{ c.email }}" data-docs="{{ c.doc_count }}" data-reports="{{ c.report_count }}" data-search="{{ c.name|lower }} {{ c.email|lower }}"
+                                    {% if selected_client == c.email %}selected{% endif %}>
+                                    {{ c.name }} ({{ c.email }}) — {{ c.doc_count }} doc{{ 's' if c.doc_count != 1 else '' }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endif %}
+                            <option value="__new__" data-search="new client" {% if selected_client == '__new__' %}selected{% endif %}>+ New client (enter email)</option>
+                        </select>
+                        <p id="client-doc-note" class="admin-client-note" hidden></p>
+                        {% if not clients %}
+                        <p class="admin-client-note" style="display:block; margin-top:0.5rem; color:#856404; background:#fff8e6; border-left-color:#f0c040;">
+                            No clients found yet. Clients appear here after they create an account or upload medical documents on the client portal.
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="form-group" id="new-email-group" hidden>
+                        <label for="new_email">New Client Email</label>
+                        <input type="email" id="new_email" name="new_email" placeholder="client@email.com" autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label for="title">Report Title</label>
@@ -57,7 +149,7 @@
                         <label for="scan_pdfs">Upload Scan PDFs</label>
                         <input type="file" id="scan_pdfs" name="scan_pdfs" accept=".pdf" multiple>
                         <p style="font-size:0.85rem; color:var(--text-muted); margin:0.4rem 0 0;">
-                            Upload bioenergetic scan PDFs — text extracted for Grok automatically.
+                            Upload bioenergetic scan PDFs — Grok combines scan data with the selected client's uploaded medical documents.
                         </p>
                     </div>
                     <div class="form-group">
@@ -193,9 +285,62 @@
     </div>
 </div>
 
-{% if latest_report %}
 <script>
+(function () {
+  const select = document.getElementById('client_email');
+  const filter = document.getElementById('client_filter');
+  const newGroup = document.getElementById('new-email-group');
+  const newEmail = document.getElementById('new_email');
+  const docNote = document.getElementById('client-doc-note');
+
+  function filterClients() {
+    if (!select || !filter) return;
+    const q = filter.value.trim().toLowerCase();
+    Array.from(select.options).forEach((opt) => {
+      if (!opt.value || opt.value === '__new__') {
+        opt.hidden = false;
+        return;
+      }
+      const hay = opt.dataset.search || opt.textContent.toLowerCase();
+      opt.hidden = q ? !hay.includes(q) : false;
+    });
+  }
+
+  function updateClientPicker() {
+    if (!select) return;
+    const value = select.value;
+    if (value === '__new__') {
+      newGroup.hidden = false;
+      newEmail.required = true;
+      docNote.hidden = true;
+      newEmail.focus();
+      return;
+    }
+    newGroup.hidden = true;
+    newEmail.required = false;
+    if (!value) {
+      docNote.hidden = true;
+      return;
+    }
+    const opt = select.options[select.selectedIndex];
+    const docs = parseInt(opt.dataset.docs || '0', 10);
+    const reports = parseInt(opt.dataset.reports || '0', 10);
+    docNote.hidden = false;
+    docNote.textContent = docs
+      ? `Grok will include ${docs} uploaded medical document(s) from this client (${reports} past scan report(s)).`
+      : 'No medical documents uploaded yet — Grok will analyze scan data only.';
+  }
+
+  select?.addEventListener('change', updateClientPicker);
+  filter?.addEventListener('input', filterClients);
+  filterClients();
+  updateClientPicker();
+
+  {% if latest_report %}
   document.getElementById('latest-report')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  {% elif selected_client %}
+  document.getElementById('report-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  {% endif %}
+})();
 </script>
-{% endif %}
 {% endblock %}

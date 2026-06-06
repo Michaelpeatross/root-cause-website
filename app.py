@@ -373,6 +373,97 @@ def _last_scan_bucket(days):
     return '6_months_plus'
 
 
+def _non_admin_users():
+    """All client accounts (treat NULL is_admin as non-admin)."""
+    return User.query.filter(User.is_admin.isnot(True)).order_by(User.id.desc()).all()
+
+
+def _get_clients_for_admin():
+    """All clients available for report assignment (accounts, uploads, past reports)."""
+    clients = {}
+
+    for user in _non_admin_users():
+        email = _normalize_email(user.email)
+        clients[email] = {
+            'email': email,
+            'name': user.name or email.split('@')[0],
+            'has_account': True,
+            'user_id': user.id,
+        }
+
+    for doc in ClientDocument.query.all():
+        email = _normalize_email(doc.user_email)
+        if email and email not in clients:
+            clients[email] = {
+                'email': email,
+                'name': email.split('@')[0],
+                'has_account': False,
+                'user_id': 0,
+            }
+
+    for report in Report.query.all():
+        email = _normalize_email(report.user_email)
+        if email and email not in clients:
+            clients[email] = {
+                'email': email,
+                'name': email.split('@')[0],
+                'has_account': False,
+                'user_id': 0,
+            }
+
+    result = []
+    for email, info in clients.items():
+        docs = ClientDocument.query.filter(
+            db.func.lower(ClientDocument.user_email) == email
+        ).order_by(ClientDocument.id.desc()).all()
+        doc_count = len(docs)
+        report_count = Report.query.filter(
+            db.func.lower(Report.user_email) == email
+        ).count()
+        latest_upload = docs[0].uploaded_at if docs else None
+        result.append({
+            **info,
+            'doc_count': doc_count,
+            'report_count': report_count,
+            'latest_upload': latest_upload,
+            'awaiting_scan': report_count == 0,
+        })
+
+    result.sort(key=lambda c: (
+        0 if (c['doc_count'] > 0 and c['awaiting_scan']) else 1,
+        0 if c['awaiting_scan'] else 1,
+        -(c['user_id'] or 0),
+        c['name'].lower(),
+    ))
+    return result
+
+
+def _split_clients_for_admin(clients):
+    """Group clients for the admin picker and awaiting-scan panel."""
+    awaiting_with_docs = [
+        c for c in clients if c['awaiting_scan'] and c['doc_count'] > 0
+    ]
+    awaiting_accounts = [
+        c for c in clients if c['awaiting_scan'] and c['doc_count'] == 0
+    ]
+    with_reports = [c for c in clients if not c['awaiting_scan']]
+    return {
+        'awaiting_with_docs': awaiting_with_docs,
+        'awaiting_accounts': awaiting_accounts,
+        'with_reports': with_reports,
+    }
+
+
+def _resolve_client_email_from_form():
+    """Read selected client or new-email field from the admin report form."""
+    pick = (request.form.get('client_email') or '').strip()
+    if pick == '__new__':
+        return _normalize_email(request.form.get('new_email', ''))
+    if pick:
+        return _normalize_email(pick)
+    return _normalize_email(request.form.get('email', ''))
+
+
 def _group_clients_by_last_scan():
     """Group clients by how long ago their most recent scan was."""
     bucket_defs = [
@@ -401,7 +492,7 @@ def _group_clients_by_last_scan():
 
     users = {
         _normalize_email(u.email): u
-        for u in User.query.filter(User.is_admin == False).all()
+        for u in _non_admin_users()
     }
     now = datetime.now()
 
@@ -620,7 +711,12 @@ def register():
             flash('Email already registered. Please log in.', 'error')
             return redirect(url_for('login', email=email))
         else:
-            user = User(name=name, email=email, password=generate_password_hash(password))
+            user = User(
+                name=name,
+                email=email,
+                password=generate_password_hash(password),
+                is_admin=False,
+            )
             db.session.add(user)
             db.session.commit()
             _start_user_session(user)
@@ -826,8 +922,13 @@ def admin():
 
     latest_report = None
 
+    selected_client = _normalize_email(request.args.get('client', ''))
+
     if request.method == 'POST':
-        email = _normalize_email(request.form.get('email'))
+        email = _resolve_client_email_from_form()
+        client_pick = (request.form.get('client_email') or '').strip()
+        if client_pick:
+            selected_client = client_pick if client_pick == '__new__' else _normalize_email(client_pick)
         title = request.form.get('title', 'Full Scan').strip()
         raw_data = request.form.get('raw_data', '')
         action = request.form.get('action', 'generate')
@@ -864,7 +965,7 @@ def admin():
                 flash('Report not found or missing raw data.', 'error')
 
         elif not email:
-            flash('Client email is required.', 'error')
+            flash('Select a client or enter a new client email.', 'error')
         else:
             try:
                 combined_raw, pdf_results = _process_admin_scan_input(raw_data)
@@ -876,6 +977,7 @@ def admin():
                 if not combined_raw.strip():
                     flash('Paste raw scan data or upload at least one scan PDF.', 'error')
                 else:
+                    _, doc_count = _medical_context(email)
                     html_report, plain_text, ai_html = _build_full_report(
                         email, title, combined_raw
                     )
@@ -905,9 +1007,13 @@ def admin():
                         if pdf_results else ''
                     )
                     if pdf_ok:
+                        doc_note = (
+                            f' Grok analyzed scan + {doc_count} client medical document(s).'
+                            if doc_count else ' No client medical documents uploaded yet.'
+                        )
                         flash(
-                            f'Report generated for review — NOT sent to client yet. '
-                            f'Check email/text boxes and click Approve & Send.{pdf_note}',
+                            f'Report generated for {email} — NOT sent to client yet.'
+                            f'{doc_note} Review and click Approve & Send.{pdf_note}',
                             'success',
                         )
                     else:
@@ -934,12 +1040,17 @@ def admin():
 
     reports = Report.query.order_by(Report.id.desc()).all()
     client_scan_buckets = _group_clients_by_last_scan()
+    clients = _get_clients_for_admin()
+    client_groups = _split_clients_for_admin(clients)
     now = datetime.now().strftime('%b %d, %Y')
     return render_template(
         'admin.html',
         reports=reports,
         latest_report=latest_report,
         client_scan_buckets=client_scan_buckets,
+        clients=clients,
+        client_groups=client_groups,
+        selected_client=selected_client,
         now=now,
     )
 
