@@ -6,8 +6,12 @@ from datetime import datetime, timedelta
 
 from werkzeug.utils import secure_filename
 
-ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.png', '.jpg', '.jpeg', '.doc', '.docx'}
+ALLOWED_EXTENSIONS = {
+    '.pdf', '.txt', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp',
+    '.doc', '.docx', '.heic', '.heif',
+}
 MAX_UPLOAD_BYTES = 16 * 1024 * 1024
+MAX_FILES_PER_UPLOAD = 25
 
 
 def allowed_file(filename):
@@ -22,7 +26,9 @@ def save_upload(file_storage, upload_dir):
 
     original = secure_filename(file_storage.filename)
     if not allowed_file(original):
-        raise ValueError('File type not allowed. Use PDF, TXT, DOC, DOCX, or images.')
+        raise ValueError(
+            f'"{original}" type not allowed. Use PDF, images (PNG/JPG/WEBP/GIF), TXT, or DOC/DOCX.'
+        )
 
     file_storage.seek(0, os.SEEK_END)
     size = file_storage.tell()
@@ -36,6 +42,29 @@ def save_upload(file_storage, upload_dir):
     path = os.path.join(upload_dir, stored)
     file_storage.save(path)
     return stored, original
+
+
+def save_multiple_uploads(file_list, upload_dir):
+    """Save multiple uploaded files. Returns list of (stored, original) tuples."""
+    valid = [f for f in (file_list or []) if f and f.filename]
+    if not valid:
+        raise ValueError('Select at least one file to upload.')
+    if len(valid) > MAX_FILES_PER_UPLOAD:
+        raise ValueError(f'Maximum {MAX_FILES_PER_UPLOAD} files per upload.')
+
+    results = []
+    errors = []
+    for file_storage in valid:
+        try:
+            results.append(save_upload(file_storage, upload_dir))
+        except ValueError as exc:
+            errors.append(str(exc))
+
+    if not results and errors:
+        raise ValueError(' '.join(errors))
+    if errors and results:
+        return results, errors
+    return results, []
 
 
 def extract_text(file_path, original_name):
@@ -66,8 +95,8 @@ def extract_text(file_path, original_name):
         except Exception:
             return f'[Word document uploaded: {original_name}]'
 
-    if ext in {'.png', '.jpg', '.jpeg'}:
-        return f'[Medical image uploaded: {original_name} — review with your practitioner]'
+    if ext in {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.heic', '.heif'}:
+        return f'[Medical image/screenshot uploaded: {original_name} — review with your practitioner]'
 
     return f'[Document uploaded: {original_name}]'
 

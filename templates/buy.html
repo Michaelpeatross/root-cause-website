@@ -24,8 +24,11 @@
             </div>
 
             {% if stripe_ready %}
-            <button type="submit" class="btn btn-primary" style="font-size:1.1rem; padding:1rem 2rem; width:100%;">
-                Pay Securely — $199
+            <button type="submit" name="product" value="single" class="btn btn-primary" style="font-size:1.1rem; padding:1rem 2rem; width:100%; margin-bottom:0.75rem;">
+                Pay Securely — $199 (1 Scan)
+            </button>
+            <button type="submit" name="product" value="bundle_4" class="btn btn-secondary" style="font-size:1.1rem; padding:1rem 2rem; width:100%;">
+                4 Scans Bundle — $499
             </button>
             <p style="margin-top:1rem; font-size:0.9rem; color:var(--text-muted);">
                 <strong>Credit card</strong> · <strong>Apple Pay</strong> · <strong>Google Pay</strong> · <strong>Stripe Link</strong><br>

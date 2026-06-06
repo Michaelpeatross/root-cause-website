@@ -12,10 +12,11 @@ from report_generator import generate_report_html, generate_report_text
 from pdf_service import save_report_pdf, pdf_to_bytes
 
 from document_service import (
-    save_upload, extract_text, combined_document_text,
+    save_upload, save_multiple_uploads, extract_text, combined_document_text,
     process_scan_pdf_uploads, merge_scan_sources,
     parse_date_from_text, filter_recent_medical_documents,
 )
+from client_portal import get_personalized_recommendations
 from health_advisor import get_health_recommendations
 from notification_service import (
     notify_client_analysis_update, notify_admin_analysis_request,
@@ -25,7 +26,14 @@ from stripe_service import create_checkout_session, stripe_configured
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'rootcause2026secretkey')
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 80 * 1024 * 1024
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+_site_https = os.environ.get('SITE_URL', '').startswith('https')
+app.config['SESSION_COOKIE_SECURE'] = (
+    os.environ.get('SESSION_COOKIE_SECURE', 'true' if _site_https else 'false').lower() == 'true'
+)
+app.config['PERMANENT_SESSION_LIFETIME'] = 60 * 60 * 24 * 14
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 instance_dir = os.path.join(basedir, 'instance')
@@ -354,12 +362,15 @@ def buy():
 @app.route('/create-checkout-session', methods=['POST'])
 def create_checkout():
     site_url = os.environ.get('SITE_URL', request.host_url.rstrip('/'))
-    email = request.form.get('email', '').strip() or None
+    email = request.form.get('email', '').strip() or session.get('email') or None
     coupon = request.form.get('coupon', '').strip()
-    session_url, error = create_checkout_session(site_url, email, coupon)
+    product = request.form.get('product') or request.args.get('product', 'single')
+    session_url, error = create_checkout_session(site_url, email, coupon, product)
     if session_url:
         return redirect(session_url)
     flash(error or 'Could not start checkout.', 'error')
+    if session.get('user_id'):
+        return redirect(url_for('dashboard'))
     return redirect(url_for('buy'))
 
 
@@ -373,20 +384,69 @@ def instructions():
     return render_template('instructions.html')
 
 
+def _find_user_by_email(email):
+    """Case-insensitive user lookup."""
+    if not email:
+        return None
+    user = User.query.filter(db.func.lower(User.email) == email).first()
+    if not user:
+        user = User.query.filter(
+            db.func.lower(User.email) == _normalize_email(email)
+        ).first()
+    return user
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = _normalize_email(request.form.get('email'))
+        action = request.form.get('action', 'login')
+        raw_email = request.form.get('email', '').strip()
+        email = _normalize_email(raw_email)
         password = request.form.get('password', '')
-        user = User.query.filter(db.func.lower(User.email) == email).first()
-        if user and check_password_hash(user.password, password):
+
+        if action == 'reset_password':
+            new_password = request.form.get('new_password', '')
+            confirm = request.form.get('confirm_password', '')
+            user = _find_user_by_email(email)
+            if not user:
+                flash('No account found for that email. Create a free account first.', 'error')
+            elif len(new_password) < 6:
+                flash('Password must be at least 6 characters.', 'error')
+            elif new_password != confirm:
+                flash('Passwords do not match.', 'error')
+            else:
+                user.password = generate_password_hash(new_password)
+                db.session.commit()
+                flash('Password updated. Please sign in with your new password.', 'success')
+            return render_template('login.html', show_reset=True, email=raw_email)
+
+        user = _find_user_by_email(email)
+        if user and user.password and check_password_hash(user.password, password):
+            session.permanent = True
             session['user_id'] = user.id
             session['email'] = user.email
             session['name'] = user.name or user.email.split('@')[0]
-            session['is_admin'] = user.is_admin
+            session['is_admin'] = bool(user.is_admin)
             flash('Welcome back!', 'success')
             return redirect(url_for('admin') if user.is_admin else 'dashboard')
-        flash('Invalid email or password.', 'error')
+
+        if not user:
+            has_reports = Report.query.filter(
+                db.func.lower(Report.user_email) == email
+            ).first()
+            if has_reports:
+                flash(
+                    'No login account yet, but we have reports for this email. '
+                    'Click Create Account and use the same email to access your portal.',
+                    'error',
+                )
+            else:
+                flash('No account found. Create a free account or check your email.', 'error')
+        elif not user.password:
+            flash('Account needs a password. Use "Forgot password" below to set one.', 'error')
+        else:
+            flash('Incorrect password. Try again or use Forgot Password.', 'error')
+
     return render_template('login.html')
 
 
@@ -396,7 +456,7 @@ def register():
         name = request.form.get('name', '').strip()
         email = _normalize_email(request.form.get('email'))
         password = request.form.get('password', '')
-        if User.query.filter(db.func.lower(User.email) == email).first():
+        if _find_user_by_email(email):
             flash('Email already registered. Please log in.', 'error')
         else:
             user = User(name=name, email=email, password=generate_password_hash(password))
@@ -424,37 +484,45 @@ def dashboard():
                 flash('Phone number saved for SMS notifications.', 'success')
         elif action == 'upload':
             try:
-                stored, original = save_upload(
-                    request.files.get('document'),
-                    documents_dir,
-                )
-                path = os.path.join(documents_dir, stored)
-                text = extract_text(path, original)
-                upload_dt = datetime.now()
-                parsed = parse_date_from_text(text)
-                form_date = request.form.get('test_date', '').strip()
-                if form_date:
-                    test_date = form_date
-                elif parsed:
-                    test_date = parsed.strftime('%Y-%m-%d')
+                file_list = request.files.getlist('documents')
+                if not any(f and f.filename for f in file_list):
+                    file_list = request.files.getlist('document')
+                upload_result = save_multiple_uploads(file_list, documents_dir)
+                if isinstance(upload_result, tuple):
+                    saved_files, partial_errors = upload_result
                 else:
-                    test_date = upload_dt.strftime('%Y-%m-%d')
+                    saved_files, partial_errors = upload_result, []
 
-                doc = ClientDocument(
-                    user_email=email,
-                    stored_filename=stored,
-                    original_name=original,
-                    extracted_text=text,
-                    test_date=test_date,
-                    uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
-                )
-                db.session.add(doc)
+                upload_dt = datetime.now()
+                form_date = request.form.get('test_date', '').strip()
+                count = 0
+                for stored, original in saved_files:
+                    path = os.path.join(documents_dir, stored)
+                    text = extract_text(path, original)
+                    parsed = parse_date_from_text(text)
+                    if form_date:
+                        test_date = form_date
+                    elif parsed:
+                        test_date = parsed.strftime('%Y-%m-%d')
+                    else:
+                        test_date = upload_dt.strftime('%Y-%m-%d')
+
+                    doc = ClientDocument(
+                        user_email=email,
+                        stored_filename=stored,
+                        original_name=original,
+                        extracted_text=text,
+                        test_date=test_date,
+                        uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
+                    )
+                    db.session.add(doc)
+                    count += 1
                 db.session.commit()
-                flash(
-                    f'Uploaded: {original} (test date {test_date}). '
-                    f'Included in analysis if within the past 12 months.',
-                    'success',
-                )
+
+                msg = f'Uploaded {count} file(s). Recommendations updated from your latest scan + medical docs.'
+                if partial_errors:
+                    msg += f' Some files skipped: {"; ".join(partial_errors[:3])}'
+                flash(msg, 'success')
             except ValueError as exc:
                 flash(str(exc), 'error')
         elif action == 'request_analysis':
@@ -483,12 +551,16 @@ def dashboard():
     documents = _get_client_documents(email)
     user_obj = User.query.get(session['user_id'])
     reports_by_date = _group_reports_by_date(reports)
+    latest_report = reports[0] if reports else None
+    recommendations = get_personalized_recommendations(latest_report, documents)
 
     return render_template(
         'dashboard.html',
         reports=reports,
         reports_by_date=reports_by_date,
         documents=documents,
+        recommendations=recommendations,
+        stripe_ready=stripe_configured(),
         user={
             'name': session.get('name', 'Client'),
             'phone': user_obj.phone if user_obj else '',

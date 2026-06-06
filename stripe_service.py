@@ -5,16 +5,27 @@ import stripe
 
 stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
 
-PRODUCT_NAME = 'Root Cause Bioenergetic Hair + Saliva Analysis'
-DEFAULT_PRICE_CENTS = 19900  # $199.00
-DISCOUNT_PRICE_CENTS = 19900  # welcome50 keeps $199
+PRODUCTS = {
+    'single': {
+        'name': 'Root Cause Bioenergetic Scan',
+        'description': 'One personalized hair + saliva bioenergetic analysis',
+        'amount': 19900,
+    },
+    'bundle_4': {
+        'name': 'Root Cause 4-Scan Bundle',
+        'description': 'Four bioenergetic scans — best value for ongoing monitoring',
+        'amount': 49900,
+    },
+}
+
+DEFAULT_PRICE_CENTS = 19900
 
 
 def stripe_configured():
     return bool(stripe.api_key and stripe.api_key.startswith('sk_'))
 
 
-def create_checkout_session(site_url, customer_email=None, coupon_code=None):
+def create_checkout_session(site_url, customer_email=None, coupon_code=None, product_key='single'):
     """
     Create Stripe Checkout Session.
     Supports credit/debit cards, Apple Pay, Google Pay, and Stripe Link.
@@ -24,10 +35,13 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None):
     if not stripe_configured():
         return None, 'Stripe is not configured. Set STRIPE_SECRET_KEY on the server.'
 
-    amount = DISCOUNT_PRICE_CENTS if (coupon_code or '').lower() == 'welcome50' else DEFAULT_PRICE_CENTS
+    product = PRODUCTS.get(product_key, PRODUCTS['single'])
+    amount = product['amount']
+    if product_key == 'single' and (coupon_code or '').lower() == 'welcome50':
+        amount = 19900
 
     success_url = f'{site_url.rstrip("/")}/checkout/success?session_id={{CHECKOUT_SESSION_ID}}'
-    cancel_url = f'{site_url.rstrip("/")}/buy'
+    cancel_url = f'{site_url.rstrip("/")}/dashboard' if customer_email else f'{site_url.rstrip("/")}/buy'
 
     try:
         session_params = {
@@ -38,8 +52,8 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None):
                     'currency': 'usd',
                     'unit_amount': amount,
                     'product_data': {
-                        'name': PRODUCT_NAME,
-                        'description': 'Personalized bioenergetic analysis with supplement and lab guidance',
+                        'name': product['name'],
+                        'description': product['description'],
                     },
                 },
                 'quantity': 1,
@@ -49,7 +63,7 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None):
             'allow_promotion_codes': True,
             'billing_address_collection': 'auto',
             'phone_number_collection': {'enabled': True},
-            'metadata': {'product': 'bioenergetic_analysis'},
+            'metadata': {'product': product_key},
         }
         if customer_email:
             session_params['customer_email'] = customer_email
