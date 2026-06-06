@@ -123,6 +123,20 @@ Use the test/collection/report date found in the document when possible."""
     return _local_classify_document(extracted_text, original_name)
 
 
+def _local_medical_notes_html(medical_text, client_name):
+    """Plain-language medical record notes when Grok is unavailable."""
+    if not medical_text or len(medical_text.strip()) < 80:
+        return ''
+    return f"""<section class="scan-section">
+  <h2>Your Medical Records — Plain English Notes</h2>
+  <p class="scan-lead">A quick overview of how your uploaded lab work connects to your scan.</p>
+  <div class="scan-summary">
+    <p>We reviewed your uploaded medical documents alongside your bioenergetic scan. Share these records with your practitioner and discuss any out-of-range values at your next visit.</p>
+    <p><em>Recommendations incorporate all documents you uploaded to your client portal.</em></p>
+  </div>
+</section>"""
+
+
 def _local_recommendations_html(scan_raw, medical_text, client_name):
     """Rule-based recommendations when Grok API is unavailable."""
     findings = _parse_lines(scan_raw or '')
@@ -186,6 +200,59 @@ def _local_recommendations_html(scan_raw, medical_text, client_name):
 </section>"""
 
 
+def _grok_full_scan_medical_notes(scan_raw, medical_text, client_name, client_email):
+    """Plain-English medical record notes styled like the Full Scan PDF."""
+    if not medical_text or len(medical_text.strip()) < 80:
+        return ''
+
+    prompt = f"""You are writing a short, easy-to-read section for a bioenergetic Full Scan report.
+The scan PDF already contains the main results, summaries, next steps, and remedy products.
+Your job is ONLY to explain how the client's uploaded medical lab work connects to their scan — in everyday language.
+
+Client: {client_name}
+
+SCAN EXCERPT (for context only):
+{scan_raw[:8000]}
+
+CLIENT MEDICAL DOCUMENTS:
+{medical_text[:40000]}
+
+Write for an average adult with no medical background.
+- Use short sentences and common words (8th-grade reading level).
+- No bullet lists, no affiliate links, no product recommendations.
+- 2–4 short paragraphs maximum.
+- Address the client by first name once in the opening sentence.
+- Do not repeat content that belongs in a scan summary (systems, sensitivities, remedies).
+
+Respond in HTML only (no markdown). Use exactly this structure:
+<section class="scan-section">
+  <h2>Your Medical Records — Plain English Notes</h2>
+  <p class="scan-lead">How your uploaded lab work relates to what showed up on your scan.</p>
+  <div class="scan-summary">
+    <p>...</p>
+  </div>
+</section>"""
+
+    content = _grok_chat(
+        prompt,
+        system='You write warm, clear wellness education in simple HTML. No jargon.',
+        temperature=0.35,
+        timeout=60,
+    )
+    if not content:
+        return ''
+    content = re.sub(r'^```html\s*', '', content)
+    content = re.sub(r'\s*```$', '', content)
+    if '<section' in content:
+        return content
+    return (
+        '<section class="scan-section">'
+        '<h2>Your Medical Records — Plain English Notes</h2>'
+        f'<div class="scan-summary"><p>{content}</p></div>'
+        '</section>'
+    )
+
+
 def _grok_recommendations(scan_raw, medical_text, client_name, client_email):
     """Call xAI Grok API for personalized recommendations."""
     api_key = os.environ.get('XAI_API_KEY')
@@ -237,8 +304,18 @@ Be specific to this client's data. Keep lists concise (3-6 items each)."""
     return None
 
 
-def get_health_recommendations(scan_raw, medical_text, client_name, client_email):
+def get_health_recommendations(
+    scan_raw, medical_text, client_name, client_email, full_scan_mode=False,
+):
     """Return HTML block with personalized health recommendations."""
+    if full_scan_mode:
+        grok_html = _grok_full_scan_medical_notes(
+            scan_raw, medical_text, client_name, client_email,
+        )
+        if grok_html:
+            return grok_html, 'grok'
+        return _local_medical_notes_html(medical_text, client_name), 'local'
+
     grok_html = _grok_recommendations(scan_raw, medical_text, client_name, client_email)
     if grok_html:
         return enrich_html_with_affiliate_links(grok_html), 'grok'

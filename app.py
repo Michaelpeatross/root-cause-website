@@ -291,7 +291,8 @@ def _build_full_report(email, title, raw_data, pdf_results=None):
     prefer_template = _prefer_full_scan_template(title, raw_data, pdf_results)
 
     ai_html, _source = get_health_recommendations(
-        raw_data, medical_text, client_name, email
+        raw_data, medical_text, client_name, email,
+        full_scan_mode=prefer_template,
     )
     html_report = generate_report_html(
         email, title, raw_data, ai_html, client_name=client_name,
@@ -308,13 +309,15 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
     client_name = _client_display_name(email)
     user = User.query.filter(db.func.lower(User.email) == _normalize_email(email)).first()
 
+    prefer_template = _prefer_full_scan_template(report.title, report.raw_data)
     ai_html, _ = get_health_recommendations(
-        report.raw_data, medical_text, client_name, email
+        report.raw_data, medical_text, client_name, email,
+        full_scan_mode=prefer_template,
     )
     report.ai_recommendations = ai_html
     report.generated_report = generate_report_html(
         email, report.title, report.raw_data, ai_html, client_name=client_name,
-        prefer_template=_prefer_full_scan_template(report.title, report.raw_data),
+        prefer_template=prefer_template,
     )
     report.plain_text = generate_report_text(
         email, report.title, report.raw_data, ai_html

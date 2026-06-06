@@ -171,14 +171,14 @@ def _parse_nutrient_groups(text):
 def _parse_hormone_items(text):
     items = []
     for match in re.finditer(
-        r'(Low|High)\s+([A-Za-z0-9\-\(\) /]+)\n(.*?)(?=\n(?:Low|High)\s+[A-Z]|\nNotes|\nMETABOLIC|\nBETTER|\nHORMONE|\nPERSONALIZED|\Z)',
+        r'(Low|High)\s+([A-Za-z0-9\-\(\) /]+)\n(.*?)(?=\n(?:Low|High)\s+[A-Za-z]|\nNotes|\nMETABOLIC|\nBETTER|\nHORMONE|\nPERSONALIZED|\nYOU TESTED WITH|\Z)',
         text,
         re.S,
     ):
         items.append({
             'level': match.group(1),
             'name': match.group(2).strip(),
-            'description': match.group(3).strip(),
+            'description': _clean_readable_text(match.group(3).strip()),
         })
     if not items:
         for line in text.split('\n'):
@@ -190,6 +190,22 @@ def _parse_hormone_items(text):
                     'description': '',
                 })
     return items
+
+
+def _extract_hormone_block(scan_text, sections):
+    """Hormone lists sometimes appear inside the metabolic section of vendor PDFs."""
+    hormonal = sections.get('hormonal', '')
+    if hormonal and hormonal.strip().lower() not in ('notes', ''):
+        return hormonal
+    metabolic = sections.get('metabolic', '')
+    match = re.search(
+        r'(?:hormones?\s+detected|listed below\.)\s*(.*?)(?=YOU TESTED WITH|\Z)',
+        metabolic,
+        re.I | re.S,
+    )
+    if match:
+        return match.group(1).strip()
+    return hormonal
 
 
 def _parse_imbalance_cards(text):
@@ -224,21 +240,84 @@ def _extract_arrow_field(body, label):
 
 def _parse_remedies(text):
     remedies = []
-    blocks = re.split(r'\n(?=[A-Z][^\n]{8,}\n)', text)
-    for block in blocks:
-        lines = [ln.strip() for ln in block.split('\n') if ln.strip()]
-        if len(lines) < 2:
-            continue
-        price_match = re.search(r'\$(\d+\.\d{2})', block)
+    split = re.split(r'\nBalancing Remedies\s*\n', text, flags=re.I)
+    text = split[-1] if split else text
+    text = re.sub(r'^Balancing Remedies\s*', '', text, flags=re.I).strip()
+    current_category = ''
+    buffer = []
+    price = ''
+
+    def flush_product(name_lines):
+        nonlocal price, current_category, buffer
+        if not name_lines:
+            return
+        name = name_lines[0][:140]
+        details = _clean_readable_text('\n'.join(name_lines[1:] + buffer).strip())
         remedies.append({
-            'name': lines[0][:120],
-            'details': '\n'.join(lines[1:]),
-            'price': f'${price_match.group(1)}' if price_match else '',
+            'category': current_category,
+            'name': name,
+            'details': details,
+            'price': price,
         })
+        buffer = []
+        price = ''
+
+    pending_name = []
+    for line in text.split('\n'):
+        line = line.strip()
+        if not line:
+            continue
+        if re.match(r'^(Homeopathic|Nutri.{0,4}nal\s*Supplements?|Nutritional)$', line, re.I):
+            if pending_name:
+                flush_product(pending_name)
+                pending_name = []
+            current_category = re.sub(r'\s+', ' ', line)
+            continue
+        price_match = re.match(r'^\$(\d+\.\d{2})$', line)
+        if price_match:
+            price = f'${price_match.group(1)}'
+            if pending_name:
+                flush_product(pending_name)
+                pending_name = []
+            continue
+        if re.search(r'\$\d+\.\d{2}', line) and not pending_name:
+            m = re.search(r'\$(\d+\.\d{2})', line)
+            price = f'${m.group(1)}' if m else ''
+            line = re.sub(r'\$\d+\.\d{2}', '', line).strip()
+            if line:
+                pending_name = [line]
+            continue
+        if not pending_name and len(line) > 4 and not line.startswith('→'):
+            if buffer or price:
+                flush_product(pending_name or ['Remedy'])
+                pending_name = []
+            pending_name = [line]
+        else:
+            buffer.append(line)
+
+    if pending_name:
+        flush_product(pending_name)
+
+    remedies = [
+        r for r in remedies
+        if r.get('name')
+        and 'potential remedies including' not in r['name'].lower()
+        and (r.get('price') or r.get('details'))
+    ]
+
     if not remedies:
-        for line in text.split('\n'):
-            if re.search(r'\$\d+\.\d{2}', line):
-                remedies.append({'name': line.strip(), 'details': '', 'price': ''})
+        blocks = re.split(r'\n(?=[A-Z][^\n]{8,}\n)', text)
+        for block in blocks:
+            lines = [ln.strip() for ln in block.split('\n') if ln.strip()]
+            if len(lines) < 2:
+                continue
+            price_match = re.search(r'\$(\d+\.\d{2})', block)
+            remedies.append({
+                'category': '',
+                'name': lines[0][:120],
+                'details': _clean_readable_text('\n'.join(lines[1:])),
+                'price': f'${price_match.group(1)}' if price_match else '',
+            })
     return remedies[:12]
 
 
@@ -348,7 +427,7 @@ def generate_template_report_html(
     )
     nutrients = _parse_nutrient_groups(sections.get('nutritional', ''))
     toxins = _parse_category_columns(sections.get('toxins', ''), TOXIN_GROUPS)
-    hormones = _parse_hormone_items(sections.get('hormonal', ''))
+    hormones = _parse_hormone_items(_extract_hormone_block(scan_text, sections))
     metabolic_cards = _parse_imbalance_cards(sections.get('metabolic', ''))
     sleep_cards = _parse_imbalance_cards(sections.get('sleep', ''))
     hormone_cards = _parse_imbalance_cards(sections.get('hormone_test', ''))
@@ -362,17 +441,21 @@ def generate_template_report_html(
     intro_sleep = _section_intro(sections.get('sleep', ''), 'sleep')
     intro_hormone = _section_intro(sections.get('hormone_test', ''), 'hormone')
 
-    summary_text = sections.get('summary', '').strip()
-    next_steps = sections.get('next_steps', '').strip()
+    summary_text = _clean_readable_text(sections.get('summary', '').strip())
+    next_steps = _clean_readable_text(sections.get('next_steps', '').strip())
     disclaimer = sections.get('disclaimer', '').strip()
 
     remedies_html = ''
+    last_category = None
     for rem in remedies:
+        if rem.get('category') and rem['category'] != last_category:
+            remedies_html += f'<h3 class="scan-remedy-category">{escape(rem["category"])}</h3>'
+            last_category = rem['category']
         remedies_html += (
             f'<div class="scan-remedy-card">'
             f'<h4>{escape(rem["name"])}</h4>'
-            + (f'<p>{escape(rem["details"][:1200])}</p>' if rem["details"] else '')
-            + (f'<p class="scan-price">{escape(rem["price"])}</p>' if rem["price"] else '')
+            + (f'<p>{escape(rem["details"][:1200])}</p>' if rem.get("details") else '')
+            + (f'<p class="scan-price">{escape(rem["price"])}</p>' if rem.get("price") else '')
             + '</div>'
         )
 
@@ -421,13 +504,13 @@ def generate_template_report_html(
 
   {f'<section class="scan-section page-break"><h2>Hormone Test Results</h2>{intro_hormone}{_render_imbalance_cards(hormone_cards)}</section>' if hormone_cards or intro_hormone else ''}
 
-  {ai_recommendations_html or ''}
+  {f'<section class="scan-section page-break"><h2>Personalized Client Summary</h2><p class="scan-lead">Your results explained in plain language — what stands out and what it means for how you feel day to day.</p><div class="scan-summary scan-prose"><p>{_format_paragraphs(summary_text)}</p></div></section>' if summary_text else ''}
 
-  {f'<section class="scan-section page-break"><h2>Personalized Client Summary</h2><div class="scan-summary"><p>{_format_paragraphs(summary_text)}</p></div></section>' if summary_text else ''}
-
-  {f'<section class="scan-section"><h2>Next Steps</h2><div class="scan-summary">{_format_paragraphs(next_steps)}</div></section>' if next_steps else ''}
+  {f'<section class="scan-section"><h2>Next Steps</h2><p class="scan-lead">A simple action plan to support your body as it rebalances.</p>{_format_next_steps_html(next_steps)}</section>' if next_steps else ''}
 
   {f'<section class="scan-section page-break"><h2>Balancing Remedies</h2><p class="scan-lead">Remedies identified to bring energetic stressors back into balance — herbs, homeopathics, and nutritional supplements.</p>{remedies_html}</section>' if remedies_html else ''}
+
+  {ai_recommendations_html or ''}
 
   {raw_fallback}
 
@@ -450,10 +533,65 @@ def _section_intro(text, kind):
     return f'<div class="scan-section-intro"><p>{_format_paragraphs(intro)}</p></div>'
 
 
+def _clean_readable_text(text):
+    """Normalize OCR quirks so scan copy reads naturally."""
+    if not text:
+        return ''
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+    text = re.sub(r'→\s*', '→ ', text)
+    text = re.sub(r'([a-z])([A-Z][a-z]{3,})', r'\1 \2', text)
+    text = re.sub(r'([a-z])(Androstenedione|Lipoprotein|Alpha|Beta)', r'\1 \2', text)
+    text = re.sub(r'[ \t]+', ' ', text)
+    text = re.sub(r' ?\n ?', '\n', text)
+    return text.strip()
+
+
 def _format_paragraphs(text):
     if not text:
         return ''
+    text = _clean_readable_text(text)
+    text = re.sub(
+        r'^(PERSONALIZED CLIENT SUMMARY|NEXT STEPS|SUMMARY)[:\s]*',
+        '',
+        text,
+        flags=re.I,
+    )
     paras = [p.strip() for p in re.split(r'\n\s*\n', text) if p.strip()]
+    if len(paras) <= 1 and len(text) > 280:
+        sentences = re.split(r'(?<=[.!?])\s+(?=[A-Z"\'])', text)
+        paras = []
+        chunk = []
+        for sentence in sentences:
+            chunk.append(sentence.strip())
+            if len(chunk) >= 3:
+                paras.append(' '.join(chunk))
+                chunk = []
+        if chunk:
+            paras.append(' '.join(chunk))
     if not paras:
         paras = [ln.strip() for ln in text.split('\n') if ln.strip()]
     return '</p><p>'.join(escape(p) for p in paras)
+
+
+def _format_next_steps_html(text):
+    if not text:
+        return ''
+    text = _clean_readable_text(text)
+    text = re.sub(r'^Next Steps[:\s]*', '', text, flags=re.I).strip()
+    text = re.sub(r'Disclaimer:.*', '', text, flags=re.I | re.S).strip()
+    steps = []
+    parts = re.split(r'(?=\d+\.\s+)', text)
+    for part in parts:
+        part = part.strip()
+        if not part:
+            continue
+        match = re.match(r'^\d+\.\s*(.+)$', part, re.S)
+        if not match:
+            continue
+        step = re.sub(r'\s+', ' ', match.group(1).strip())
+        if step:
+            steps.append(step)
+    if steps:
+        items = ''.join(f'<li>{escape(s)}</li>' for s in steps)
+        return f'<ol class="scan-steps">{items}</ol>'
+    return f'<div class="scan-summary"><p>{_format_paragraphs(text)}</p></div>'

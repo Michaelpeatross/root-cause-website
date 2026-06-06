@@ -174,8 +174,9 @@ a:hover { text-decoration: underline; }
 
 .bio-report,
 .scan-report {
-  font-size: 0.95rem;
-  line-height: 1.65;
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #2d3436;
 }
 
 .scan-cover {
@@ -240,6 +241,72 @@ a:hover { text-decoration: underline; }
   border-top: 1px solid #ddd;
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.scan-lead {
+  font-size: 1rem;
+  color: #4a5568;
+  margin: 0 0 1rem;
+  max-width: 52rem;
+}
+
+.scan-summary,
+.scan-prose {
+  font-size: 1.02rem;
+  line-height: 1.8;
+  max-width: 52rem;
+}
+
+.scan-prose p {
+  margin: 0 0 1rem;
+}
+
+.scan-steps {
+  margin: 0.5rem 0 0;
+  padding-left: 1.35rem;
+  max-width: 52rem;
+}
+
+.scan-steps li {
+  margin-bottom: 0.85rem;
+  padding-left: 0.25rem;
+  line-height: 1.7;
+}
+
+.scan-remedy-category {
+  font-family: 'Playfair Display', serif;
+  color: var(--green-dark);
+  font-size: 1.15rem;
+  margin: 1.25rem 0 0.5rem;
+  border-bottom: 1px solid #e8ecea;
+  padding-bottom: 0.25rem;
+}
+
+.scan-price {
+  font-weight: 700;
+  color: var(--green);
+  margin-top: 0.5rem;
+}
+
+.scan-imbalance-card p {
+  margin: 0.4rem 0;
+}
+
+.scan-imbalance-card strong {
+  color: var(--green-dark);
+}
+
+@media (max-width: 900px) {
+  .scan-col {
+    width: 48%;
+  }
+}
+
+@media (max-width: 560px) {
+  .scan-col {
+    width: 100%;
+    display: block;
+  }
 }
 
 .report-header {

@@ -67,7 +67,11 @@ ul { margin: 6px 0; padding-left: 18px; }
 .scan-hormone-item { margin: 8px 0; padding-bottom: 8px; border-bottom: 1px solid #eee; }
 .scan-hormone-item h4 { margin: 0 0 4px; color: #1a5276; }
 
-.scan-summary p { margin: 0 0 8px; font-size: 10pt; }
+.scan-summary p { margin: 0 0 10px; font-size: 10.5pt; line-height: 1.65; }
+.scan-prose p { margin: 0 0 10px; }
+.scan-steps { margin: 8px 0 0; padding-left: 20px; }
+.scan-steps li { margin-bottom: 8px; line-height: 1.55; }
+.scan-remedy-category { color: #0b3d2a; font-size: 12pt; margin: 14px 0 6px; border-bottom: 1px solid #dceee8; }
 
 .scan-remedy-card { border: 1px solid #e0e0e0; padding: 10px; margin: 8px 0; page-break-inside: avoid; }
 .scan-remedy-card h4 { margin: 0 0 4px; color: #0b3d2a; }
