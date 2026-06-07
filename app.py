@@ -29,7 +29,7 @@ from notification_service import (
     deliver_report_to_client,
 )
 from stripe_service import create_checkout_session, stripe_configured
-from persistent_storage import setup_persistent_paths
+from persistent_storage import setup_persistent_paths, get_storage_status
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'rootcause2026secretkey')
@@ -57,8 +57,16 @@ reports_dir = _storage['reports_dir']
 documents_dir = _storage['documents_dir']
 scan_pdfs_dir = _storage['scan_pdfs_dir']
 
+_storage_status = get_storage_status(_storage)
 if os.environ.get('RENDER'):
     print(f'[Root Cause] Persistent data directory: {data_dir}')
+    print(
+        f'[Root Cause] Database: {_storage["db_path"]} '
+        f'({_storage_status["user_count"]} users, '
+        f'{_storage_status["report_count"]} reports)'
+    )
+    for warning in _storage_status['warnings']:
+        print(f'[Root Cause] WARNING: {warning}')
 
 app.config['SQLALCHEMY_DATABASE_URI'] = _storage['database_uri']
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -1417,6 +1425,7 @@ def admin():
         clients=clients,
         client_groups=client_groups,
         selected_client=selected_client,
+        storage_status=_storage_status,
         now=now,
     )
 

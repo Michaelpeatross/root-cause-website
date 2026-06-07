@@ -11,6 +11,31 @@
     </form>
     <span style="font-size:0.85rem; color:var(--text-muted); margin-left:0.5rem;">Uses <code>XAI_API_KEY</code> on Render (~0.001¢ per test)</span>
 
+    {% if storage_status.warnings %}
+    <div class="card" style="margin-top:1.25rem; border:2px solid #c0392b; background:#fff5f5;">
+        <h2 style="margin:0 0 0.5rem; color:#c0392b; font-size:1rem;">Data persistence warning</h2>
+        <p style="margin:0 0 0.5rem; font-size:0.9rem; color:#555;">
+            Client accounts and uploads can be lost on each deploy unless Render has a
+            <strong>persistent disk</strong> mounted at <code>{{ storage_status.data_dir }}</code>.
+        </p>
+        <ul style="margin:0; padding-left:1.25rem; font-size:0.88rem; color:#333;">
+            {% for w in storage_status.warnings %}
+            <li style="margin-bottom:0.35rem;">{{ w }}</li>
+            {% endfor %}
+        </ul>
+        <p style="margin:0.75rem 0 0; font-size:0.85rem; color:var(--text-muted);">
+            Database: <code>{{ storage_status.db_path }}</code> —
+            {{ storage_status.user_count }} user(s), {{ storage_status.report_count }} report(s).
+            {% if storage_status.on_render %}On Render; DATA_DIR={{ storage_status.data_dir_env }}.{% endif %}
+        </p>
+    </div>
+    {% elif storage_status.on_render %}
+    <p style="margin-top:1rem; font-size:0.85rem; color:var(--text-muted);">
+        Persistent storage OK — {{ storage_status.user_count }} client account(s),
+        {{ storage_status.report_count }} report(s) in <code>{{ storage_status.db_path }}</code>.
+    </p>
+    {% endif %}
+
     {% if client_groups.awaiting_with_docs or client_groups.awaiting_accounts %}
     <div class="card awaiting-scan-panel" style="margin-top:1.5rem; border:2px solid #2980b9; background:linear-gradient(135deg, #f0f7ff, #fff);">
         <h2 style="margin-bottom:0.25rem;">Clients Awaiting First Scan</h2>

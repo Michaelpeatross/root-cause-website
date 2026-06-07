@@ -1,5 +1,7 @@
 # Render Blueprint — persistent disk keeps database + uploads across redeploys.
-# Disks require a paid plan (Starter or higher).
+# REQUIRED: Starter plan or higher + disk "rootcause-data" mounted below.
+# In the Render dashboard, confirm Environment has DATA_DIR and Disk is attached.
+# Without both, every git push redeploy wipes client logins, reports, and uploads.
 services:
   - type: web
     name: root-cause-website
