@@ -3,24 +3,19 @@ import re
 from html import escape
 from datetime import datetime
 
-SYSTEM_NAMES = [
-    'Integumentary', 'Nervous', 'Respiratory', 'Digestive', 'Pancreas',
-    'LiverGallbladder', 'Liver/Gallbladder', 'Metabolism', 'Urogenital',
-    'Endocrine', 'Locomotor', 'Blood', 'Cardiovascular', 'Lymph', 'Immune',
-]
-
-SENSITIVITY_CATEGORIES = [
-    'Grain', 'Additives', 'Addiitives', 'Dairy', 'Environmental', 'Beverages',
-    'DairyAlternative', 'Dairy Alternaive', 'Fish', 'Fruit', 'Ingredients',
-    'Legume', 'Meat', 'Nut', 'Shellfish', 'Spice', 'Sugar', 'Vegetable',
-]
+from body_overview import (
+    build_body_overview,
+    render_body_overview_html,
+    parse_sensitivity_groups,
+    parse_toxin_groups,
+    parse_nutrient_item_lists,
+    render_category_section_html,
+)
 
 NUTRIENT_GROUPS = [
     'Vitamins', 'Enzymes', 'FattyAcids', 'Fatty Acids', 'Amino Acids',
     'Minerals', 'FayAcids',
 ]
-
-TOXIN_GROUPS = ['Bacteria', 'Parasites', 'Metals', 'Mold', 'Chemicals', 'Virus']
 
 SECTION_PATTERNS = [
     ('system_performance', r'energ.{0,6}c\s+system\s+performance'),
@@ -89,28 +84,6 @@ def _extract_title_info(raw_text, client_name, title):
                 display_name = lines[1].split(' - ')[0].strip()
 
     return scan_title, display_name, scan_date
-
-
-def _parse_systems(text):
-    systems = []
-    for name in SYSTEM_NAMES:
-        if re.search(rf'\b{re.escape(name)}\b', text, re.I):
-            systems.append(name.replace('LiverGallbladder', 'Liver / Gallbladder'))
-    notes = ''
-    note_match = re.search(
-        r'notes\s*(.*?)(?=energetic\s+sensiti|energetic\s+nutri|$)',
-        text,
-        re.I | re.S,
-    )
-    if note_match:
-        notes = note_match.group(1).strip()
-    stressed = re.search(
-        r'most\s+signific[^\n]*stressed:\s*([^\n]+)',
-        text,
-        re.I,
-    )
-    stressed_line = stressed.group(1).strip() if stressed else ''
-    return systems, notes, stressed_line
 
 
 def _parse_category_columns(text, categories):
@@ -417,25 +390,40 @@ def generate_template_report_html(
         scan_text, client_name, title
     )
 
-    sys_text = sections.get('system_performance', '')
-    if not sys_text:
-        first_section = re.search(r'energ.{0,6}c\s+sensiti', scan_text, re.I)
-        sys_text = scan_text[:first_section.start()] if first_section else scan_text[:4000]
-    systems, sys_notes, stressed = _parse_systems(sys_text)
-    sensitivities = _parse_category_columns(
-        sections.get('sensitivities', ''), SENSITIVITY_CATEGORIES
-    )
-    nutrients = _parse_nutrient_groups(sections.get('nutritional', ''))
-    toxins = _parse_category_columns(sections.get('toxins', ''), TOXIN_GROUPS)
     hormones = _parse_hormone_items(_extract_hormone_block(scan_text, sections))
     metabolic_cards = _parse_imbalance_cards(sections.get('metabolic', ''))
     sleep_cards = _parse_imbalance_cards(sections.get('sleep', ''))
     hormone_cards = _parse_imbalance_cards(sections.get('hormone_test', ''))
     remedies = _parse_remedies(sections.get('remedies', ''))
 
-    systems_html = ''.join(
-        f'<span class="scan-system-pill">{escape(s)}</span>' for s in systems
-    ) or '<p class="scan-muted">See scan data for system performance details.</p>'
+    all_imbalance_cards = metabolic_cards + sleep_cards + hormone_cards
+    body_overview = build_body_overview(
+        scan_text, sections, all_imbalance_cards, hormones,
+    )
+    body_overview_html = render_body_overview_html(body_overview)
+
+    sensitivities = parse_sensitivity_groups(sections.get('sensitivities', ''))
+    nutrients = parse_nutrient_item_lists(sections.get('nutritional', ''))
+    toxins = parse_toxin_groups(sections.get('toxins', ''))
+
+    sensitivities_html = render_category_section_html(
+        'Sensitivities',
+        'Items that came up bioenergetically sensitive. With time as the body rebalances, some of these may change.',
+        sensitivities,
+        show_empty=True,
+    )
+    nutrients_html = render_category_section_html(
+        'Nutritional Imbalances',
+        'Nutrients that are bioenergetically low — vitamins, enzymes, fatty acids, amino acids, and minerals.',
+        nutrients,
+        show_empty=True,
+    )
+    toxins_html = render_category_section_html(
+        'Toxins',
+        'Resonating bacteria, parasites, metals, molds, and chemicals detected in the bioenergetic scan.',
+        toxins,
+        show_empty=True,
+    )
 
     intro_metabolic = _section_intro(sections.get('metabolic', ''), 'metabolic')
     intro_sleep = _section_intro(sections.get('sleep', ''), 'sleep')
@@ -476,25 +464,13 @@ def generate_template_report_html(
     <p class="scan-client-email">{escape(email)}</p>
   </header>
 
-  <section class="scan-section page-break">
-    <h2>Energetic System Performance</h2>
-    <p class="scan-lead">The goal is to eventually have each system at 100%. We scan 58 points to create the system performance chart below.</p>
-    <div class="scan-legend">
-      <span>100%: Minor Stress</span>
-      <span>80%: Stress</span>
-      <span>60%: Chronic Stress</span>
-      <span>40%: Weakness</span>
-      <span>20%: Chronic Weakness</span>
-    </div>
-    <div class="scan-systems-grid">{systems_html}</div>
-    {f'<div class="scan-notes"><h4>Notes</h4><p><strong>Most significantly stressed:</strong> {escape(stressed)}</p><p>{escape(sys_notes[:2000])}</p></div>' if stressed or sys_notes else ''}
-  </section>
+  {body_overview_html}
 
-  {f'<section class="scan-section page-break"><h2>Energetic Sensitivities</h2><p class="scan-lead">Items that came up bioenergetically sensitive. With time as the body rebalances, some of these may change.</p>{_render_columns(sensitivities)}</section>' if sensitivities else ''}
+  {sensitivities_html}
 
-  {f'<section class="scan-section page-break"><h2>Energetic Nutritional Imbalances</h2><p class="scan-lead">Nutrients that are bioenergetically low — enzymes, fatty acids, vitamins, minerals, and amino acids.</p>{_render_columns(nutrients)}</section>' if nutrients else ''}
+  {nutrients_html}
 
-  {f'<section class="scan-section page-break"><h2>Energetic Toxins</h2><p class="scan-lead">Resonating heavy metals, bacteria, viruses, molds, parasites, and chemicals detected in the bioenergetic scan.</p>{_render_columns(toxins)}</section>' if toxins else ''}
+  {toxins_html}
 
   {f'<section class="scan-section page-break"><h2>Energetic Hormonal Imbalances</h2><p class="scan-lead">Hormones detected as resonating imbalances during your scan.</p>{_render_hormones(hormones)}</section>' if hormones else ''}
 

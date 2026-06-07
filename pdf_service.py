@@ -49,6 +49,16 @@ ul { margin: 6px 0; padding-left: 18px; }
 
 .scan-systems-grid { margin: 10px 0; }
 .scan-system-pill { display: inline-block; background: #e8f5f1; color: #0b3d2a; padding: 5px 10px; margin: 3px; border-radius: 4px; font-size: 9pt; font-weight: bold; }
+.body-overview-grid { margin-top: 10px; }
+.body-system-card { border: 1px solid #dceee8; margin-bottom: 8px; page-break-inside: avoid; }
+.body-system-summary { padding: 8px 10px; font-weight: bold; }
+.body-system-detail { padding: 0 10px 10px; font-size: 9pt; }
+.stress-badge { padding: 2px 8px; border-radius: 10px; font-size: 8pt; font-weight: bold; }
+.stress-minor { background: #d4edda; color: #155724; }
+.stress-moderate { background: #e8f5e1; color: #3d6b2e; }
+.stress-chronic { background: #fff3cd; color: #856404; }
+.stress-weakness { background: #ffe8cc; color: #a05a00; }
+.stress-severe { background: #f8d7da; color: #721c24; }
 
 .scan-notes { background: #fff8e6; padding: 10px; margin-top: 10px; border-left: 3px solid #f0c040; }
 .scan-notes h4 { margin-top: 0; color: #856404; }

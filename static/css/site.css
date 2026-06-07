@@ -213,6 +213,95 @@ a:hover { text-decoration: underline; }
   font-weight: 600;
 }
 
+.body-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.body-system-card {
+  border: 1px solid #dceee8;
+  border-radius: var(--radius);
+  background: #fafcfb;
+  overflow: hidden;
+}
+
+.body-system-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+}
+
+.body-system-summary::-webkit-details-marker { display: none; }
+
+.body-system-name {
+  color: var(--green-dark);
+  font-size: 1rem;
+}
+
+.body-system-detail {
+  padding: 0 1rem 1rem;
+  border-top: 1px solid #e8ecea;
+}
+
+.body-system-def {
+  font-size: 0.92rem;
+  color: #4a5568;
+  line-height: 1.65;
+  margin: 0.75rem 0;
+}
+
+.body-system-detail h4 {
+  font-size: 0.88rem;
+  color: var(--green-dark);
+  margin: 0.5rem 0 0.35rem;
+}
+
+.body-marker-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+}
+
+.body-marker-list li { margin-bottom: 0.25rem; }
+
+.stress-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stress-minor { background: #d4edda; color: #155724; }
+.stress-moderate { background: #e8f5e1; color: #3d6b2e; }
+.stress-chronic { background: #fff3cd; color: #856404; }
+.stress-weakness { background: #ffe8cc; color: #a05a00; }
+.stress-severe { background: #f8d7da; color: #721c24; }
+
+.body-overview-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.legend-title {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-right: 0.25rem;
+}
+
+.legend-item { display: inline-flex; }
+
 .scan-col {
   display: inline-block;
   width: 23%;
