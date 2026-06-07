@@ -1,4 +1,5 @@
 """Generate personalized health recommendations using Grok or local analysis."""
+import base64
 import json
 import os
 import re
@@ -9,37 +10,242 @@ from report_generator import _parse_lines, _recommendations
 from affiliate_links import supplement_list_html, lab_list_html, enrich_html_with_affiliate_links
 from document_service import parse_date_from_text
 
+_DEFAULT_GROK_MODELS = (
+    'grok-4.3',
+    'grok-3',
+    'grok-2-latest',
+    'grok-beta',
+)
 
-def _grok_chat(prompt, system='You respond with concise, accurate output.', temperature=0.3, timeout=45):
-    api_key = os.environ.get('XAI_API_KEY')
+_VISION_GROK_MODELS = (
+    'grok-2-vision-1212',
+    'grok-vision-beta',
+    'grok-4.3',
+)
+
+_last_grok_error = None
+
+
+def get_last_grok_error():
+    """Most recent Grok API failure (for admin diagnostics)."""
+    return _last_grok_error
+
+
+def _grok_model_candidates():
+    models = []
+    env_model = (os.environ.get('XAI_MODEL') or '').strip()
+    if env_model:
+        models.append(env_model)
+    for model in _DEFAULT_GROK_MODELS:
+        if model not in models:
+            models.append(model)
+    return models
+
+
+def _set_grok_error(message):
+    global _last_grok_error
+    _last_grok_error = message
+    if message:
+        print(f'[Root Cause Grok] {message}')
+
+
+def _should_try_next_grok_model(http_code, detail):
+    """Only retry another model when the current model name is invalid."""
+    if http_code not in (400, 404):
+        return False
+    lower = (detail or '').lower()
+    return 'model' in lower or 'not found' in lower
+
+
+def _grok_chat(
+    prompt, system='You respond with concise, accurate output.',
+    temperature=0.3, timeout=40, max_model_attempts=1,
+):
+    global _last_grok_error
+    _last_grok_error = None
+
+    api_key = (os.environ.get('XAI_API_KEY') or '').strip()
     if not api_key:
+        _set_grok_error('XAI_API_KEY is not set.')
         return None
 
-    payload = json.dumps({
-        'model': os.environ.get('XAI_MODEL', 'grok-2-latest'),
+    body = {
         'messages': [
             {'role': 'system', 'content': system},
             {'role': 'user', 'content': prompt},
         ],
         'temperature': temperature,
-    }).encode('utf-8')
+    }
 
-    req = urllib.request.Request(
-        'https://api.x.ai/v1/chat/completions',
-        data=payload,
-        headers={
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {api_key}',
-        },
-        method='POST',
-    )
+    errors = []
+    models = _grok_model_candidates()[:max(1, max_model_attempts)]
+    for idx, model in enumerate(models):
+        payload = json.dumps({**body, 'model': model}).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.x.ai/v1/chat/completions',
+            data=payload,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}',
+            },
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+            content = data['choices'][0]['message']['content'].strip()
+            if content:
+                return content
+            errors.append(f'{model}: empty response')
+        except urllib.error.HTTPError as exc:
+            detail = ''
+            try:
+                detail = exc.read().decode('utf-8', errors='ignore')[:300]
+            except Exception:
+                pass
+            errors.append(f'{model}: HTTP {exc.code} {detail or exc.reason}')
+            if exc.code in (401, 403):
+                break
+            if idx + 1 < len(models) and _should_try_next_grok_model(exc.code, detail):
+                continue
+            break
+        except TimeoutError as exc:
+            errors.append(f'{model}: timed out after {timeout}s')
+            break
+        except (urllib.error.URLError, KeyError, json.JSONDecodeError, IndexError) as exc:
+            errors.append(f'{model}: {exc}')
+            break
+
+    _set_grok_error('Grok API failed — ' + '; '.join(errors[:2]))
+    return None
+
+
+def _grok_vision_chat(
+    content_parts, system='You extract text accurately from document images.',
+    temperature=0.1, timeout=60,
+):
+    """Multimodal Grok call for PDF page images."""
+    global _last_grok_error
+    _last_grok_error = None
+
+    api_key = (os.environ.get('XAI_API_KEY') or '').strip()
+    if not api_key:
+        _set_grok_error('XAI_API_KEY is not set.')
+        return None
+
+    body = {
+        'messages': [
+            {'role': 'system', 'content': system},
+            {'role': 'user', 'content': content_parts},
+        ],
+        'temperature': temperature,
+    }
+
+    env_model = (os.environ.get('XAI_VISION_MODEL') or '').strip()
+    models = [env_model] if env_model else []
+    for model in _VISION_GROK_MODELS:
+        if model not in models:
+            models.append(model)
+
+    errors = []
+    for idx, model in enumerate(models):
+        payload = json.dumps({**body, 'model': model}).encode('utf-8')
+        req = urllib.request.Request(
+            'https://api.x.ai/v1/chat/completions',
+            data=payload,
+            headers={
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {api_key}',
+            },
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+            content = data['choices'][0]['message']['content'].strip()
+            if content:
+                return content
+            errors.append(f'{model}: empty response')
+        except urllib.error.HTTPError as exc:
+            detail = ''
+            try:
+                detail = exc.read().decode('utf-8', errors='ignore')[:300]
+            except Exception:
+                pass
+            errors.append(f'{model}: HTTP {exc.code} {detail or exc.reason}')
+            if exc.code in (401, 403):
+                break
+            if idx + 1 < len(models) and _should_try_next_grok_model(exc.code, detail):
+                continue
+            break
+        except TimeoutError:
+            errors.append(f'{model}: timed out after {timeout}s')
+            break
+        except (urllib.error.URLError, KeyError, json.JSONDecodeError, IndexError) as exc:
+            errors.append(f'{model}: {exc}')
+            break
+
+    _set_grok_error('Grok vision failed — ' + '; '.join(errors[:2]))
+    return None
+
+
+def grok_extract_pdf_scan_text(pdf_path, max_pages=6, max_chars=60000):
+    """
+    OCR bio scan PDFs via Grok vision when normal text extraction returns nothing.
+    Renders pages to images and asks Grok to return plain scan text.
+    """
+    try:
+        import fitz
+    except ImportError:
+        return ''
 
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data = json.loads(resp.read().decode('utf-8'))
-        return data['choices'][0]['message']['content'].strip()
-    except (urllib.error.URLError, KeyError, json.JSONDecodeError, IndexError):
-        return None
+        doc = fitz.open(pdf_path)
+    except Exception:
+        return ''
+
+    if len(doc) == 0:
+        doc.close()
+        return ''
+
+    page_count = min(len(doc), max_pages)
+    prompt = (
+        'Extract ALL visible text from these bioenergetic Full Scan PDF page images. '
+        'Return plain text only — no markdown, no commentary. Preserve section headings '
+        '(Full Scan, Energetic System Performance, Energetic Sensitivities, '
+        'Energetic Nutritional Imbalances, Energetic Toxins, Metabolic Test Results, '
+        'Personalized Client Summary, Next Steps, Balancing Remedies), marker names, '
+        'percentages, and remedy details exactly as shown.'
+    )
+
+    all_text = []
+    batch_size = 3
+    try:
+        for start in range(0, page_count, batch_size):
+            content_parts = [{'type': 'text', 'text': prompt}]
+            for page_idx in range(start, min(start + batch_size, page_count)):
+                page = doc[page_idx]
+                pix = page.get_pixmap(matrix=fitz.Matrix(1.5, 1.5), alpha=False)
+                png_bytes = pix.tobytes('png')
+                b64 = base64.b64encode(png_bytes).decode('ascii')
+                content_parts.append({
+                    'type': 'image_url',
+                    'image_url': {
+                        'url': f'data:image/png;base64,{b64}',
+                        'detail': 'high',
+                    },
+                })
+
+            chunk = _grok_vision_chat(content_parts, timeout=75)
+            if chunk:
+                all_text.append(chunk.strip())
+    finally:
+        doc.close()
+
+    combined = '\n\n'.join(all_text).strip()
+    if len(combined) >= 80:
+        return combined[:max_chars]
+    return ''
 
 
 def _local_classify_document(extracted_text, original_name):
@@ -200,6 +406,114 @@ def _local_recommendations_html(scan_raw, medical_text, client_name):
 </section>"""
 
 
+def _local_original_scan_analysis_html(scan_raw, client_name):
+    """Readable original scan summary when Grok is unavailable."""
+    from scan_template import _scan_body_text, _find_sections, _clean_readable_text
+
+    first = (client_name or 'Client').split()[0]
+    body = _scan_body_text(scan_raw or '')
+    sections = _find_sections(body) if body else {}
+    summary = _clean_readable_text(sections.get('summary', ''))
+    next_steps = _clean_readable_text(sections.get('next_steps', ''))
+
+    paragraphs = []
+    if summary:
+        for chunk in re.split(r'\n\s*\n', summary):
+            chunk = chunk.strip()
+            if chunk:
+                paragraphs.append(chunk)
+    if not paragraphs:
+        findings = _parse_lines(scan_raw or '')
+        priority = [f for f in findings if f['severity'] in ('high', 'moderate')][:6]
+        if priority:
+            items = ''.join(
+                f'<li><strong>{f["label"]}</strong>'
+                + (' — noted as a focus area' if not f.get('value') else '')
+                + '</li>'
+                for f in priority
+            )
+            body_html = (
+                f'<p>{first}, your bioenergetic scan highlighted several areas worth '
+                f'attention. The key patterns are summarized below.</p>'
+                f'<ul>{items}</ul>'
+            )
+        else:
+            body_html = (
+                f'<p>{first}, your bioenergetic scan has been processed. '
+                f'Review the scan report sections above for your full results.</p>'
+            )
+    else:
+        body_html = ''.join(f'<p>{p}</p>' for p in paragraphs[:4])
+
+    if next_steps and len(body_html) < 1200:
+        step_lines = [
+            ln.strip() for ln in next_steps.split('\n') if ln.strip() and not ln.strip().startswith('→')
+        ][:4]
+        if step_lines:
+            body_html += '<h4 style="margin-top:1rem;">Suggested next steps from your scan</h4><ul>'
+            body_html += ''.join(f'<li>{ln}</li>' for ln in step_lines)
+            body_html += '</ul>'
+
+    return f"""<section class="scan-section">
+  <h2>Original Scan Analysis</h2>
+  <p class="scan-lead">A plain-language overview of what your bioenergetic scan found.</p>
+  <div class="scan-summary">{body_html}</div>
+</section>"""
+
+
+def _grok_original_scan_analysis(scan_raw, client_name, client_email):
+    """Grok analysis of the bio scan only — no medical documents."""
+    api_key = os.environ.get('XAI_API_KEY')
+    if not api_key:
+        return None
+
+    prompt = f"""You are a holistic health advisor for Root Cause Bioenergetics.
+Write the ORIGINAL scan analysis for a client's bioenergetic Full Scan.
+Use ONLY the scan data below — no medical lab documents are included yet.
+
+Client: {client_name} ({client_email})
+
+BIOENERGETIC SCAN DATA:
+{scan_raw[:8000]}
+
+Write for an average adult (8th-grade reading level).
+- 2–4 short paragraphs in plain language.
+- Name the main body systems or patterns that stood out.
+- Mention sensitivities, nutritional gaps, or toxins only if clearly present in the scan.
+- Do NOT include raw numbers or percentages.
+- Do NOT recommend specific products or affiliate links.
+- Address the client by first name once in the opening sentence.
+
+Respond in HTML only (no markdown). Use exactly this structure:
+<section class="scan-section">
+  <h2>Original Scan Analysis</h2>
+  <p class="scan-lead">A plain-language overview of what your bioenergetic scan found.</p>
+  <div class="scan-summary">
+    <p>...</p>
+  </div>
+</section>"""
+
+    content = _grok_chat(
+        prompt,
+        system='You write warm, clear wellness education in simple HTML. No jargon.',
+        temperature=0.35,
+        timeout=45,
+        max_model_attempts=1,
+    )
+    if not content:
+        return None
+    content = re.sub(r'^```html\s*', '', content)
+    content = re.sub(r'\s*```$', '', content)
+    if '<section' in content:
+        return content
+    return (
+        '<section class="scan-section">'
+        '<h2>Original Scan Analysis</h2>'
+        f'<div class="scan-summary"><p>{content}</p></div>'
+        '</section>'
+    )
+
+
 def _grok_full_scan_medical_notes(scan_raw, medical_text, client_name, client_email):
     """Plain-English medical record notes styled like the Full Scan PDF."""
     if not medical_text or len(medical_text.strip()) < 80:
@@ -237,7 +551,8 @@ Respond in HTML only (no markdown). Use exactly this structure:
         prompt,
         system='You write warm, clear wellness education in simple HTML. No jargon.',
         temperature=0.35,
-        timeout=60,
+        timeout=45,
+        max_model_attempts=1,
     )
     if not content:
         return ''
@@ -293,7 +608,8 @@ Be specific to this client's data. Keep lists concise (3-6 items each)."""
         prompt,
         system='You provide wellness education in clean HTML fragments.',
         temperature=0.4,
-        timeout=60,
+        timeout=50,
+        max_model_attempts=1,
     )
     if content:
         content = re.sub(r'^```html\s*', '', content)
@@ -308,13 +624,22 @@ def get_health_recommendations(
     scan_raw, medical_text, client_name, client_email, full_scan_mode=False,
 ):
     """Return HTML block with personalized health recommendations."""
+    has_medical = bool(medical_text and len(medical_text.strip()) >= 80)
+
     if full_scan_mode:
-        grok_html = _grok_full_scan_medical_notes(
-            scan_raw, medical_text, client_name, client_email,
-        )
+        if has_medical:
+            grok_html = _grok_full_scan_medical_notes(
+                scan_raw, medical_text, client_name, client_email,
+            )
+            if grok_html:
+                return grok_html, 'grok'
+            local = _local_medical_notes_html(medical_text, client_name)
+            if local:
+                return local, 'local'
+        grok_html = _grok_original_scan_analysis(scan_raw, client_name, client_email)
         if grok_html:
             return grok_html, 'grok'
-        return _local_medical_notes_html(medical_text, client_name), 'local'
+        return _local_original_scan_analysis_html(scan_raw, client_name), 'local'
 
     grok_html = _grok_recommendations(scan_raw, medical_text, client_name, client_email)
     if grok_html:

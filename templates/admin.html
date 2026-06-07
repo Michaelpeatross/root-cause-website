@@ -4,7 +4,7 @@
 {% block content %}
 <div class="container">
     <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark); margin-bottom:0.25rem;">Admin Panel</h1>
-    <p style="color:var(--text-muted); margin-top:0;">Upload a scan, Grok analyzes it, and the report goes straight to the client's portal. Optionally notify them by email or text.</p>
+    <p style="color:var(--text-muted); margin-top:0;">Upload bio scans (admin-only raw data) and medical documents to client portals. Clients request updated Grok analysis after they upload new records.</p>
 
     {% if client_groups.awaiting_with_docs or client_groups.awaiting_accounts %}
     <div class="card awaiting-scan-panel" style="margin-top:1.5rem; border:2px solid #2980b9; background:linear-gradient(135deg, #f0f7ff, #fff);">
@@ -89,8 +89,43 @@
 
     <div class="admin-grid {% if reports %}has-reports{% endif %}" style="margin-top:2rem;">
         <div class="admin-form-panel">
-            <div class="card">
-                <h2>New Report</h2>
+            <div class="card" id="upload-docs-form">
+                <h2>Upload Medical Documents to Client Portal</h2>
+                <p style="color:var(--text-muted); font-size:0.9rem;">Add blood work, lab PDFs, or medical records to a client's portal on their behalf.</p>
+                <form method="POST" enctype="multipart/form-data" style="margin-top:1rem;">
+                    <input type="hidden" name="action" value="upload_client_documents">
+                    <div class="form-group">
+                        <label for="doc_client_email">Client Email</label>
+                        <select id="doc_client_email" name="doc_client_email" required>
+                            <option value="">— Choose a client —</option>
+                            {% for c in clients %}
+                            <option value="{{ c.email }}" {% if selected_client == c.email %}selected{% endif %}>{{ c.name }} ({{ c.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="client_documents">Medical files</label>
+                        <input type="file" id="client_documents" name="client_documents" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.heic,.heif,image/*" multiple required>
+                    </div>
+                    <div class="form-group">
+                        <label for="doc_test_date">Test date (optional)</label>
+                        <input type="date" id="doc_test_date" name="doc_test_date">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload to Client Portal</button>
+                </form>
+            </div>
+
+            <div class="card" style="margin-top:1.5rem;">
+                <h2>New Bio Scan Report</h2>
+                <div style="background:#fdecea; border:1px solid #f5c6cb; border-left:4px solid #c0392b; padding:0.85rem 1rem; border-radius:8px; margin-bottom:1rem;">
+                    <strong style="color:#721c24;">Use scanner files, not portal downloads</strong>
+                    <span style="color:#721c24; font-size:0.9rem; display:block; margin-top:0.35rem;">
+                        Upload PDFs from your scanner folder (e.g. <em>1.pdf, 2.pdf, 3.pdf</em> — typically 18 KB–700 KB each).
+                        Do <strong>not</strong> upload PDFs downloaded from this website (~2 KB cover-page exports).
+                        You can select all scan PDFs at once. Imaging scanner reports (CORE PRODUCT / Summary Report) are supported.
+                    </span>
+                </div>
+                <p style="color:var(--text-muted); font-size:0.9rem;">Bio scan data is <strong>admin-only</strong>. Clients see the formatted report and original Grok analysis.</p>
                 <form method="POST" id="report-form" enctype="multipart/form-data">
                     <div class="form-group">
                         <label for="client_filter">Select Client</label>
@@ -148,8 +183,9 @@
                     <div class="form-group">
                         <label for="scan_pdfs">Upload Scan PDFs</label>
                         <input type="file" id="scan_pdfs" name="scan_pdfs" accept=".pdf" multiple>
+                        <p id="scan-pdf-preview" class="admin-client-note" hidden style="margin-top:0.5rem;"></p>
                         <p style="font-size:0.85rem; color:var(--text-muted); margin:0.4rem 0 0;">
-                            Upload bioenergetic scan PDFs — Grok combines scan data with the selected client's uploaded medical documents.
+                            Upload the <strong>original Full Scan PDF from your bioenergetic scanner software</strong> — <em>not</em> a PDF you downloaded from this admin panel or client portal (those files are only a cover page and will not work). The scanner PDF includes Energetic System Performance, Sensitivities, Toxins, and Metabolic Results. Or paste raw scan text below. Image-only scanner PDFs use Grok vision when <code>XAI_API_KEY</code> is set.
                         </p>
                     </div>
                     <div class="form-group">
@@ -158,14 +194,15 @@
                     </div>
                     <div class="btn-group">
                         <button type="submit" name="action" value="generate" class="btn btn-primary">
-                            Generate Report for Review
+                            Generate Report &amp; Grok Analysis
                         </button>
+                        <p style="font-size:0.85rem; color:var(--text-muted); margin:0.5rem 0 0;">Please wait up to 2 minutes for image PDFs — do not refresh. The scan report saves first; Grok analysis runs next.</p>
                         <button type="submit" name="action" value="save" class="btn btn-outline">
                             Save Raw Only
                         </button>
                     </div>
                     <p style="font-size:0.85rem; color:var(--text-muted); margin-top:0.75rem;">
-                        After generation, the report is <strong>immediately visible</strong> on the client's portal. Use Notify Client to send email or text.
+                        After generation, the scan report and <strong>original Grok analysis</strong> are visible on the client's portal. Use Notify Client to send email or text.
                     </p>
                 </form>
             </div>
@@ -193,6 +230,14 @@
                 <div class="report-card-body card" style="margin:0; box-shadow:none; border-radius:0;">
                     {{ latest_report.generated_report|safe }}
                 </div>
+                <details open style="padding:1rem 1.5rem; background:#f0f7ff; border-top:1px solid #c5dff5;">
+                    <summary style="cursor:pointer; font-weight:600; color:#1a5276;">🧠 Original Grok Scan Analysis</summary>
+                    {% if latest_report.original_ai_recommendations %}
+                    <div style="margin-top:0.75rem;">{{ latest_report.original_ai_recommendations|safe }}</div>
+                    {% else %}
+                    <p style="margin-top:0.75rem; color:#856404;">No Grok analysis stored. Check XAI_API_KEY on Render and re-generate the report.</p>
+                    {% endif %}
+                </details>
                 {% with r=latest_report %}{% include '_report_approval.html' %}{% endwith %}
                 {% if latest_report.scan_pdfs %}
                 <details style="padding:1rem 1.5rem; background:#f0f9f6; border-top:1px solid #dceee8;">
@@ -244,9 +289,14 @@
                                     <button type="submit" class="btn btn-primary" style="padding:0.35rem 0.7rem; font-size:0.8rem;">Update with Blood Tests</button>
                                 </form>
                                 <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="action" value="refresh_original_grok">
+                                    <input type="hidden" name="report_id" value="{{ r.id }}">
+                                    <button type="submit" class="btn btn-outline" style="padding:0.35rem 0.7rem; font-size:0.8rem;">Re-run Grok Scan</button>
+                                </form>
+                                <form method="POST" style="display:inline;">
                                     <input type="hidden" name="action" value="refresh_ai">
                                     <input type="hidden" name="report_id" value="{{ r.id }}">
-                                    <button type="submit" class="btn btn-outline" style="padding:0.35rem 0.7rem; font-size:0.8rem;">Refresh AI</button>
+                                    <button type="submit" class="btn btn-outline" style="padding:0.35rem 0.7rem; font-size:0.8rem;">Refresh with Med Docs</button>
                                 </form>
                                 {% endif %}
                                 {% if r.pdf_filename %}
@@ -336,8 +386,44 @@
       : 'No medical documents uploaded yet — Grok will analyze scan data only.';
   }
 
+  const scanInput = document.getElementById('scan_pdfs');
+  const scanPreview = document.getElementById('scan-pdf-preview');
+
+  function updateScanPreview() {
+    if (!scanInput || !scanPreview) return;
+    const files = Array.from(scanInput.files || []);
+    if (!files.length) {
+      scanPreview.hidden = true;
+      scanPreview.textContent = '';
+      return;
+    }
+    const lines = files.map((f) => {
+      const kb = Math.round(f.size / 1024);
+      return `${f.name} (${kb} KB)`;
+    });
+    const bad = files.filter((f) => f.size < 10000 || /full scan\s*[—-]/i.test(f.name));
+    scanPreview.hidden = false;
+    scanPreview.style.display = 'block';
+    if (bad.length) {
+      scanPreview.style.background = '#fdecea';
+      scanPreview.style.borderLeftColor = '#c0392b';
+      scanPreview.style.color = '#721c24';
+      scanPreview.innerHTML =
+        '<strong>Wrong files selected?</strong> ' + lines.join(', ') +
+        '. Portal downloads are ~2 KB and named "Full Scan — date". ' +
+        'Scanner files are named <strong>1.pdf, 2.pdf, 3.pdf</strong> (18 KB–700 KB) ' +
+        'in Documents\\Root Cause Test\\bio\\mp\\4-9-26\\';
+    } else {
+      scanPreview.style.background = '#e8f5f1';
+      scanPreview.style.borderLeftColor = '#1a8c7a';
+      scanPreview.style.color = '#0b3d2a';
+      scanPreview.textContent = 'Selected: ' + lines.join(', ');
+    }
+  }
+
   select?.addEventListener('change', updateClientPicker);
   filter?.addEventListener('input', filterClients);
+  scanInput?.addEventListener('change', updateScanPreview);
   filterClients();
   updateClientPicker();
 

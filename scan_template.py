@@ -380,12 +380,16 @@ def _render_marker_subsection(title, body_html):
 
 
 def _scan_body_text(raw_text):
-    """Strip admin PDF wrappers so detection runs on scan content only."""
+    """Strip upload wrappers so detection runs on scan content only."""
     text = raw_text or ''
-    if '--- SCAN PDF:' not in text:
+    if '--- SCAN PDF:' not in text and '--- CLIENT UPLOADED SCAN:' not in text:
         return text
     chunks = []
-    for block in re.split(r'---\s*SCAN PDF:[^\n]*---\s*', text, flags=re.I):
+    for block in re.split(
+        r'---\s*(?:SCAN PDF|CLIENT UPLOADED SCAN):[^\n]*---\s*',
+        text,
+        flags=re.I,
+    ):
         block = block.strip()
         if block and not block.startswith('[PDF uploaded:'):
             chunks.append(block)
@@ -393,15 +397,13 @@ def _scan_body_text(raw_text):
 
 
 def uses_template_format(raw_text, title=None):
+    """True only when text matches the vendor Full Scan PDF layout (not exported reports)."""
     body = _scan_body_text(raw_text)
     lower = body.lower()
-    if re.match(r'^full\s+scan\b', lower.strip()):
-        return True
-    if title and 'full scan' in title.lower() and len(body.strip()) >= 200:
-        return True
     if _find_sections(body):
         return True
     markers = (
+        'energetic system performance',
         'system performance',
         'metabolic test results',
         'balancing remedies',
@@ -414,7 +416,12 @@ def uses_template_format(raw_text, title=None):
         'you tested with',
         'personalized client summary',
     )
-    return sum(1 for m in markers if m in lower) >= 2
+    marker_hits = sum(1 for m in markers if m in lower)
+    if marker_hits >= 2:
+        return True
+    if re.match(r'^full\s+scan\b', lower.strip()) and marker_hits >= 1:
+        return True
+    return False
 
 
 def generate_template_report_html(

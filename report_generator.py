@@ -89,6 +89,15 @@ LAB_MAP = {
 
 def _extract_value(line):
     """Pull numeric stress/resonance value from a line if present."""
+    # Bio-imaging scanner distress coefficient (D=0.398 → 40%)
+    distress = re.search(r'[DE]\s*=\s*(\d+(?:\.\d+)?)', line, re.I)
+    if distress:
+        coef = float(distress.group(1))
+        if 0 <= coef <= 1:
+            return int(round(coef * 100))
+        if 1 < coef <= 100:
+            return int(round(coef))
+
     patterns = [
         r"(\d{1,3})\s*%",
         r"[:=]\s*(\d{1,3})",
@@ -128,9 +137,39 @@ def _parse_lines(raw_data):
         line = raw_line.strip()
         if not line or len(line) < 3:
             continue
+        if line.startswith('[PDF uploaded:') or line.startswith('[Word document'):
+            continue
+        if line.startswith('[Document uploaded:') or line.startswith('[Medical image'):
+            continue
+        if re.match(r'^---\s*(?:SCAN PDF|CLIENT UPLOADED SCAN):', line, re.I):
+            continue
+        lower_line = line.lower()
+        if 'root cause bioenergetics' in lower_line:
+            continue
+        if re.match(r'^full\s*scan\b', lower_line):
+            continue
+        if '@' in line and '.' in line:
+            continue
+        if 'food and drug administration' in lower_line or 'not intended to diagnose' in lower_line:
+            continue
+        if re.search(r'generated\s+\w+\s+\d{1,2},?\s+\d{4}', lower_line):
+            continue
+        if re.match(r'^.+\s[—–-]\s\d{1,2}/\d{1,2}/\d{2,4}$', line):
+            continue
         if re.match(r"^[-=_*#]{3,}$", line):
             continue
         if line.lower() in ("finding", "findings", "results", "scan results", "item"):
+            continue
+        if re.match(
+            r'^(?:\d{2}\s+)?(?:CORE PRODUCT|DIGESTIVE SYSTEM|SUMMARY REPORT|'
+            r'BIRTHDAY|PHONE|ADDRESS|AGE|FIRST NAME|LAST NAME|MIDDLE NAME|'
+            r'BLOOD GROUP|MALE|FEMALE|A\)\s*SIMULAR PROCESSES|C\s*#\s*PATHOLOGY|'
+            r'E\s*#\s*MICROORGANISMS|CROSS SECTION|TRANSITION OF|WALL OF|'
+            r'GI\s+Cardiovascular|Summary Report)\b',
+            line, re.I,
+        ):
+            continue
+        if re.match(r'^\d{1,2}\s*$', line):
             continue
 
         value = _extract_value(line)
@@ -285,7 +324,13 @@ def generate_report_html(
     prefer_template=False, blood_reconciliation_html=None,
 ):
     """Build a complete professional HTML report from raw scan paste."""
-    if prefer_template or uses_template_format(raw_data or '', title=title):
+    from document_service import is_generated_report_export, is_imaging_scan_format
+    use_template = (
+        not is_generated_report_export(raw_data or '')
+        and not is_imaging_scan_format(raw_data or '')
+        and (prefer_template or uses_template_format(raw_data or '', title=title))
+    )
+    if use_template:
         return generate_template_report_html(
             email, title, raw_data, client_name=client_name,
             ai_recommendations_html=ai_recommendations_html,

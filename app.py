@@ -15,10 +15,11 @@ from pdf_service import save_report_pdf, pdf_to_bytes
 from document_service import (
     save_upload, save_multiple_uploads, extract_text, combined_document_text,
     process_scan_pdf_uploads, merge_scan_sources, scan_pdf_extraction_issues,
-    parse_date_from_text,
+    parse_date_from_text, scan_text_has_content, report_html_has_findings,
+    build_pdf_results_from_paths, describe_pdf_uploads,
 )
 from client_portal import get_personalized_recommendations
-from health_advisor import get_health_recommendations, classify_medical_document
+from health_advisor import get_health_recommendations, classify_medical_document, get_last_grok_error
 from scan_reconciliation import reconcile_scan_with_blood_tests
 from notification_service import (
     notify_client_analysis_update, notify_admin_analysis_request,
@@ -87,6 +88,7 @@ class Report(db.Model):
     date = db.Column(db.String(50))
     analysis_updated = db.Column(db.String(50))
     original_generated_report = db.Column(db.Text)
+    original_ai_recommendations = db.Column(db.Text)
     blood_reconciliation_html = db.Column(db.Text)
     reconciled_at = db.Column(db.String(50))
 
@@ -168,6 +170,7 @@ def migrate_schema():
                 'approved_at': 'VARCHAR(50)',
                 'analysis_updated': 'VARCHAR(50)',
                 'original_generated_report': 'TEXT',
+                'original_ai_recommendations': 'TEXT',
                 'blood_reconciliation_html': 'TEXT',
                 'reconciled_at': 'VARCHAR(50)',
             }
@@ -220,11 +223,24 @@ def _normalize_stored_emails():
     db.session.commit()
 
 
-with app.app_context():
-    db.create_all()
-    migrate_schema()
-    _normalize_stored_emails()
-    ensure_admin_user()
+def _backfill_empty_original_ai():
+    """Repair reports published before scan-only Grok analysis existed."""
+    from health_advisor import _local_original_scan_analysis_html
+    updated = False
+    for report in Report.query.all():
+        if (report.original_ai_recommendations or '').strip():
+            continue
+        raw = report.raw_data or ''
+        if not scan_text_has_content(raw):
+            continue
+        client_name = _client_display_name(report.user_email)
+        ai = _local_original_scan_analysis_html(raw, client_name)
+        report.original_ai_recommendations = ai
+        if not (report.ai_recommendations or '').strip():
+            report.ai_recommendations = ai
+        updated = True
+    if updated:
+        db.session.commit()
 
 
 def _user_owns_report(report):
@@ -244,6 +260,35 @@ def _apply_document_classification(doc):
     meta = classify_medical_document(doc.extracted_text, doc.original_name)
     doc.grok_label = (meta.get('document_name') or 'Medical document')[:200]
     doc.grok_date = meta.get('test_date')
+
+
+def _save_client_documents(email, saved_files, form_date='', upload_dt=None):
+    """Persist uploaded medical documents for a client portal."""
+    upload_dt = upload_dt or datetime.now()
+    count = 0
+    for stored, original in saved_files:
+        path = os.path.join(documents_dir, stored)
+        text = extract_text(path, original)
+        parsed = parse_date_from_text(text)
+        if form_date:
+            test_date = form_date
+        elif parsed:
+            test_date = parsed.strftime('%Y-%m-%d')
+        else:
+            test_date = upload_dt.strftime('%Y-%m-%d')
+
+        doc = ClientDocument(
+            user_email=email,
+            stored_filename=stored,
+            original_name=original,
+            extracted_text=text,
+            test_date=test_date,
+            uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
+        )
+        _apply_document_classification(doc)
+        db.session.add(doc)
+        count += 1
+    return count
 
 
 def _ensure_document_labels(documents):
@@ -284,29 +329,61 @@ def _medical_context(email):
 
 
 def _prefer_full_scan_template(title, raw_data, pdf_results=None):
-    """Use the Full Scan PDF layout when a bio scan PDF was uploaded or detected."""
-    if pdf_results and any(p.get('extraction_ok') for p in pdf_results):
-        return True
+    """Use the Full Scan PDF layout when original scanner PDF content is detected."""
+    from document_service import is_generated_report_export, is_imaging_scan_format
     from scan_template import uses_template_format
+    if is_generated_report_export(raw_data or '') or is_imaging_scan_format(raw_data or ''):
+        return False
     return uses_template_format(raw_data or '', title=title)
 
 
-def _build_full_report(email, title, raw_data, pdf_results=None):
-    """Generate HTML report with AI recommendations, PDF, and email."""
-    medical_text, _doc_count = _medical_context(email)
+def _build_scan_report_html(email, title, raw_data, pdf_results=None):
+    """Build formatted scan HTML (fast — no Grok API call)."""
     client_name = _client_display_name(email)
     prefer_template = _prefer_full_scan_template(title, raw_data, pdf_results)
+    scan_html = generate_report_html(
+        email, title, raw_data, ai_recommendations_html=None,
+        client_name=client_name, prefer_template=prefer_template,
+    )
+    return scan_html, prefer_template, client_name
 
-    ai_html, _source = get_health_recommendations(
-        raw_data, medical_text, client_name, email,
-        full_scan_mode=prefer_template,
+
+def _run_original_scan_grok(raw_data, client_name, email, prefer_template):
+    """Call Grok for original scan analysis; falls back to local summary."""
+    from health_advisor import _local_original_scan_analysis_html
+
+    local_ai = _local_original_scan_analysis_html(raw_data, client_name)
+    original_ai, ai_source = get_health_recommendations(
+        raw_data, '', client_name, email, full_scan_mode=prefer_template,
     )
-    html_report = generate_report_html(
-        email, title, raw_data, ai_html, client_name=client_name,
-        prefer_template=prefer_template,
+    if not (original_ai or '').strip():
+        return local_ai, 'local', get_last_grok_error()
+    grok_error = get_last_grok_error() if ai_source != 'grok' else None
+    return original_ai, ai_source, grok_error
+
+
+def _refresh_original_grok_analysis(report):
+    """Re-run Grok using bio scan data only; updates original_ai_recommendations."""
+    scan_raw = _resolve_report_scan_data(report)
+    if not scan_text_has_content(scan_raw):
+        return report, 'No usable scan data on this report.'
+
+    if scan_raw != (report.raw_data or ''):
+        report.raw_data = scan_raw
+
+    client_name = _client_display_name(report.user_email)
+    prefer_template = _prefer_full_scan_template(report.title, scan_raw)
+    original_ai, ai_source, grok_error = _run_original_scan_grok(
+        scan_raw, client_name, report.user_email, prefer_template,
     )
-    plain_text = generate_report_text(email, title, raw_data, ai_html)
-    return html_report, plain_text, ai_html
+
+    report.original_ai_recommendations = original_ai
+    if not report.analysis_updated:
+        report.ai_recommendations = original_ai
+
+    if ai_source == 'grok':
+        return report, 'Grok original scan analysis updated.'
+    return report, f'Local summary used{f" ({grok_error})" if grok_error else ""}.'
 
 
 def _regenerate_report_analysis(report, notify_client=False, notify_admin=False):
@@ -316,11 +393,15 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
     client_name = _client_display_name(email)
     user = User.query.filter(db.func.lower(User.email) == _normalize_email(email)).first()
 
+    scan_raw = _resolve_report_scan_data(report)
+    if scan_raw != (report.raw_data or ''):
+        report.raw_data = scan_raw
+
     _snapshot_original_report(report)
-    prefer_template = _prefer_full_scan_template(report.title, report.raw_data)
+    prefer_template = _prefer_full_scan_template(report.title, scan_raw)
 
     recon_result = reconcile_scan_with_blood_tests(
-        report.raw_data, medical_text, client_name, email,
+        scan_raw, medical_text, client_name, email,
     ) if medical_text and len(medical_text.strip()) >= 80 else None
 
     if recon_result:
@@ -330,22 +411,22 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
         report.reconciled_at = datetime.now().strftime('%Y-%m-%d %H:%M')
     else:
         ai_html, _ = get_health_recommendations(
-            report.raw_data, medical_text, client_name, email,
+            scan_raw, medical_text, client_name, email,
             full_scan_mode=prefer_template,
         )
         blood_html = None
 
     report.ai_recommendations = ai_html
-    report.generated_report = generate_report_html(
-        email, report.title, report.raw_data, ai_html, client_name=client_name,
+    report.plain_text = generate_report_text(
+        email, report.title, scan_raw, ai_html
+    )
+    report.analysis_updated = datetime.now().strftime('%Y-%m-%d %H:%M')
+    pdf_html = generate_report_html(
+        email, report.title, scan_raw, ai_html, client_name=client_name,
         prefer_template=prefer_template,
         blood_reconciliation_html=blood_html,
     )
-    report.plain_text = generate_report_text(
-        email, report.title, report.raw_data, ai_html
-    )
-    report.analysis_updated = datetime.now().strftime('%Y-%m-%d %H:%M')
-    _save_pdf_for_report(report, report.generated_report)
+    _save_pdf_for_report(report, pdf_html)
 
     messages = []
     if notify_client:
@@ -567,12 +648,124 @@ def _group_clients_by_last_scan():
 
 def _process_admin_scan_input(pasted_text):
     """Handle pasted text plus any uploaded scan PDFs from the admin form."""
-    pdf_results = process_scan_pdf_uploads(
-        request.files.getlist('scan_pdfs'),
-        scan_pdfs_dir,
+    file_list = request.files.getlist('scan_pdfs')
+    if not any(f and f.filename for f in file_list):
+        print('[Root Cause] Admin scan upload: no PDF files in form data')
+    pdf_results, pdf_errors = process_scan_pdf_uploads(file_list, scan_pdfs_dir)
+    return merge_scan_sources(pasted_text, pdf_results), pdf_results, pdf_errors
+
+
+def _resolve_report_scan_data(report):
+    """Rebuild scan text from stored raw_data and admin-linked scan PDFs."""
+    raw = report.raw_data or ''
+    if scan_text_has_content(raw):
+        return raw
+
+    pdf_results = build_pdf_results_from_paths(report.scan_pdfs, scan_pdfs_dir)
+    if pdf_results:
+        return merge_scan_sources('', pdf_results)
+    return raw
+
+
+def _report_has_scan_data(report):
+    """True when a report has parseable scan content (paste or linked PDFs)."""
+    return bool(report and scan_text_has_content(_resolve_report_scan_data(report)))
+
+
+def _report_has_substantive_html(report):
+    """True when the formatted report HTML includes real scan findings."""
+    return bool(
+        report
+        and report.generated_report
+        and report_html_has_findings(report.generated_report)
     )
-    combined = merge_scan_sources(pasted_text, pdf_results)
-    return combined, pdf_results
+
+
+def _unpublish_empty_reports():
+    """Hide approved reports that only contain an empty cover-page shell."""
+    updated = False
+    for report in Report.query.filter(Report.approved == True).all():
+        if report.generated_report and not report_html_has_findings(report.generated_report):
+            report.approved = False
+            report.approved_at = None
+            updated = True
+    if updated:
+        db.session.commit()
+
+
+def _scan_input_error_message(combined_raw, pdf_results):
+    """User-facing message when scan text cannot be parsed."""
+    for issue in scan_pdf_extraction_issues(pdf_results):
+        return issue
+    from document_service import is_generated_report_export
+    if is_generated_report_export(combined_raw or ''):
+        return (
+            'This PDF was downloaded from this website (cover page / summary only) — '
+            'it is not the original bio scan. Upload the Full Scan PDF from your '
+            'bioenergetic scanner software (with Energetic System Performance, '
+            'Sensitivities, Toxins, Metabolic Results) or paste the raw scan text below.'
+        )
+    if not (combined_raw or '').strip():
+        return 'Paste raw scan data or upload at least one scan PDF.'
+    return (
+        'Could not read usable scan data from the upload. '
+        'Paste the scan text or upload the original Full Scan PDF from your scanner software.'
+    )
+
+
+def _create_published_scan_report(email, title, combined_raw, pdf_results=None):
+    """
+    Generate, publish, and persist a scan report for the client portal.
+    Saves the scan report first, then calls Grok (avoids 502 if Grok is slow).
+    Returns (report, error_message, ai_source, grok_error).
+    """
+    if not scan_text_has_content(combined_raw):
+        return None, _scan_input_error_message(combined_raw, pdf_results), None, None
+
+    scan_html, prefer_template, client_name = _build_scan_report_html(
+        email, title, combined_raw, pdf_results=pdf_results,
+    )
+    if not report_html_has_findings(scan_html):
+        return None, _scan_input_error_message(combined_raw, pdf_results), None, None
+
+    from health_advisor import _local_original_scan_analysis_html
+    local_ai = _local_original_scan_analysis_html(combined_raw, client_name)
+
+    report = Report(
+        user_email=email,
+        title=title,
+        raw_data=combined_raw,
+        generated_report=scan_html,
+        original_generated_report=scan_html,
+        plain_text=generate_report_text(email, title, combined_raw, local_ai),
+        original_ai_recommendations=local_ai,
+        ai_recommendations=local_ai,
+        date=datetime.now().strftime('%Y-%m-%d %H:%M'),
+    )
+    _publish_report_to_portal(report)
+    db.session.add(report)
+    db.session.flush()
+
+    if pdf_results:
+        _attach_scan_pdfs_to_report(report, pdf_results)
+    db.session.commit()
+
+    original_ai, ai_source, grok_error = _run_original_scan_grok(
+        combined_raw, client_name, email, prefer_template,
+    )
+    if (original_ai or '').strip():
+        report.original_ai_recommendations = original_ai
+        report.ai_recommendations = original_ai
+        report.plain_text = generate_report_text(email, title, combined_raw, original_ai)
+        db.session.commit()
+
+    try:
+        _save_pdf_for_report(report, scan_html)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return report, None, ai_source, grok_error
 
 
 def _save_pdf_for_report(report, html_report):
@@ -585,9 +778,11 @@ def _save_pdf_for_report(report, html_report):
 
 
 def _snapshot_original_report(report):
-    """Preserve the first published scan report before blood-test adjustments."""
+    """Preserve the first published scan report and Grok analysis."""
     if report.generated_report and not report.original_generated_report:
         report.original_generated_report = report.generated_report
+    if report.ai_recommendations and not report.original_ai_recommendations:
+        report.original_ai_recommendations = report.ai_recommendations
 
 
 def _publish_report_to_portal(report):
@@ -612,34 +807,50 @@ def _apply_blood_reconciliation(report):
 
     _snapshot_original_report(report)
     client_name = _client_display_name(email)
+    scan_raw = _resolve_report_scan_data(report)
+    if scan_raw != (report.raw_data or ''):
+        report.raw_data = scan_raw
     result = reconcile_scan_with_blood_tests(
-        report.raw_data, medical_text, client_name, email,
+        scan_raw, medical_text, client_name, email,
     )
     if not result:
         return report, doc_count, ['Could not reconcile scan with blood tests.']
 
-    prefer_template = _prefer_full_scan_template(report.title, report.raw_data)
+    prefer_template = _prefer_full_scan_template(report.title, scan_raw)
     report.blood_reconciliation_html = result['reconciliation_html']
     report.ai_recommendations = result['updated_ai_html']
     report.reconciled_at = datetime.now().strftime('%Y-%m-%d %H:%M')
     report.analysis_updated = report.reconciled_at
-    report.generated_report = generate_report_html(
+    report.plain_text = generate_report_text(
+        email, report.title, scan_raw, result['updated_ai_html'],
+    )
+    pdf_html = generate_report_html(
         email,
         report.title,
-        report.raw_data,
+        scan_raw,
         result['updated_ai_html'],
         client_name=client_name,
         prefer_template=prefer_template,
         blood_reconciliation_html=result['reconciliation_html'],
     )
-    report.plain_text = generate_report_text(
-        email, report.title, report.raw_data, result['updated_ai_html'],
-    )
-    _save_pdf_for_report(report, report.generated_report)
+    _save_pdf_for_report(report, pdf_html)
     source = result.get('source', 'grok')
     return report, doc_count, [
         f'Scan updated with blood test comparison ({doc_count} document(s), {source}).',
     ]
+
+
+def _client_has_usable_scan_report(email):
+    """Latest report with parseable scan content for this client."""
+    report = Report.query.filter(
+        db.func.lower(Report.user_email) == _normalize_email(email),
+        Report.generated_report.isnot(None),
+    ).order_by(Report.id.desc()).first()
+    if not report:
+        return None
+    if scan_text_has_content(_resolve_report_scan_data(report)):
+        return report
+    return None
 
 
 def _approve_and_send_report(report, send_email=False, send_sms=False):
@@ -835,6 +1046,7 @@ def _build_dashboard_context(email):
         Report.generated_report.isnot(None),
         Report.approved == True,
     ).order_by(Report.id.desc()).all()
+    reports = [r for r in reports if _report_has_substantive_html(r)]
     documents = _get_client_documents(email)
     _ensure_document_labels(documents)
     latest_report = reports[0] if reports else None
@@ -884,87 +1096,35 @@ def dashboard():
 
                 upload_dt = datetime.now()
                 form_date = request.form.get('test_date', '').strip()
-                count = 0
-                for stored, original in saved_files:
-                    path = os.path.join(documents_dir, stored)
-                    text = extract_text(path, original)
-                    parsed = parse_date_from_text(text)
-                    if form_date:
-                        test_date = form_date
-                    elif parsed:
-                        test_date = parsed.strftime('%Y-%m-%d')
-                    else:
-                        test_date = upload_dt.strftime('%Y-%m-%d')
-
-                    doc = ClientDocument(
-                        user_email=email,
-                        stored_filename=stored,
-                        original_name=original,
-                        extracted_text=text,
-                        test_date=test_date,
-                        uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
-                    )
-                    _apply_document_classification(doc)
-                    db.session.add(doc)
-                    count += 1
+                count = _save_client_documents(
+                    email, saved_files, form_date=form_date, upload_dt=upload_dt,
+                )
                 db.session.commit()
 
                 msg = f'Uploaded {count} file(s).'
-                latest = Report.query.filter(
-                    db.func.lower(Report.user_email) == _normalize_email(email),
-                    Report.generated_report.isnot(None),
-                    Report.approved == True,
-                ).order_by(Report.id.desc()).first()
-                if latest and latest.raw_data:
-                    latest, doc_count, recon_msgs = _apply_blood_reconciliation(latest)
-                    db.session.commit()
-                    msg += (
-                        f' Scan updated with blood test comparison '
-                        f'({doc_count} total document(s)).'
-                    )
-                    if recon_msgs:
-                        msg += ' ' + recon_msgs[0]
+                if _client_has_usable_scan_report(email):
+                    msg += ' Click Request Updated Grok Analysis when you are ready.'
                 else:
-                    msg += ' Recommendations will update when your scan is published.'
+                    msg += ' Your practitioner will publish your bio scan report.'
                 if partial_errors:
                     msg += f' Some files skipped: {"; ".join(partial_errors[:3])}'
                 flash(msg, 'success')
             except ValueError as exc:
                 flash(str(exc), 'error')
         elif action == 'request_analysis':
-            report = Report.query.filter(
-                db.func.lower(Report.user_email) == _normalize_email(email),
-                Report.generated_report.isnot(None),
-            ).order_by(Report.id.desc()).first()
-            if report and report.raw_data:
+            report = _client_has_usable_scan_report(email)
+            if report:
                 report, doc_count, msgs = _regenerate_report_analysis(
                     report, notify_client=True, notify_admin=True
                 )
                 db.session.commit()
                 flash(
-                    f'Updated analysis sent! Used {doc_count} medical document(s). '
+                    f'Updated Grok analysis ready — used {doc_count} medical document(s). '
                     f'{" ".join(m for m in msgs if m)}',
                     'success',
                 )
             else:
                 flash('No scan report available yet. Contact your practitioner.', 'error')
-        elif action == 'reconcile_blood':
-            report = Report.query.filter(
-                db.func.lower(Report.user_email) == _normalize_email(email),
-                Report.generated_report.isnot(None),
-                Report.approved == True,
-            ).order_by(Report.id.desc()).first()
-            if report and report.raw_data:
-                report, doc_count, msgs = _apply_blood_reconciliation(report)
-                _publish_report_to_portal(report)
-                db.session.commit()
-                flash(
-                    f'Scan adjusted with blood tests ({doc_count} document(s)). '
-                    f'{" ".join(m for m in msgs if m)}',
-                    'success',
-                )
-            else:
-                flash('No published scan report available yet.', 'error')
 
     return _render_client_dashboard(email)
 
@@ -992,9 +1152,9 @@ def view_report(report_id):
         abort(403)
     if not session.get('is_admin') and not report.approved:
         abort(403)
-    view = request.args.get('view', 'updated')
-    if view not in ('original', 'updated'):
-        view = 'updated'
+    view = request.args.get('view', 'scan')
+    if view not in ('scan', 'original', 'updates'):
+        view = 'scan'
     return render_template(
         'report_view.html',
         report=report,
@@ -1012,8 +1172,12 @@ def download_report_pdf(report_id):
         abort(403)
     if not session.get('is_admin') and not report.approved:
         abort(403)
-    if not report.pdf_filename:
-        abort(404)
+    if not report.pdf_filename or not _report_has_substantive_html(report):
+        flash(
+            'This report has no scan findings yet — PDF download is not available.',
+            'error',
+        )
+        return redirect(url_for('dashboard'))
     return send_from_directory(
         reports_dir,
         report.pdf_filename,
@@ -1070,7 +1234,33 @@ def admin():
         action = request.form.get('action', 'generate')
         report_id = request.form.get('report_id')
 
-        if action == 'approve' and report_id:
+        if action == 'upload_client_documents':
+            doc_email = _normalize_email(request.form.get('doc_client_email', ''))
+            if not doc_email:
+                flash('Select a client to upload medical documents for.', 'error')
+            else:
+                try:
+                    file_list = request.files.getlist('client_documents')
+                    upload_result = save_multiple_uploads(file_list, documents_dir)
+                    if isinstance(upload_result, tuple):
+                        saved_files, partial_errors = upload_result
+                    else:
+                        saved_files, partial_errors = upload_result, []
+                    count = _save_client_documents(
+                        doc_email,
+                        saved_files,
+                        form_date=request.form.get('doc_test_date', '').strip(),
+                    )
+                    db.session.commit()
+                    msg = f'Uploaded {count} medical document(s) to {doc_email} portal.'
+                    if partial_errors:
+                        msg += f' Some files skipped: {"; ".join(partial_errors[:3])}'
+                    flash(msg, 'success')
+                    selected_client = doc_email
+                except ValueError as exc:
+                    flash(str(exc), 'error')
+
+        elif action == 'approve' and report_id:
             report = Report.query.get(report_id)
             if report and report.generated_report:
                 send_email = request.form.get('send_email') == 'on'
@@ -1084,23 +1274,34 @@ def admin():
             else:
                 flash('Report not found or not yet generated.', 'error')
 
+        elif action == 'refresh_original_grok' and report_id:
+            report = Report.query.get(report_id)
+            if _report_has_scan_data(report):
+                report, msg = _refresh_original_grok_analysis(report)
+                db.session.commit()
+                flash(msg, 'success' if 'Grok original' in msg else 'error')
+            else:
+                flash('Report not found or missing scan data.', 'error')
+
         elif action == 'refresh_ai' and report_id:
             report = Report.query.get(report_id)
-            if report and report.raw_data:
+            if _report_has_scan_data(report):
                 report, doc_count, _msgs = _regenerate_report_analysis(report)
                 _publish_report_to_portal(report)
                 db.session.commit()
+                grok_err = get_last_grok_error()
+                note = f' ({grok_err})' if grok_err else ''
                 flash(
-                    f'AI recommendations refreshed and republished to client portal '
-                    f'({doc_count} medical document(s) included).',
-                    'success',
+                    f'Updated Grok analysis republished to client portal '
+                    f'({doc_count} medical document(s) included).{note}',
+                    'success' if not grok_err else 'error',
                 )
             else:
                 flash('Report not found or missing raw data.', 'error')
 
         elif action == 'reconcile_blood' and report_id:
             report = Report.query.get(report_id)
-            if report and report.raw_data:
+            if _report_has_scan_data(report):
                 report, doc_count, msgs = _apply_blood_reconciliation(report)
                 _publish_report_to_portal(report)
                 db.session.commit()
@@ -1115,60 +1316,65 @@ def admin():
         elif not email:
             flash('Select a client or enter a new client email.', 'error')
         else:
+            pdf_errors = []
             try:
-                combined_raw, pdf_results = _process_admin_scan_input(raw_data)
+                combined_raw, pdf_results, pdf_errors = _process_admin_scan_input(raw_data)
             except ValueError as exc:
                 flash(str(exc), 'error')
-                combined_raw, pdf_results = '', []
+                combined_raw, pdf_results, pdf_errors = '', [], []
 
             if action == 'generate':
-                if not combined_raw.strip():
-                    flash('Paste raw scan data or upload at least one scan PDF.', 'error')
+                if not (combined_raw or '').strip() and not pdf_results:
+                    flash(
+                        'No scan PDFs were received. Select 1.pdf, 2.pdf, and 3.pdf from '
+                        'Documents\\Root Cause Test\\bio\\mp\\4-9-26\\ — not files from Downloads.',
+                        'error',
+                    )
+                for upload_err in pdf_errors:
+                    flash(upload_err, 'error')
+                upload_summary = describe_pdf_uploads(pdf_results)
+                if upload_summary:
+                    flash(f'Scan PDFs received: {upload_summary}', 'success')
+                for issue in scan_pdf_extraction_issues(pdf_results):
+                    flash(issue, 'warning' if combined_raw and scan_text_has_content(combined_raw) else 'error')
+                result = _create_published_scan_report(
+                    email, title, combined_raw, pdf_results=pdf_results or None,
+                )
+                report = result[0]
+                err = result[1]
+                ai_source = result[2] if len(result) > 2 else 'local'
+                grok_error = result[3] if len(result) > 3 else None
+                if err:
+                    flash(err, 'error')
                 else:
+                    db.session.commit()
                     _, doc_count = _medical_context(email)
-                    for issue in scan_pdf_extraction_issues(pdf_results):
-                        flash(issue, 'error')
-                    html_report, plain_text, ai_html = _build_full_report(
-                        email, title, combined_raw, pdf_results=pdf_results
-                    )
-                    report = Report(
-                        user_email=email,
-                        title=title,
-                        raw_data=combined_raw,
-                        generated_report=html_report,
-                        plain_text=plain_text,
-                        ai_recommendations=ai_html,
-                        date=datetime.now().strftime('%Y-%m-%d %H:%M'),
-                    )
-                    _publish_report_to_portal(report)
-                    db.session.add(report)
-                    db.session.commit()
-
-                    if pdf_results:
-                        _attach_scan_pdfs_to_report(report, pdf_results)
-                        db.session.commit()
-
-                    pdf_ok = _save_pdf_for_report(report, html_report)
-                    db.session.commit()
-
                     latest_report = report
                     pdf_note = (
                         f' ({len(pdf_results)} scan PDF{"s" if len(pdf_results) != 1 else ""} processed)'
                         if pdf_results else ''
                     )
-                    if pdf_ok:
-                        doc_note = (
-                            f' Grok analyzed scan + {doc_count} client medical document(s).'
-                            if doc_count else ' No client medical documents uploaded yet.'
-                        )
+                    doc_note = (
+                        f' Client has {doc_count} medical document(s) on file — '
+                        f'they can request an updated Grok analysis anytime.'
+                        if doc_count else ''
+                    )
+                    if ai_source == 'grok':
+                        grok_note = ' Grok original scan analysis generated.'
+                    elif grok_error:
+                        grok_note = f' Grok unavailable ({grok_error}) — local scan summary used.'
+                    else:
+                        grok_note = ' Local scan summary generated.'
+                    scan_chars = len(combined_raw or '')
+                    if report.pdf_filename:
                         flash(
-                            f'Report published to {email} client portal.{doc_note}'
-                            f' Client can view it now — optionally send email/text below.{pdf_note}',
+                            f'Original scan report published to {email} client portal.'
+                            f'{grok_note}{doc_note} Scan text: {scan_chars} chars.{pdf_note}',
                             'success',
                         )
                     else:
                         flash(
-                            f'Report published to client portal (PDF failed).{pdf_note}',
+                            f'Report published to client portal (PDF failed).{doc_note}{pdf_note}',
                             'error',
                         )
             elif action == 'save':
@@ -1213,6 +1419,15 @@ def logout():
     session.clear()
     flash('You have been logged out.', 'success')
     return redirect(url_for('index'))
+
+
+with app.app_context():
+    db.create_all()
+    migrate_schema()
+    _normalize_stored_emails()
+    ensure_admin_user()
+    _backfill_empty_original_ai()
+    _unpublish_empty_reports()
 
 
 if __name__ == '__main__':
