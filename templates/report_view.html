@@ -18,8 +18,21 @@
             <a href="{{ url_for('download_report_pdf', report_id=report.id) }}" class="btn btn-primary">Download PDF</a>
             {% endif %}
         </div>
+        {% if report.reconciled_at or report.blood_reconciliation_html %}
+        <div class="scan-view-tabs" style="padding:0.75rem 1.5rem 0; display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <a href="{{ url_for('view_report', report_id=report.id, view='updated') }}" class="btn {% if view != 'original' %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Updated (Blood Tests)</a>
+            <a href="{{ url_for('view_report', report_id=report.id, view='original') }}" class="btn {% if view == 'original' %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Original Scan</a>
+        </div>
+        {% if report.reconciled_at and view != 'original' %}
+        <p style="padding:0 1.5rem; color:var(--text-muted); font-size:0.9rem;">Blood tests applied {{ report.reconciled_at }}</p>
+        {% endif %}
+        {% endif %}
         <div class="report-card-body card" style="margin:0; box-shadow:none;">
+            {% if view == 'original' and report.original_generated_report %}
+            {{ report.original_generated_report|safe }}
+            {% else %}
             {{ report.generated_report|safe }}
+            {% endif %}
         </div>
     </div>
 </div>

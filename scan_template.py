@@ -419,6 +419,7 @@ def uses_template_format(raw_text, title=None):
 
 def generate_template_report_html(
     email, title, raw_data, client_name=None, ai_recommendations_html=None,
+    blood_reconciliation_html=None,
 ):
     """Build HTML report styled like the Full Scan PDF template."""
     scan_text = _scan_body_text(raw_data)
@@ -531,6 +532,8 @@ def generate_template_report_html(
   {f'<section class="scan-section"><h2>Next Steps</h2><p class="scan-lead">A simple action plan to support your body as it rebalances.</p>{_format_next_steps_html(next_steps)}</section>' if next_steps else ''}
 
   {f'<section class="scan-section page-break"><h2>Balancing Remedies</h2><p class="scan-lead">Remedies identified to bring energetic stressors back into balance — herbs, homeopathics, and nutritional supplements.</p>{remedies_html}</section>' if remedies_html else ''}
+
+  {blood_reconciliation_html or ''}
 
   {ai_recommendations_html or ''}
 

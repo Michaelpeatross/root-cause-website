@@ -64,9 +64,17 @@
             </div>
         </details>
 
+        {% if recommendations.reconciliation_html %}
+        <details open class="rec-panel" style="margin-top:0.5rem;">
+            <summary style="cursor:pointer; font-weight:700; color:#856404; font-size:1.05rem; padding:0.5rem 0;">🩸 Scan vs Blood Test Comparison</summary>
+            <div class="rec-content" style="padding:0.5rem 0 1rem;">
+                {{ recommendations.reconciliation_html|safe }}
+            </div>
+        </details>
+        {% endif %}
         {% if recommendations.ai_html %}
         <details class="rec-panel" style="margin-top:0.5rem;">
-            <summary style="cursor:pointer; font-weight:700; color:#1a5276; font-size:1.05rem; padding:0.5rem 0;">🧠 Grok Health Analysis</summary>
+            <summary style="cursor:pointer; font-weight:700; color:#1a5276; font-size:1.05rem; padding:0.5rem 0;">🧠 Updated Grok Analysis</summary>
             <div class="rec-content" style="padding:0.5rem 0 1rem;">
                 {{ recommendations.ai_html|safe }}
             </div>
@@ -150,9 +158,40 @@
     </div>
 
     {% if reports %}
+    <div class="card scan-comparison-card">
+        <h2>Original Scan vs Blood-Test Updated Analysis</h2>
+        <p style="color:var(--text-muted);">Your original bioenergetic scan is preserved. When you upload blood work, we compare labs to the scan and update your analysis (for example, if hepatitis shows on the scan but your blood test is negative, the updated report reflects your lab results).</p>
+        {% set r = reports[0] %}
+        <div class="scan-comparison-grid" style="margin-top:1rem;">
+            <div class="scan-comparison-panel">
+                <h3>Original Scan Report</h3>
+                {% if r.reconciled_at %}<p class="scan-comparison-meta">As first published{% if r.date %} · {{ r.date }}{% endif %}</p>{% endif %}
+                <div class="report-card-body card scan-comparison-body">
+                    {{ (r.original_generated_report or r.generated_report)|safe }}
+                </div>
+            </div>
+            <div class="scan-comparison-panel">
+                <h3>Updated Analysis</h3>
+                {% if r.reconciled_at %}
+                <p class="scan-comparison-meta">Blood tests applied · {{ r.reconciled_at }}</p>
+                {% else %}
+                <p class="scan-comparison-meta">Upload blood work and click the button below to update.</p>
+                {% endif %}
+                {% if r.blood_reconciliation_html %}
+                <div class="report-card-body card scan-comparison-body" style="margin-bottom:0.75rem;">
+                    {{ r.blood_reconciliation_html|safe }}
+                </div>
+                {% endif %}
+                <div class="report-card-body card scan-comparison-body">
+                    {{ r.generated_report|safe }}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="card">
-        <h2>Request Updated Grok Analysis</h2>
-        <p style="color:var(--text-muted);">Re-analyze your latest scan with all uploaded medical documents.</p>
+        <h2>Update Scan with Blood Tests</h2>
+        <p style="color:var(--text-muted);">Compare your original scan against uploaded lab work and refresh your personalized analysis.</p>
         {% if admin_preview %}
         <p class="admin-preview-note">Client phone: {{ user.phone or 'not set' }}</p>
         <p class="admin-preview-note">Request analysis controls hidden in admin preview.</p>
@@ -165,16 +204,15 @@
             </div>
             <button type="submit" class="btn btn-outline" style="margin-bottom:0.75rem;">Save Phone</button>
         </form>
-        <form method="POST">
-            <input type="hidden" name="action" value="request_analysis">
-            <button type="submit" class="btn btn-primary">Request Updated Grok Analysis</button>
+        <form method="POST" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
+            <button type="submit" name="action" value="reconcile_blood" class="btn btn-primary">Update Scan with Blood Tests</button>
+            <button type="submit" name="action" value="request_analysis" class="btn btn-outline">Request Full Grok Refresh</button>
         </form>
         {% endif %}
     </div>
 
     <div class="card">
         <h2>Latest Report</h2>
-        {% set r = reports[0] %}
         <div class="report-card" style="margin-top:0.75rem;">
             <div class="report-card-header" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
                 <strong>{{ r.title }}</strong>

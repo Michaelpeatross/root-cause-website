@@ -239,6 +239,11 @@
                                 <a href="{{ url_for('admin_client_portal', email=r.user_email) }}" class="btn btn-primary" style="padding:0.35rem 0.7rem; font-size:0.8rem;">View Portal</a>
                                 {% if r.generated_report and r.raw_data %}
                                 <form method="POST" style="display:inline;">
+                                    <input type="hidden" name="action" value="reconcile_blood">
+                                    <input type="hidden" name="report_id" value="{{ r.id }}">
+                                    <button type="submit" class="btn btn-primary" style="padding:0.35rem 0.7rem; font-size:0.8rem;">Update with Blood Tests</button>
+                                </form>
+                                <form method="POST" style="display:inline;">
                                     <input type="hidden" name="action" value="refresh_ai">
                                     <input type="hidden" name="report_id" value="{{ r.id }}">
                                     <button type="submit" class="btn btn-outline" style="padding:0.35rem 0.7rem; font-size:0.8rem;">Refresh AI</button>

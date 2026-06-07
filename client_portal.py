@@ -50,6 +50,8 @@ def get_personalized_recommendations(latest_report, all_documents):
         'supplements_html': doc_note + f'<ul>{supplement_list_html(supplements)}</ul>',
         'labs_html': doc_note + f'<ul>{lab_list_html(labs)}</ul>',
         'ai_html': latest_report.ai_recommendations or '',
+        'reconciliation_html': latest_report.blood_reconciliation_html or '',
+        'reconciled_at': latest_report.reconciled_at,
         'updated_at': updated,
         'has_data': True,
         'scan_title': latest_report.title,

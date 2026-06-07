@@ -19,6 +19,7 @@ from document_service import (
 )
 from client_portal import get_personalized_recommendations
 from health_advisor import get_health_recommendations, classify_medical_document
+from scan_reconciliation import reconcile_scan_with_blood_tests
 from notification_service import (
     notify_client_analysis_update, notify_admin_analysis_request,
     deliver_report_to_client,
@@ -85,6 +86,9 @@ class Report(db.Model):
     approved_at = db.Column(db.String(50))
     date = db.Column(db.String(50))
     analysis_updated = db.Column(db.String(50))
+    original_generated_report = db.Column(db.Text)
+    blood_reconciliation_html = db.Column(db.Text)
+    reconciled_at = db.Column(db.String(50))
 
 
 class ClientDocument(db.Model):
@@ -163,6 +167,9 @@ def migrate_schema():
                 'approved': 'BOOLEAN DEFAULT 0',
                 'approved_at': 'VARCHAR(50)',
                 'analysis_updated': 'VARCHAR(50)',
+                'original_generated_report': 'TEXT',
+                'blood_reconciliation_html': 'TEXT',
+                'reconciled_at': 'VARCHAR(50)',
             }
             for col, col_type in new_cols.items():
                 if col not in report_cols:
@@ -309,15 +316,30 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
     client_name = _client_display_name(email)
     user = User.query.filter(db.func.lower(User.email) == _normalize_email(email)).first()
 
+    _snapshot_original_report(report)
     prefer_template = _prefer_full_scan_template(report.title, report.raw_data)
-    ai_html, _ = get_health_recommendations(
+
+    recon_result = reconcile_scan_with_blood_tests(
         report.raw_data, medical_text, client_name, email,
-        full_scan_mode=prefer_template,
-    )
+    ) if medical_text and len(medical_text.strip()) >= 80 else None
+
+    if recon_result:
+        ai_html = recon_result['updated_ai_html']
+        blood_html = recon_result['reconciliation_html']
+        report.blood_reconciliation_html = blood_html
+        report.reconciled_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+    else:
+        ai_html, _ = get_health_recommendations(
+            report.raw_data, medical_text, client_name, email,
+            full_scan_mode=prefer_template,
+        )
+        blood_html = None
+
     report.ai_recommendations = ai_html
     report.generated_report = generate_report_html(
         email, report.title, report.raw_data, ai_html, client_name=client_name,
         prefer_template=prefer_template,
+        blood_reconciliation_html=blood_html,
     )
     report.plain_text = generate_report_text(
         email, report.title, report.raw_data, ai_html
@@ -562,11 +584,62 @@ def _save_pdf_for_report(report, html_report):
     return False
 
 
+def _snapshot_original_report(report):
+    """Preserve the first published scan report before blood-test adjustments."""
+    if report.generated_report and not report.original_generated_report:
+        report.original_generated_report = report.generated_report
+
+
 def _publish_report_to_portal(report):
     """Make a generated report visible on the client's portal."""
+    _snapshot_original_report(report)
     if not report.approved:
         report.approved = True
         report.approved_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+
+def _apply_blood_reconciliation(report):
+    """
+    Compare original scan with uploaded blood tests; update report and AI analysis.
+    Returns (report, doc_count, messages) or (None, 0, [error]) if no labs uploaded.
+    """
+    email = report.user_email
+    medical_text, doc_count = _medical_context(email)
+    if not medical_text or len(medical_text.strip()) < 80:
+        return report, doc_count, [
+            'No blood test or lab documents found. Upload lab work first.',
+        ]
+
+    _snapshot_original_report(report)
+    client_name = _client_display_name(email)
+    result = reconcile_scan_with_blood_tests(
+        report.raw_data, medical_text, client_name, email,
+    )
+    if not result:
+        return report, doc_count, ['Could not reconcile scan with blood tests.']
+
+    prefer_template = _prefer_full_scan_template(report.title, report.raw_data)
+    report.blood_reconciliation_html = result['reconciliation_html']
+    report.ai_recommendations = result['updated_ai_html']
+    report.reconciled_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+    report.analysis_updated = report.reconciled_at
+    report.generated_report = generate_report_html(
+        email,
+        report.title,
+        report.raw_data,
+        result['updated_ai_html'],
+        client_name=client_name,
+        prefer_template=prefer_template,
+        blood_reconciliation_html=result['reconciliation_html'],
+    )
+    report.plain_text = generate_report_text(
+        email, report.title, report.raw_data, result['updated_ai_html'],
+    )
+    _save_pdf_for_report(report, report.generated_report)
+    source = result.get('source', 'grok')
+    return report, doc_count, [
+        f'Scan updated with blood test comparison ({doc_count} document(s), {source}).',
+    ]
 
 
 def _approve_and_send_report(report, send_email=False, send_sms=False):
@@ -836,7 +909,23 @@ def dashboard():
                     count += 1
                 db.session.commit()
 
-                msg = f'Uploaded {count} file(s). Recommendations updated from your latest scan + medical docs.'
+                msg = f'Uploaded {count} file(s).'
+                latest = Report.query.filter(
+                    db.func.lower(Report.user_email) == _normalize_email(email),
+                    Report.generated_report.isnot(None),
+                    Report.approved == True,
+                ).order_by(Report.id.desc()).first()
+                if latest and latest.raw_data:
+                    latest, doc_count, recon_msgs = _apply_blood_reconciliation(latest)
+                    db.session.commit()
+                    msg += (
+                        f' Scan updated with blood test comparison '
+                        f'({doc_count} total document(s)).'
+                    )
+                    if recon_msgs:
+                        msg += ' ' + recon_msgs[0]
+                else:
+                    msg += ' Recommendations will update when your scan is published.'
                 if partial_errors:
                     msg += f' Some files skipped: {"; ".join(partial_errors[:3])}'
                 flash(msg, 'success')
@@ -853,12 +942,29 @@ def dashboard():
                 )
                 db.session.commit()
                 flash(
-                    f'Updated Grok analysis sent! Used {doc_count} medical document(s) '
-                    f'from all uploaded medical documents. {" ".join(m for m in msgs if m)}',
+                    f'Updated analysis sent! Used {doc_count} medical document(s). '
+                    f'{" ".join(m for m in msgs if m)}',
                     'success',
                 )
             else:
                 flash('No scan report available yet. Contact your practitioner.', 'error')
+        elif action == 'reconcile_blood':
+            report = Report.query.filter(
+                db.func.lower(Report.user_email) == _normalize_email(email),
+                Report.generated_report.isnot(None),
+                Report.approved == True,
+            ).order_by(Report.id.desc()).first()
+            if report and report.raw_data:
+                report, doc_count, msgs = _apply_blood_reconciliation(report)
+                _publish_report_to_portal(report)
+                db.session.commit()
+                flash(
+                    f'Scan adjusted with blood tests ({doc_count} document(s)). '
+                    f'{" ".join(m for m in msgs if m)}',
+                    'success',
+                )
+            else:
+                flash('No published scan report available yet.', 'error')
 
     return _render_client_dashboard(email)
 
@@ -886,7 +992,15 @@ def view_report(report_id):
         abort(403)
     if not session.get('is_admin') and not report.approved:
         abort(403)
-    return render_template('report_view.html', report=report, user={'name': session.get('name', 'Client')})
+    view = request.args.get('view', 'updated')
+    if view not in ('original', 'updated'):
+        view = 'updated'
+    return render_template(
+        'report_view.html',
+        report=report,
+        view=view,
+        user={'name': session.get('name', 'Client')},
+    )
 
 
 @app.route('/reports/<int:report_id>/pdf')
@@ -983,6 +1097,20 @@ def admin():
                 )
             else:
                 flash('Report not found or missing raw data.', 'error')
+
+        elif action == 'reconcile_blood' and report_id:
+            report = Report.query.get(report_id)
+            if report and report.raw_data:
+                report, doc_count, msgs = _apply_blood_reconciliation(report)
+                _publish_report_to_portal(report)
+                db.session.commit()
+                flash(
+                    f'Scan adjusted with blood tests for {report.user_email} '
+                    f'({doc_count} document(s)). {" ".join(msgs)}',
+                    'success',
+                )
+            else:
+                flash('Report not found or missing scan data.', 'error')
 
         elif not email:
             flash('Select a client or enter a new client email.', 'error')

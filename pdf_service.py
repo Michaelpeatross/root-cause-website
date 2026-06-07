@@ -85,6 +85,12 @@ ul { margin: 6px 0; padding-left: 18px; }
 .scan-steps { margin: 8px 0 0; padding-left: 20px; }
 .scan-steps li { margin-bottom: 8px; line-height: 1.55; }
 .scan-remedy-category { color: #0b3d2a; font-size: 12pt; margin: 14px 0 6px; border-bottom: 1px solid #dceee8; }
+.reconcile-grid { margin: 10px 0; }
+.reconcile-panel { padding: 8px; margin-bottom: 8px; border: 1px solid #ddd; page-break-inside: avoid; }
+.reconcile-adjusted { background: #fff8e6; }
+.reconcile-confirmed { background: #e8f5f1; }
+.reconcile-scan-only { background: #f4f6f8; }
+.reconcile-list { margin: 0; padding-left: 16px; font-size: 9pt; }
 
 .scan-remedy-card { border: 1px solid #e0e0e0; padding: 10px; margin: 8px 0; page-break-inside: avoid; }
 .scan-remedy-card h4 { margin: 0 0 4px; color: #0b3d2a; }

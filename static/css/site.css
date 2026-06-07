@@ -302,6 +302,74 @@ a:hover { text-decoration: underline; }
 
 .legend-item { display: inline-flex; }
 
+.scan-comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .scan-comparison-grid { grid-template-columns: 1fr; }
+}
+
+.scan-comparison-panel h3 {
+  font-family: 'Playfair Display', serif;
+  color: var(--green-dark);
+  margin: 0 0 0.35rem;
+  font-size: 1.1rem;
+}
+
+.scan-comparison-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 0.65rem;
+}
+
+.scan-comparison-body {
+  max-height: 420px;
+  overflow-y: auto;
+  margin: 0;
+  box-shadow: none;
+}
+
+.blood-reconciliation { margin-top: 1rem; }
+
+.reconcile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.reconcile-panel {
+  border-radius: var(--radius);
+  padding: 1rem;
+  border: 1px solid #e8ecea;
+}
+
+.reconcile-panel h3 {
+  font-size: 0.95rem;
+  margin: 0 0 0.5rem;
+  color: var(--green-dark);
+}
+
+.reconcile-adjusted { background: #fff8e6; border-color: #f0d78a; }
+.reconcile-confirmed { background: #e8f5f1; border-color: #b8e0d2; }
+.reconcile-scan-only { background: #f4f6f8; border-color: #d5dbe0; }
+
+.reconcile-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+
+.reconcile-list li { margin-bottom: 0.55rem; }
+
+.reconcile-note {
+  font-size: 0.85rem;
+  color: #4a5568;
+}
+
 .scan-col {
   display: inline-block;
   width: 23%;

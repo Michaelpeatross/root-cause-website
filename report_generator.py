@@ -282,13 +282,14 @@ def generate_report_text(email, title, raw_data, ai_recommendations_html=None):
 
 def generate_report_html(
     email, title, raw_data, ai_recommendations_html=None, client_name=None,
-    prefer_template=False,
+    prefer_template=False, blood_reconciliation_html=None,
 ):
     """Build a complete professional HTML report from raw scan paste."""
     if prefer_template or uses_template_format(raw_data or '', title=title):
         return generate_template_report_html(
             email, title, raw_data, client_name=client_name,
             ai_recommendations_html=ai_recommendations_html,
+            blood_reconciliation_html=blood_reconciliation_html,
         )
 
     findings = _parse_lines(raw_data or "")
