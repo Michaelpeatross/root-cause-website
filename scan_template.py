@@ -10,6 +10,7 @@ from body_overview import (
     parse_toxin_groups,
     parse_nutrient_item_lists,
     render_category_section_html,
+    filter_nonempty_groups,
 )
 
 NUTRIENT_GROUPS = [
@@ -312,17 +313,28 @@ def _render_columns(groups, columns=4):
     return html
 
 
+def _short_text(text, limit=220):
+    text = _clean_readable_text(text or '')
+    text = re.sub(r'\s+', ' ', text).strip()
+    if not text:
+        return ''
+    sentence = re.split(r'(?<=[.!?])\s+', text)[0].strip()
+    if len(sentence) > limit:
+        sentence = sentence[:limit].rsplit(' ', 1)[0] + '…'
+    return sentence
+
+
 def _render_imbalance_cards(cards):
     if not cards:
         return ''
     parts = []
     for card in cards:
         parts.append(
-            f'<div class="scan-imbalance-card">'
-            f'<h4>YOU TESTED WITH AN IMBALANCE IN: {escape(card["name"])}</h4>'
-            + (f'<p><strong>→ What it is:</strong> {escape(card["what_is"])}</p>' if card['what_is'] else '')
-            + (f'<p><strong>→ What this means:</strong> {escape(card["what_means"])}</p>' if card['what_means'] else '')
-            + (f'<p><strong>→ Lifestyle support:</strong> {escape(card["hacks"])}</p>' if card['hacks'] else '')
+            f'<div class="marker-card">'
+            f'<h4 class="marker-title">{escape(card["name"])}</h4>'
+            + (f'<p><strong>What it is:</strong> {_short_text(card["what_is"])}</p>' if card.get('what_is') else '')
+            + (f'<p><strong>What this means:</strong> {_short_text(card["what_means"])}</p>' if card.get('what_means') else '')
+            + (f'<p><strong>How to support balance:</strong> {_short_text(card["hacks"])}</p>' if card.get('hacks') else '')
             + '</div>'
         )
     return ''.join(parts)
@@ -333,13 +345,38 @@ def _render_hormones(items):
         return ''
     parts = []
     for item in items:
+        level = item.get('level', '').strip()
+        name = item.get('name', '').strip()
         parts.append(
-            f'<div class="scan-hormone-item">'
-            f'<h4>{escape(item["level"])} {escape(item["name"])}</h4>'
-            + (f'<p>{escape(item["description"])}</p>' if item['description'] else '')
+            f'<div class="marker-card marker-card-hormone">'
+            f'<h4 class="marker-title">{escape(level)} {escape(name)}</h4>'
+            + (f'<p>{escape(_short_text(item.get("description")))}</p>' if item.get('description') else '')
             + '</div>'
         )
     return ''.join(parts)
+
+
+def _render_marker_section(title, lead, body_html):
+    if not body_html:
+        return ''
+    return (
+        f'<section class="scan-section page-break">'
+        f'<h2>{escape(title)}</h2>'
+        f'<p class="scan-lead">{escape(lead)}</p>'
+        f'<div class="marker-grid">{body_html}</div>'
+        '</section>'
+    )
+
+
+def _render_marker_subsection(title, body_html):
+    if not body_html:
+        return ''
+    return (
+        f'<div class="marker-subsection">'
+        f'<h3>{escape(title)}</h3>'
+        f'<div class="marker-grid">{body_html}</div>'
+        '</div>'
+    )
 
 
 def _scan_body_text(raw_text):
@@ -402,32 +439,52 @@ def generate_template_report_html(
     )
     body_overview_html = render_body_overview_html(body_overview)
 
-    sensitivities = parse_sensitivity_groups(sections.get('sensitivities', ''))
-    nutrients = parse_nutrient_item_lists(sections.get('nutritional', ''))
-    toxins = parse_toxin_groups(sections.get('toxins', ''))
+    sensitivities = filter_nonempty_groups(
+        parse_sensitivity_groups(sections.get('sensitivities', ''))
+    )
+    nutrients = filter_nonempty_groups(
+        parse_nutrient_item_lists(sections.get('nutritional', ''))
+    )
+    toxins = filter_nonempty_groups(parse_toxin_groups(sections.get('toxins', '')))
 
     sensitivities_html = render_category_section_html(
         'Sensitivities',
-        'Items that came up bioenergetically sensitive. With time as the body rebalances, some of these may change.',
+        'Items that came up bioenergetically sensitive during your scan.',
         sensitivities,
-        show_empty=True,
     )
     nutrients_html = render_category_section_html(
         'Nutritional Imbalances',
-        'Nutrients that are bioenergetically low — vitamins, enzymes, fatty acids, amino acids, and minerals.',
+        'Nutrients that tested bioenergetically low on your scan.',
         nutrients,
-        show_empty=True,
     )
     toxins_html = render_category_section_html(
         'Toxins',
-        'Resonating bacteria, parasites, metals, molds, and chemicals detected in the bioenergetic scan.',
+        'Toxin patterns that resonated on your scan.',
         toxins,
-        show_empty=True,
     )
 
-    intro_metabolic = _section_intro(sections.get('metabolic', ''), 'metabolic')
-    intro_sleep = _section_intro(sections.get('sleep', ''), 'sleep')
-    intro_hormone = _section_intro(sections.get('hormone_test', ''), 'hormone')
+    hormonal_html = ''
+    hormone_body = _render_hormones(hormones)
+    hormone_marker_body = _render_imbalance_cards(hormone_cards)
+    if hormone_body or hormone_marker_body:
+        hormonal_html = _render_marker_section(
+            'Hormonal Imbalances',
+            'Hormone-related markers detected during your scan.',
+            _render_marker_subsection('Hormone levels', hormone_body)
+            + _render_marker_subsection('Hormone-related imbalances', hormone_marker_body),
+        )
+
+    metabolic_html = _render_marker_section(
+        'Metabolic Markers',
+        'Metabolic imbalances identified on your scan.',
+        _render_imbalance_cards(metabolic_cards),
+    ) if metabolic_cards else ''
+
+    sleep_html = _render_marker_section(
+        'Sleep Markers',
+        'Sleep-related imbalances identified on your scan.',
+        _render_imbalance_cards(sleep_cards),
+    ) if sleep_cards else ''
 
     summary_text = _clean_readable_text(sections.get('summary', '').strip())
     next_steps = _clean_readable_text(sections.get('next_steps', '').strip())
@@ -447,15 +504,6 @@ def generate_template_report_html(
             + '</div>'
         )
 
-    raw_fallback = ''
-    if not sections and scan_text.strip():
-        raw_fallback = (
-            '<section class="scan-section">'
-            '<h3>Scan Data</h3>'
-            f'<pre class="scan-raw-fallback">{escape(scan_text[:15000])}</pre>'
-            '</section>'
-        )
-
     return f"""<article class="scan-report">
   <header class="scan-cover">
     <p class="scan-brand">Root Cause Bioenergetics</p>
@@ -472,13 +520,11 @@ def generate_template_report_html(
 
   {toxins_html}
 
-  {f'<section class="scan-section page-break"><h2>Energetic Hormonal Imbalances</h2><p class="scan-lead">Hormones detected as resonating imbalances during your scan.</p>{_render_hormones(hormones)}</section>' if hormones else ''}
+  {hormonal_html}
 
-  {f'<section class="scan-section page-break"><h2>Metabolic Test Results</h2>{intro_metabolic}{_render_imbalance_cards(metabolic_cards)}</section>' if metabolic_cards or intro_metabolic else ''}
+  {metabolic_html}
 
-  {f'<section class="scan-section page-break"><h2>Better Sleep Scan Results</h2>{intro_sleep}{_render_imbalance_cards(sleep_cards)}</section>' if sleep_cards or intro_sleep else ''}
-
-  {f'<section class="scan-section page-break"><h2>Hormone Test Results</h2>{intro_hormone}{_render_imbalance_cards(hormone_cards)}</section>' if hormone_cards or intro_hormone else ''}
+  {sleep_html}
 
   {f'<section class="scan-section page-break"><h2>Personalized Client Summary</h2><p class="scan-lead">Your results explained in plain language — what stands out and what it means for how you feel day to day.</p><div class="scan-summary scan-prose"><p>{_format_paragraphs(summary_text)}</p></div></section>' if summary_text else ''}
 
@@ -487,8 +533,6 @@ def generate_template_report_html(
   {f'<section class="scan-section page-break"><h2>Balancing Remedies</h2><p class="scan-lead">Remedies identified to bring energetic stressors back into balance — herbs, homeopathics, and nutritional supplements.</p>{remedies_html}</section>' if remedies_html else ''}
 
   {ai_recommendations_html or ''}
-
-  {raw_fallback}
 
   <footer class="scan-disclaimer">
     <p>{escape(disclaimer) if disclaimer else 'These statements have not been evaluated by the Food and Drug Administration. This service is for educational purposes only and is not intended to diagnose, treat, cure, or prevent any disease.'}</p>

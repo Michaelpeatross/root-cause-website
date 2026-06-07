@@ -328,21 +328,22 @@ def build_body_overview(scan_text, sections, imbalance_cards, hormone_items):
     return overview
 
 
+def filter_nonempty_groups(groups):
+    """Drop categories that have no detected markers."""
+    return {cat: items for cat, items in (groups or {}).items() if items}
+
+
 def render_body_overview_html(overview):
     """Render the Body Overview section with expandable system details."""
-    if not overview:
+    active = [s for s in (overview or []) if s.get('markers')]
+    if not active:
         return ''
 
     cards = []
-    for system in overview:
+    for system in active:
         marker_items = ''.join(
             f'<li>{escape(m["name"])}</li>' for m in system['markers']
         )
-        if not marker_items:
-            marker_items = (
-                '<li class="scan-muted">No significant stress markers '
-                'detected in this system.</li>'
-            )
         cards.append(
             f'<details class="body-system-card" id="body-system-{escape(system["id"])}">'
             f'<summary class="body-system-summary">'
@@ -441,7 +442,7 @@ def parse_sensitivity_groups(text):
 
 
 def parse_toxin_groups(text):
-    """Parse toxin categories; always return every group."""
+    """Parse toxin categories into short, readable marker labels."""
     groups = {cat: [] for cat in TOXIN_CATEGORIES}
     aliases = {
         'bacteria': 'Bacteria',
@@ -450,9 +451,24 @@ def parse_toxin_groups(text):
         'mold': 'Molds',
         'molds': 'Molds',
         'chemicals': 'Chemicals',
-        'virus': 'Bacteria',
     }
     current = None
+    buffer = []
+
+    def flush_buffer():
+        nonlocal buffer
+        if not current or not buffer:
+            buffer = []
+            return
+        snippet = re.sub(r'\s+', ' ', ' '.join(buffer)).strip()
+        if snippet and snippet.lower() != 'none':
+            snippet = re.sub(r'^a resonating\s+', '', snippet, flags=re.I)
+            snippet = snippet[0].upper() + snippet[1:] if snippet else snippet
+            if len(snippet) > 110:
+                snippet = snippet[:107].rsplit(' ', 1)[0] + '…'
+            groups[current].append(snippet)
+        buffer = []
+
     for line in (text or '').split('\n'):
         line = line.strip()
         if not line:
@@ -460,13 +476,23 @@ def parse_toxin_groups(text):
         first = re.sub(r'[^a-z]', '', line.split()[0].lower()) if line else ''
         cat = aliases.get(first)
         if cat:
+            flush_buffer()
             current = cat
             rest = re.sub(rf'^{re.escape(line.split()[0])}\s*', '', line, count=1).strip()
             if rest and rest.lower() != 'none':
-                groups[current].append(rest)
+                buffer = [rest]
+            else:
+                buffer = []
             continue
-        if current and line.lower() != 'none':
-            groups[current].append(line)
+        if line.lower() == 'none':
+            flush_buffer()
+            continue
+        if current:
+            if line.lower().startswith('a resonating'):
+                flush_buffer()
+            buffer.append(line)
+
+    flush_buffer()
     return groups
 
 
@@ -527,23 +553,18 @@ def parse_nutrient_item_lists(text):
     return groups
 
 
-def render_category_section_html(title, lead, groups, show_empty=True):
-    """Render grouped columns; optionally show all categories."""
+def render_category_section_html(title, lead, groups, show_empty=False):
+    """Render grouped columns; only categories with detected markers."""
+    groups = filter_nonempty_groups(groups)
     if not groups:
-        return ''
-    has_any = any(groups.values())
-    if not has_any and not show_empty:
         return ''
     html = '<div class="scan-columns">'
     for cat, items in groups.items():
-        if not items and not show_empty:
-            continue
-        if items:
-            lis = ''.join(f'<li>{escape(i)}</li>' for i in items)
-            body = f'<ul class="scan-list">{lis}</ul>'
-        else:
-            body = '<p class="scan-muted">None detected</p>'
-        html += f'<div class="scan-col"><h4>{escape(cat)}</h4>{body}</div>'
+        lis = ''.join(f'<li>{escape(i)}</li>' for i in items)
+        html += (
+            f'<div class="scan-col"><h4>{escape(cat)}</h4>'
+            f'<ul class="scan-list">{lis}</ul></div>'
+        )
     html += '</div>'
     return (
         f'<section class="scan-section page-break">'

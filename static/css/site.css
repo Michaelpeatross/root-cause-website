@@ -309,12 +309,56 @@ a:hover { text-decoration: underline; }
   padding: 0 1% 1rem 0;
 }
 
-.scan-imbalance-card {
+.scan-imbalance-card,
+.marker-card {
   background: #fafcfb;
   border: 1px solid #dceee8;
   border-radius: var(--radius);
   padding: 1rem;
   margin: 0.75rem 0;
+}
+
+.marker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.75rem;
+}
+
+.marker-card {
+  margin: 0;
+}
+
+.marker-title {
+  color: var(--green-dark);
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.marker-card p {
+  margin: 0.35rem 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.marker-card strong {
+  color: var(--green-dark);
+}
+
+.marker-subsection {
+  margin: 1.25rem 0 0.5rem;
+}
+
+.marker-subsection h3 {
+  font-family: 'Playfair Display', serif;
+  color: var(--green-dark);
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+  border-bottom: 1px solid #e8ecea;
+  padding-bottom: 0.25rem;
+}
+
+.marker-card-hormone {
+  border-left: 3px solid #9b59b6;
 }
 
 .scan-remedy-card {

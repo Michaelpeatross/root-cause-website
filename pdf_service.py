@@ -70,7 +70,10 @@ ul { margin: 6px 0; padding-left: 18px; }
 .scan-nutrient-block { font-size: 9pt; white-space: pre-wrap; margin: 0; }
 .scan-muted { color: #888; font-size: 9pt; font-style: italic; }
 
-.scan-imbalance-card { background: #fafcfb; border: 1px solid #dceee8; padding: 10px 12px; margin: 10px 0; page-break-inside: avoid; }
+.scan-imbalance-card,
+.marker-card { background: #fafcfb; border: 1px solid #dceee8; padding: 10px 12px; margin: 10px 0; page-break-inside: avoid; }
+.marker-title { color: #0b3d2a; font-size: 10pt; margin: 0 0 4px; }
+.marker-subsection h3 { color: #0b3d2a; font-size: 11pt; margin: 12px 0 6px; }
 .scan-imbalance-card h4 { color: #0b3d2a; font-size: 10pt; margin: 0 0 6px; text-transform: uppercase; }
 .scan-imbalance-card p { margin: 4px 0; font-size: 9.5pt; }
 
