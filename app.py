@@ -19,7 +19,10 @@ from document_service import (
     build_pdf_results_from_paths, describe_pdf_uploads,
 )
 from client_portal import get_personalized_recommendations
-from health_advisor import get_health_recommendations, classify_medical_document, get_last_grok_error
+from health_advisor import (
+    get_health_recommendations, classify_medical_document, get_last_grok_error,
+    test_grok_connection,
+)
 from scan_reconciliation import reconcile_scan_with_blood_tests
 from notification_service import (
     notify_client_analysis_update, notify_admin_analysis_request,
@@ -1234,7 +1237,11 @@ def admin():
         action = request.form.get('action', 'generate')
         report_id = request.form.get('report_id')
 
-        if action == 'upload_client_documents':
+        if action == 'test_grok':
+            ok, msg = test_grok_connection()
+            flash(msg, 'success' if ok else 'error')
+
+        elif action == 'upload_client_documents':
             doc_email = _normalize_email(request.form.get('doc_client_email', ''))
             if not doc_email:
                 flash('Select a client to upload medical documents for.', 'error')

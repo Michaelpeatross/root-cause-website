@@ -31,6 +31,31 @@ def get_last_grok_error():
     return _last_grok_error
 
 
+def test_grok_connection():
+    """
+    Minimal Grok API ping for admin diagnostics.
+    Returns (ok: bool, message: str).
+    """
+    api_key = (os.environ.get('XAI_API_KEY') or '').strip()
+    if not api_key:
+        return False, 'XAI_API_KEY is not set on this server.'
+    if not api_key.startswith('xai-'):
+        return False, 'XAI_API_KEY should start with "xai-" (copy the full key from console.x.ai).'
+
+    model = _grok_model_candidates()[0]
+    content = _grok_chat(
+        'Reply with exactly: Grok API connected.',
+        system='Reply briefly with the exact phrase requested.',
+        temperature=0,
+        timeout=30,
+        max_model_attempts=1,
+    )
+    if content and 'connected' in content.lower():
+        return True, f'Grok API connected successfully (model: {model}).'
+    err = get_last_grok_error() or 'empty response'
+    return False, err
+
+
 def _grok_model_candidates():
     models = []
     env_model = (os.environ.get('XAI_MODEL') or '').strip()
