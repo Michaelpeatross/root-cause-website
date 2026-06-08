@@ -1008,3 +1008,27 @@ input[type="file"] {
 .purchase-actions-row .purchase-methods-icons {
   flex-basis: 100%;
 }
+
+.purchase-email-order {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.purchase-email-order .btn-outline {
+  width: 100%;
+  text-align: center;
+  padding: 0.9rem 1.5rem;
+  font-size: 1.05rem;
+}
+
+.purchase-actions-row .purchase-email-order {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.purchase-actions-row .purchase-email-order .btn-outline {
+  flex: 1 1 220px;
+  width: auto;
+}

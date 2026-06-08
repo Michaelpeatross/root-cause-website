@@ -33,7 +33,12 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
     Returns (session_url, error_message).
     """
     if not stripe_configured():
-        return None, 'Stripe is not configured. Set STRIPE_SECRET_KEY on the server.'
+        return None, (
+            'Online card checkout is not active yet. Add STRIPE_SECRET_KEY in Render '
+            'Environment (Dashboard → root-cause-website → Environment). Use your '
+            'secret key from dashboard.stripe.com — it starts with sk_live_ or sk_test_. '
+            'Or use Email Order on the buy page.'
+        )
 
     product = PRODUCTS.get(product_key, PRODUCTS['single'])
     amount = product['amount']

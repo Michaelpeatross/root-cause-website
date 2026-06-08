@@ -1,6 +1,12 @@
-{# Shared Stripe checkout buttons — single scan + 4-scan bundle #}
-{% if stripe_ready %}
+{# Shared purchase buttons — Stripe checkout + email fallback #}
 <div class="purchase-actions{% if layout == 'row' %} purchase-actions-row{% endif %}">
+    {% if not stripe_ready %}
+    <p class="purchase-config-note">
+        Card checkout activates once Stripe is connected on the server.
+        You can still order today by email — use the buttons below.
+    </p>
+    {% endif %}
+
     <form method="POST" action="{{ url_for('create_checkout') }}" class="purchase-form">
         {% if show_email_field %}
         <div class="form-group purchase-email">
@@ -10,7 +16,7 @@
         {% elif user_email %}
         <input type="hidden" name="email" value="{{ user_email }}">
         {% endif %}
-        {% if show_coupon %}
+        {% if show_coupon and stripe_ready %}
         <div class="form-group purchase-coupon">
             <label for="purchase-coupon-{{ uid }}">Discount code</label>
             <input type="text" id="purchase-coupon-{{ uid }}" name="coupon" placeholder="e.g. welcome50">
@@ -24,17 +30,17 @@
             {% if show_bundle_savings %}<small class="purchase-savings">(save $297)</small>{% endif %}
         </button>
     </form>
+
+    {% if not stripe_ready %}
+    <div class="purchase-email-order">
+        <p class="purchase-methods">Or order by email right now:</p>
+        <a href="mailto:michael@root-cause-test.com?subject=Order%20Root%20Cause%20Bio%20Scan%20%24199" class="btn btn-outline purchase-btn-primary">Email Order — 1 Scan ($199)</a>
+        <a href="mailto:michael@root-cause-test.com?subject=Order%20Root%20Cause%204-Scan%20Bundle%20%24499" class="btn btn-outline purchase-btn-bundle">Email Order — 4 Scans ($499)</a>
+    </div>
+    {% else %}
     <p class="purchase-methods">
         <strong>Credit card</strong> · <strong>Apple Pay</strong> · <strong>Google Pay</strong> · <strong>Stripe Link</strong>
     </p>
     <p class="purchase-methods-icons">💳 Visa / Mastercard / Amex ·  Apple Pay ·  Link</p>
+    {% endif %}
 </div>
-{% else %}
-<div class="purchase-actions purchase-unavailable">
-    <p class="purchase-config-note">
-        Online checkout is being configured. Email
-        <a href="mailto:michael@root-cause-test.com">michael@root-cause-test.com</a>
-        to order, or <a href="{{ url_for('register') }}">create a free account</a> in the meantime.
-    </p>
-</div>
-{% endif %}
