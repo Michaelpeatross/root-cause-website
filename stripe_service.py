@@ -90,10 +90,6 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
     session_params = {
         'mode': 'payment',
         'automatic_payment_methods': {'enabled': True},
-        'wallet_options': {
-            'apple_pay': {'display': 'always'},
-            'google_pay': {'display': 'always'},
-        },
         'line_items': [{
             'price_data': {
                 'currency': 'usd',
@@ -119,13 +115,21 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
         return session.url, None
     except stripe.error.StripeError as exc:
         err = str(getattr(exc, 'user_message', None) or exc)
-        if 'wallet_options' in err.lower():
-            session_params.pop('wallet_options', None)
-            try:
-                session = stripe.checkout.Session.create(**session_params)
-                return session.url, None
-            except stripe.error.StripeError as retry_exc:
-                return None, str(
-                    getattr(retry_exc, 'user_message', None) or retry_exc
-                )
-        return None, err
+        print(f'[Root Cause] Stripe checkout error: {err}')
+        fallback = {
+            'mode': 'payment',
+            'payment_method_types': ['card', 'link'],
+            'line_items': session_params['line_items'],
+            'success_url': session_params['success_url'],
+            'cancel_url': session_params['cancel_url'],
+            'billing_address_collection': 'auto',
+            'phone_number_collection': {'enabled': True},
+            'metadata': session_params['metadata'],
+        }
+        if customer_email:
+            fallback['customer_email'] = customer_email
+        try:
+            session = stripe.checkout.Session.create(**fallback)
+            return session.url, None
+        except stripe.error.StripeError as retry_exc:
+            return None, str(getattr(retry_exc, 'user_message', None) or retry_exc)
