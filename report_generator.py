@@ -439,6 +439,8 @@ def generate_report_html(
 
   {sections_html}
 
+  {blood_reconciliation_html or ''}
+
   {ai_recommendations_html or ''}
 
   <div class="report-columns">

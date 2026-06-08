@@ -308,8 +308,13 @@ def _ensure_document_labels(documents):
     for doc in documents:
         if doc.grok_label:
             continue
-        _apply_document_classification(doc)
-        updated = True
+        try:
+            _apply_document_classification(doc)
+            updated = True
+        except Exception as exc:
+            print(f'[Root Cause] Document label failed for {doc.id}: {exc}')
+            doc.grok_label = doc.grok_label or (doc.original_name or 'Medical document')[:200]
+            updated = True
     if updated:
         db.session.commit()
 
@@ -437,26 +442,34 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
         prefer_template=prefer_template,
         blood_reconciliation_html=blood_html,
     )
-    _save_pdf_for_report(report, pdf_html)
+    report.generated_report = pdf_html
+    try:
+        _save_pdf_for_report(report, pdf_html)
+    except Exception as exc:
+        print(f'[Root Cause] PDF save failed for report {report.id}: {exc}')
 
     messages = []
-    if notify_client:
-        pdf_bytes = pdf_to_bytes(report.generated_report)
-        e_ok, e_msg, s_ok, s_msg = notify_client_analysis_update(
-            email,
-            client_name,
-            user.phone if user else '',
-            report.title,
-            report.plain_text,
-            pdf_bytes,
-        )
-        report.email_sent = e_ok
-        messages.extend([e_msg, s_msg])
-    if notify_admin:
-        a_e_ok, a_e_msg, a_s_ok, a_s_msg = notify_admin_analysis_request(
-            client_name, email, report.title
-        )
-        messages.extend([a_e_msg, a_s_msg])
+    try:
+        if notify_client:
+            pdf_bytes = pdf_to_bytes(pdf_html)
+            e_ok, e_msg, s_ok, s_msg = notify_client_analysis_update(
+                email,
+                client_name,
+                user.phone if user else '',
+                report.title,
+                report.plain_text,
+                pdf_bytes,
+            )
+            report.email_sent = e_ok
+            messages.extend([e_msg, s_msg])
+        if notify_admin:
+            a_e_ok, a_e_msg, a_s_ok, a_s_msg = notify_admin_analysis_request(
+                client_name, email, report.title
+            )
+            messages.extend([a_e_msg, a_s_msg])
+    except Exception as exc:
+        print(f'[Root Cause] Analysis notification failed for {email}: {exc}')
+        messages.append('Analysis saved to your portal; notification delivery had an issue.')
 
     return report, doc_count, messages
 
@@ -852,10 +865,11 @@ def _apply_blood_reconciliation(report):
 
 
 def _client_has_usable_scan_report(email):
-    """Latest report with parseable scan content for this client."""
+    """Latest approved report with parseable scan content for this client."""
     report = Report.query.filter(
         db.func.lower(Report.user_email) == _normalize_email(email),
         Report.generated_report.isnot(None),
+        Report.approved == True,
     ).order_by(Report.id.desc()).first()
     if not report:
         return None
@@ -1125,15 +1139,26 @@ def dashboard():
         elif action == 'request_analysis':
             report = _client_has_usable_scan_report(email)
             if report:
-                report, doc_count, msgs = _regenerate_report_analysis(
-                    report, notify_client=True, notify_admin=True
-                )
-                db.session.commit()
-                flash(
-                    f'Updated Grok analysis ready — used {doc_count} medical document(s). '
-                    f'{" ".join(m for m in msgs if m)}',
-                    'success',
-                )
+                try:
+                    report, doc_count, msgs = _regenerate_report_analysis(
+                        report, notify_client=True, notify_admin=True
+                    )
+                    db.session.commit()
+                    flash(
+                        f'Updated Grok analysis ready — used {doc_count} medical document(s). '
+                        f'{" ".join(m for m in msgs if m)}',
+                        'success',
+                    )
+                except Exception as exc:
+                    db.session.rollback()
+                    print(f'[Root Cause] request_analysis failed for {email}: {exc}')
+                    import traceback
+                    traceback.print_exc()
+                    flash(
+                        'Analysis update failed. Your uploads are saved — please try again '
+                        'in a few minutes or contact your practitioner.',
+                        'error',
+                    )
             else:
                 flash('No scan report available yet. Contact your practitioner.', 'error')
 
