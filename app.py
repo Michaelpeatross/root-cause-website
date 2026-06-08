@@ -30,6 +30,7 @@ from notification_service import (
 )
 from stripe_service import create_checkout_session, stripe_configured
 from persistent_storage import setup_persistent_paths, get_storage_status
+from central_time import format_report_stamp, central_now
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'rootcause2026secretkey')
@@ -275,7 +276,7 @@ def _apply_document_classification(doc):
 
 def _save_client_documents(email, saved_files, form_date='', upload_dt=None):
     """Persist uploaded medical documents for a client portal."""
-    upload_dt = upload_dt or datetime.now()
+    upload_dt = upload_dt or central_now()
     count = 0
     for stored, original in saved_files:
         path = os.path.join(documents_dir, stored)
@@ -334,7 +335,7 @@ def _attach_scan_pdfs_to_report(report, pdf_results):
             stored_filename=pdf['stored_filename'],
             original_name=pdf['original_name'],
             extracted_text=pdf['extracted_text'],
-            uploaded_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
+            uploaded_at=format_report_stamp(),
         )
         db.session.add(entry)
 
@@ -424,7 +425,7 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
         ai_html = recon_result['updated_ai_html']
         blood_html = recon_result['reconciliation_html']
         report.blood_reconciliation_html = blood_html
-        report.reconciled_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+        report.reconciled_at = format_report_stamp()
     else:
         ai_html, _ = get_health_recommendations(
             scan_raw, medical_text, client_name, email,
@@ -436,7 +437,7 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
     report.plain_text = generate_report_text(
         email, report.title, scan_raw, ai_html
     )
-    report.analysis_updated = datetime.now().strftime('%Y-%m-%d %H:%M')
+    report.analysis_updated = format_report_stamp()
     pdf_html = generate_report_html(
         email, report.title, scan_raw, ai_html, client_name=client_name,
         prefer_template=prefer_template,
@@ -764,7 +765,7 @@ def _create_published_scan_report(email, title, combined_raw, pdf_results=None):
         plain_text=generate_report_text(email, title, combined_raw, local_ai),
         original_ai_recommendations=local_ai,
         ai_recommendations=local_ai,
-        date=datetime.now().strftime('%Y-%m-%d %H:%M'),
+        date=format_report_stamp(),
     )
     _publish_report_to_portal(report)
     db.session.add(report)
@@ -814,7 +815,7 @@ def _publish_report_to_portal(report):
     _snapshot_original_report(report)
     if not report.approved:
         report.approved = True
-        report.approved_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+        report.approved_at = format_report_stamp()
 
 
 def _apply_blood_reconciliation(report):
@@ -843,7 +844,7 @@ def _apply_blood_reconciliation(report):
     prefer_template = _prefer_full_scan_template(report.title, scan_raw)
     report.blood_reconciliation_html = result['reconciliation_html']
     report.ai_recommendations = result['updated_ai_html']
-    report.reconciled_at = datetime.now().strftime('%Y-%m-%d %H:%M')
+    report.reconciled_at = format_report_stamp()
     report.analysis_updated = report.reconciled_at
     report.plain_text = generate_report_text(
         email, report.title, scan_raw, result['updated_ai_html'],
@@ -1119,7 +1120,7 @@ def dashboard():
                 else:
                     saved_files, partial_errors = upload_result, []
 
-                upload_dt = datetime.now()
+                upload_dt = central_now()
                 form_date = request.form.get('test_date', '').strip()
                 count = _save_client_documents(
                     email, saved_files, form_date=form_date, upload_dt=upload_dt,
@@ -1425,7 +1426,7 @@ def admin():
                         user_email=email,
                         title=title,
                         raw_data=combined_raw,
-                        date=datetime.now().strftime('%Y-%m-%d %H:%M'),
+                        date=format_report_stamp(),
                     )
                     db.session.add(report)
                     db.session.commit()
@@ -1441,7 +1442,7 @@ def admin():
     client_scan_buckets = _group_clients_by_last_scan()
     clients = _get_clients_for_admin()
     client_groups = _split_clients_for_admin(clients)
-    now = datetime.now().strftime('%b %d, %Y')
+    now = central_now().strftime('%b %d, %Y')
     return render_template(
         'admin.html',
         reports=reports,

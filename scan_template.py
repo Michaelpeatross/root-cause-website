@@ -3,6 +3,8 @@ import re
 from html import escape
 from datetime import datetime
 
+from central_time import format_report_datetime, format_scan_date
+
 from body_overview import (
     build_body_overview,
     render_body_overview_html,
@@ -68,7 +70,7 @@ def _extract_title_info(raw_text, client_name, title):
     lines = [ln.strip() for ln in text.split('\n') if ln.strip()]
     scan_title = title or 'Full Scan'
     display_name = client_name or 'Client'
-    scan_date = datetime.now().strftime('%m/%d/%Y')
+    scan_date = format_scan_date()
 
     if lines:
         if re.match(r'^full\s+scan', lines[0], re.I):
@@ -546,7 +548,7 @@ def generate_template_report_html(
 
   <footer class="scan-disclaimer">
     <p>{escape(disclaimer) if disclaimer else 'These statements have not been evaluated by the Food and Drug Administration. This service is for educational purposes only and is not intended to diagnose, treat, cure, or prevent any disease.'}</p>
-    <p>Root Cause Bioenergetics • Generated {datetime.now().strftime('%B %d, %Y')}</p>
+    <p>Root Cause Bioenergetics • Generated {format_report_datetime()}</p>
   </footer>
 </article>"""
 

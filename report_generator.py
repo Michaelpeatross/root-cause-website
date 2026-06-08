@@ -1,7 +1,7 @@
 """Parse raw bioenergetic scan data into a professional HTML report."""
 import re
 from html import escape
-from datetime import datetime
+from central_time import format_report_date, format_report_datetime
 
 from affiliate_links import supplement_list_html, lab_list_html, match_supplement_link, match_lab_links
 from scan_template import generate_template_report_html, uses_template_format
@@ -274,7 +274,7 @@ def generate_report_text(email, title, raw_data, ai_recommendations_html=None):
     moderate = [f for f in findings if f['severity'] == 'moderate']
     active_cats = list({f['category'] for f in high + moderate}) or list({f['category'] for f in findings[:4]})
     supplements, labs = _recommendations(active_cats)
-    date_str = datetime.now().strftime('%B %d, %Y')
+    date_str = format_report_date()
 
     lines = [
         'ROOT CAUSE BIOENERGETIC REPORT',
@@ -350,7 +350,7 @@ def generate_report_html(
         active_cats = list(groups.keys())[:4]
 
     supplements, labs = _recommendations(active_cats)
-    date_str = datetime.now().strftime("%B %d, %Y at %I:%M %p")
+    date_str = format_report_datetime()
 
     if findings:
         summary = (
