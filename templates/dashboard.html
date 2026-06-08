@@ -21,24 +21,71 @@
         {% if admin_preview %}
         <p class="admin-preview-note">Purchase buttons are hidden in admin preview.</p>
         {% else %}
-        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-top:1rem;">
-            {% if stripe_ready %}
-            <form method="POST" action="{{ url_for('create_checkout') }}">
-                <input type="hidden" name="product" value="single">
-                <input type="hidden" name="email" value="{{ user.email }}">
-                <button type="submit" class="btn btn-primary">Purchase Additional Scan — $199</button>
-            </form>
-            <form method="POST" action="{{ url_for('create_checkout') }}">
-                <input type="hidden" name="product" value="bundle_4">
-                <input type="hidden" name="email" value="{{ user.email }}">
-                <button type="submit" class="btn btn-secondary">4 Scans Bundle — $499 <small style="opacity:0.85;">(save $297)</small></button>
-            </form>
-            {% else %}
-            <a href="{{ url_for('buy') }}" class="btn btn-primary">Purchase Additional Scan — $199</a>
-            <a href="{{ url_for('buy') }}" class="btn btn-secondary">4 Scans Bundle — $499</a>
-            <p style="color:var(--text-muted); font-size:0.9rem;">Checkout is being configured — use the buy page or contact us to order.</p>
-            {% endif %}
+        {% with user_email=user.email, show_email_field=false, show_coupon=false, layout='row', uid='dash', button_label_single='Purchase Additional Scan — $199', button_label_bundle='4 Scans Bundle — $499', show_bundle_savings=true %}
+        {% include '_purchase_buttons.html' %}
+        {% endwith %}
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h2>Order Status</h2>
+        <p style="background:#fff3cd; color:#856404; padding:0.75rem 1rem; border-radius:8px; display:inline-block; font-weight:600;">
+            {% if reports %}{{ reports|length }} scan report{{ 's' if reports|length > 1 else '' }} available{% else %}Awaiting Hair &amp; Saliva Sample{% endif %}
+        </p>
+        <p style="margin-top:1rem;"><a href="{{ url_for('instructions') }}" class="btn btn-outline">Collection Instructions</a></p>
+    </div>
+
+    {% if reports %}
+    {% set r = reports[0] %}
+    <div class="card">
+        <h2>Your Scan Report</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Published by your practitioner from your bioenergetic scan.</p>
+        <div class="report-card" style="margin-top:0.75rem;">
+            <div class="report-card-header" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
+                <strong>{{ r.title }}</strong>
+                <div style="display:flex; gap:0.4rem;">
+                    <a href="{{ url_for('view_report', report_id=r.id) }}" class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Full Report</a>
+                    {% if r.pdf_filename %}
+                    <a href="{{ url_for('download_report_pdf', report_id=r.id) }}" class="btn btn-primary" style="padding:0.35rem 0.75rem; font-size:0.85rem;">PDF</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="report-card-body card" style="margin:0; box-shadow:none; max-height:480px; overflow-y:auto;">
+                {{ (r.original_generated_report or r.generated_report)|safe }}
+            </div>
         </div>
+    </div>
+
+    <div class="card">
+        <h2>Grok Analysis</h2>
+        <p style="color:var(--text-muted);">Your original scan analysis is preserved. After you upload medical records, request an updated analysis.</p>
+
+        <details open class="rec-panel" style="margin-top:1rem;">
+            <summary style="cursor:pointer; font-weight:700; color:var(--green-dark); font-size:1.05rem; padding:0.5rem 0;">📋 Original Scan Analysis</summary>
+            <div class="rec-content" style="padding:0.5rem 0 1rem;">
+                {% if recommendations.original_ai_html %}
+                {{ recommendations.original_ai_html|safe }}
+                {% else %}
+                <p style="color:var(--text-muted);">Original Grok analysis will appear when your scan report is published.</p>
+                {% endif %}
+            </div>
+        </details>
+
+        {% if recommendations.has_updates %}
+        <details open class="rec-panel" style="margin-top:0.5rem;">
+            <summary style="cursor:pointer; font-weight:700; color:#1a5276; font-size:1.05rem; padding:0.5rem 0;">🔄 Updates</summary>
+            <div class="rec-content" style="padding:0.5rem 0 1rem;">
+                {% if recommendations.updated_at %}
+                <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 0.75rem;">Last updated {{ recommendations.updated_at }}</p>
+                {% endif %}
+                {% if recommendations.reconciliation_html %}
+                {{ recommendations.reconciliation_html|safe }}
+                {% endif %}
+                {% if recommendations.updated_ai_html %}
+                {{ recommendations.updated_ai_html|safe }}
+                {% endif %}
+            </div>
+        </details>
         {% endif %}
     </div>
 
@@ -63,47 +110,21 @@
                 {{ recommendations.labs_html|safe }}
             </div>
         </details>
-
-        {% if recommendations.reconciliation_html %}
-        <details open class="rec-panel" style="margin-top:0.5rem;">
-            <summary style="cursor:pointer; font-weight:700; color:#856404; font-size:1.05rem; padding:0.5rem 0;">🩸 Scan vs Blood Test Comparison</summary>
-            <div class="rec-content" style="padding:0.5rem 0 1rem;">
-                {{ recommendations.reconciliation_html|safe }}
-            </div>
-        </details>
-        {% endif %}
-        {% if recommendations.ai_html %}
-        <details class="rec-panel" style="margin-top:0.5rem;">
-            <summary style="cursor:pointer; font-weight:700; color:#1a5276; font-size:1.05rem; padding:0.5rem 0;">🧠 Updated Grok Analysis</summary>
-            <div class="rec-content" style="padding:0.5rem 0 1rem;">
-                {{ recommendations.ai_html|safe }}
-            </div>
-        </details>
-        {% endif %}
     </div>
 
-    <div class="card">
-        <h2>Order Status</h2>
-        <p style="background:#fff3cd; color:#856404; padding:0.75rem 1rem; border-radius:8px; display:inline-block; font-weight:600;">
-            {% if reports %}{{ reports|length }} scan report{{ 's' if reports|length > 1 else '' }} available{% else %}Awaiting Hair &amp; Saliva Sample{% endif %}
-        </p>
-        <p style="margin-top:1rem;"><a href="{{ url_for('instructions') }}" class="btn btn-outline">Collection Instructions</a></p>
-    </div>
-
-    {% if reports %}
     <div class="card">
         <h2>Your Scan History</h2>
         {% for date_label, date_reports in reports_by_date.items() %}
         <div class="scan-date-group" style="margin-top:1rem;">
             <h3 style="font-family:'Playfair Display',serif; color:var(--green-dark); font-size:1.05rem; border-bottom:2px solid var(--green-light); padding-bottom:0.35rem;">{{ date_label }}</h3>
             <ul style="list-style:none; padding:0; margin:0;">
-                {% for r in date_reports %}
+                {% for report in date_reports %}
                 <li style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; padding:0.6rem 0; border-bottom:1px solid #eee;">
-                    <strong>{{ r.title }}</strong>
+                    <strong>{{ report.title }}</strong>
                     <div style="display:flex; gap:0.4rem;">
-                        <a href="{{ url_for('view_report', report_id=r.id) }}" class="btn btn-outline" style="padding:0.3rem 0.7rem; font-size:0.85rem;">View</a>
-                        {% if r.pdf_filename %}
-                        <a href="{{ url_for('download_report_pdf', report_id=r.id) }}" class="btn btn-primary" style="padding:0.3rem 0.7rem; font-size:0.85rem;">PDF</a>
+                        <a href="{{ url_for('view_report', report_id=report.id) }}" class="btn btn-outline" style="padding:0.3rem 0.7rem; font-size:0.85rem;">View</a>
+                        {% if report.pdf_filename %}
+                        <a href="{{ url_for('download_report_pdf', report_id=report.id) }}" class="btn btn-primary" style="padding:0.3rem 0.7rem; font-size:0.85rem;">PDF</a>
                         {% endif %}
                     </div>
                 </li>
@@ -116,7 +137,7 @@
 
     <div class="card">
         <h2>Upload Medical Tests &amp; Records</h2>
-        <p style="color:var(--text-muted);">Upload <strong>multiple files at once</strong> — PDFs, photos, screenshots, any date. Grok uses <strong>all</strong> your medical history for recommendations.</p>
+        <p style="color:var(--text-muted);">Upload <strong>blood work, lab PDFs, photos, and medical records</strong>. After uploading new documents, request an updated Grok analysis below.</p>
         {% if admin_preview %}
         <p class="admin-preview-note">Upload form hidden in admin preview.</p>
         {% else %}
@@ -158,40 +179,9 @@
     </div>
 
     {% if reports %}
-    <div class="card scan-comparison-card">
-        <h2>Original Scan vs Blood-Test Updated Analysis</h2>
-        <p style="color:var(--text-muted);">Your original bioenergetic scan is preserved. When you upload blood work, we compare labs to the scan and update your analysis (for example, if hepatitis shows on the scan but your blood test is negative, the updated report reflects your lab results).</p>
-        {% set r = reports[0] %}
-        <div class="scan-comparison-grid" style="margin-top:1rem;">
-            <div class="scan-comparison-panel">
-                <h3>Original Scan Report</h3>
-                {% if r.reconciled_at %}<p class="scan-comparison-meta">As first published{% if r.date %} · {{ r.date }}{% endif %}</p>{% endif %}
-                <div class="report-card-body card scan-comparison-body">
-                    {{ (r.original_generated_report or r.generated_report)|safe }}
-                </div>
-            </div>
-            <div class="scan-comparison-panel">
-                <h3>Updated Analysis</h3>
-                {% if r.reconciled_at %}
-                <p class="scan-comparison-meta">Blood tests applied · {{ r.reconciled_at }}</p>
-                {% else %}
-                <p class="scan-comparison-meta">Upload blood work and click the button below to update.</p>
-                {% endif %}
-                {% if r.blood_reconciliation_html %}
-                <div class="report-card-body card scan-comparison-body" style="margin-bottom:0.75rem;">
-                    {{ r.blood_reconciliation_html|safe }}
-                </div>
-                {% endif %}
-                <div class="report-card-body card scan-comparison-body">
-                    {{ r.generated_report|safe }}
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="card">
-        <h2>Update Scan with Blood Tests</h2>
-        <p style="color:var(--text-muted);">Compare your original scan against uploaded lab work and refresh your personalized analysis.</p>
+        <h2>Request Updated Grok Analysis</h2>
+        <p style="color:var(--text-muted);">After uploading new medical documents, Grok will compare them against your original bio scan and refresh your analysis.</p>
         {% if admin_preview %}
         <p class="admin-preview-note">Client phone: {{ user.phone or 'not set' }}</p>
         <p class="admin-preview-note">Request analysis controls hidden in admin preview.</p>
@@ -204,24 +194,10 @@
             </div>
             <button type="submit" class="btn btn-outline" style="margin-bottom:0.75rem;">Save Phone</button>
         </form>
-        <form method="POST" style="display:flex; flex-wrap:wrap; gap:0.5rem;">
-            <button type="submit" name="action" value="reconcile_blood" class="btn btn-primary">Update Scan with Blood Tests</button>
-            <button type="submit" name="action" value="request_analysis" class="btn btn-outline">Request Full Grok Refresh</button>
+        <form method="POST">
+            <button type="submit" name="action" value="request_analysis" class="btn btn-primary">Request Updated Grok Analysis</button>
         </form>
         {% endif %}
-    </div>
-
-    <div class="card">
-        <h2>Latest Report</h2>
-        <div class="report-card" style="margin-top:0.75rem;">
-            <div class="report-card-header" style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
-                <strong>{{ r.title }}</strong>
-                <a href="{{ url_for('view_report', report_id=r.id) }}" class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Full Report</a>
-            </div>
-            <div class="report-card-body card" style="margin:0; box-shadow:none; max-height:480px; overflow-y:auto;">
-                {{ r.generated_report|safe }}
-            </div>
-        </div>
     </div>
     {% endif %}
 </div>

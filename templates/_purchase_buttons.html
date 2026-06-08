@@ -1,0 +1,40 @@
+{# Shared Stripe checkout buttons — single scan + 4-scan bundle #}
+{% if stripe_ready %}
+<div class="purchase-actions{% if layout == 'row' %} purchase-actions-row{% endif %}">
+    <form method="POST" action="{{ url_for('create_checkout') }}" class="purchase-form">
+        {% if show_email_field %}
+        <div class="form-group purchase-email">
+            <label for="purchase-email-{{ uid }}">Email (optional — pre-fills checkout)</label>
+            <input type="email" id="purchase-email-{{ uid }}" name="email" placeholder="you@email.com" value="{{ user_email or '' }}">
+        </div>
+        {% elif user_email %}
+        <input type="hidden" name="email" value="{{ user_email }}">
+        {% endif %}
+        {% if show_coupon %}
+        <div class="form-group purchase-coupon">
+            <label for="purchase-coupon-{{ uid }}">Discount code</label>
+            <input type="text" id="purchase-coupon-{{ uid }}" name="coupon" placeholder="e.g. welcome50">
+        </div>
+        {% endif %}
+        <button type="submit" name="product" value="single" class="btn btn-primary purchase-btn-primary">
+            {% if button_label_single %}{{ button_label_single }}{% else %}Pay Securely — $199 (1 Scan){% endif %}
+        </button>
+        <button type="submit" name="product" value="bundle_4" class="btn btn-secondary purchase-btn-bundle">
+            {% if button_label_bundle %}{{ button_label_bundle }}{% else %}4 Scans Bundle — $499{% endif %}
+            {% if show_bundle_savings %}<small class="purchase-savings">(save $297)</small>{% endif %}
+        </button>
+    </form>
+    <p class="purchase-methods">
+        <strong>Credit card</strong> · <strong>Apple Pay</strong> · <strong>Google Pay</strong> · <strong>Stripe Link</strong>
+    </p>
+    <p class="purchase-methods-icons">💳 Visa / Mastercard / Amex ·  Apple Pay ·  Link</p>
+</div>
+{% else %}
+<div class="purchase-actions purchase-unavailable">
+    <p class="purchase-config-note">
+        Online checkout is being configured. Email
+        <a href="mailto:michael@root-cause-test.com">michael@root-cause-test.com</a>
+        to order, or <a href="{{ url_for('register') }}">create a free account</a> in the meantime.
+    </p>
+</div>
+{% endif %}

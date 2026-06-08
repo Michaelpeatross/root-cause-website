@@ -924,3 +924,87 @@ input[type="file"] {
 }
 
 .hero .btn { margin: 0.4rem; }
+
+.purchase-card { text-align: center; }
+
+.purchase-pricing { margin: 1rem 0 1.5rem; }
+
+.purchase-was {
+  text-decoration: line-through;
+  color: #999;
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.purchase-now {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--green-dark);
+  margin: 0.25rem 0;
+  line-height: 1.1;
+}
+
+.purchase-actions { margin-top: 1rem; }
+
+.purchase-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.purchase-actions-row .purchase-form {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  text-align: left;
+}
+
+.purchase-btn-primary,
+.purchase-btn-bundle {
+  width: 100%;
+  font-size: 1.05rem;
+  padding: 0.9rem 1.5rem;
+}
+
+.purchase-actions-row .purchase-btn-primary,
+.purchase-actions-row .purchase-btn-bundle {
+  width: auto;
+  flex: 1 1 220px;
+}
+
+.purchase-savings {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.purchase-methods {
+  margin: 1rem 0 0.25rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.purchase-methods-icons {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.purchase-config-note {
+  color: #856404;
+  background: #fff3cd;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  margin: 0;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.purchase-actions-row .purchase-methods,
+.purchase-actions-row .purchase-methods-icons {
+  flex-basis: 100%;
+}

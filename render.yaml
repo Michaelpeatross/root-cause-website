@@ -18,6 +18,10 @@ services:
         sync: false
       - key: XAI_MODEL
         value: grok-4.3
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: SITE_URL
+        value: https://www.root-cause-test.com
     disk:
       name: rootcause-data
       mountPath: /opt/render/project/src/data

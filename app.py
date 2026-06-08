@@ -923,12 +923,20 @@ def _approve_and_send_report(report, send_email=False, send_sms=False):
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template(
+        'index.html',
+        stripe_ready=stripe_configured(),
+        user_email=session.get('email', '') if session.get('user_id') else '',
+    )
 
 
 @app.route('/buy')
 def buy():
-    return render_template('buy.html', stripe_ready=stripe_configured())
+    return render_template(
+        'buy.html',
+        stripe_ready=stripe_configured(),
+        user_email=session.get('email', '') if session.get('user_id') else '',
+    )
 
 
 @app.route('/create-checkout-session', methods=['POST'])

@@ -46,7 +46,7 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
     try:
         session_params = {
             'mode': 'payment',
-            'payment_method_types': ['card', 'link'],
+            'automatic_payment_methods': {'enabled': True},
             'line_items': [{
                 'price_data': {
                     'currency': 'usd',
