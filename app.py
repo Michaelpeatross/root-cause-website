@@ -930,30 +930,35 @@ def index():
     )
 
 
+def _redirect_to_stripe_checkout(product='single', email=None, coupon=''):
+    """Send the visitor straight to Stripe Checkout (card, Apple Pay, Link)."""
+    site_url = os.environ.get('SITE_URL', request.host_url.rstrip('/'))
+    if not email and session.get('user_id'):
+        email = session.get('email')
+    session_url, error = create_checkout_session(site_url, email, coupon, product)
+    if session_url:
+        return redirect(session_url)
+    print(f'[Root Cause] Stripe checkout failed: {error}')
+    flash(error or 'Could not start checkout.', 'error')
+    if session.get('user_id'):
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('index'))
+
+
 @app.route('/buy')
 def buy():
-    return render_template(
-        'buy.html',
-        stripe_ready=stripe_configured(),
-        user_email=session.get('email', '') if session.get('user_id') else '',
-    )
+    """One click from homepage — opens Stripe Checkout immediately."""
+    return _redirect_to_stripe_checkout()
 
 
 @app.route('/create-checkout-session', methods=['POST'])
 def create_checkout():
-    site_url = os.environ.get('SITE_URL', request.host_url.rstrip('/'))
-    email = request.form.get('email', '').strip() or session.get('email') or None
+    email = request.form.get('email', '').strip() or None
     coupon = request.form.get('coupon', '').strip()
     product = request.form.get('product') or request.args.get('product', 'single')
     if product not in ('single', 'bundle_4'):
         product = 'single'
-    session_url, error = create_checkout_session(site_url, email, coupon, product)
-    if session_url:
-        return redirect(session_url)
-    flash(error or 'Could not start checkout.', 'error')
-    if session.get('user_id'):
-        return redirect(url_for('dashboard'))
-    return redirect(url_for('buy'))
+    return _redirect_to_stripe_checkout(product=product, email=email, coupon=coupon)
 
 
 @app.route('/checkout/success')

@@ -3,7 +3,7 @@ import os
 
 import stripe
 
-stripe.api_key = os.environ.get('STRIPE_SECRET_KEY', '')
+stripe.api_key = (os.environ.get('STRIPE_SECRET_KEY') or '').strip()
 
 PRODUCTS = {
     'single': {
@@ -45,13 +45,14 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
     if product_key == 'single' and (coupon_code or '').lower() == 'welcome50':
         amount = 19900
 
-    success_url = f'{site_url.rstrip("/")}/checkout/success?session_id={{CHECKOUT_SESSION_ID}}'
-    cancel_url = f'{site_url.rstrip("/")}/dashboard' if customer_email else f'{site_url.rstrip("/")}/buy'
+    base = site_url.rstrip('/')
+    success_url = f'{base}/checkout/success?session_id={{CHECKOUT_SESSION_ID}}'
+    cancel_url = f'{base}/dashboard' if customer_email else f'{base}/'
 
     try:
         session_params = {
             'mode': 'payment',
-            'automatic_payment_methods': {'enabled': True},
+            'payment_method_types': ['card', 'link'],
             'line_items': [{
                 'price_data': {
                     'currency': 'usd',
@@ -65,7 +66,6 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
             }],
             'success_url': success_url,
             'cancel_url': cancel_url,
-            'allow_promotion_codes': True,
             'billing_address_collection': 'auto',
             'phone_number_collection': {'enabled': True},
             'metadata': {'product': product_key},
