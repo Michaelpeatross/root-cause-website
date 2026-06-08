@@ -28,7 +28,9 @@ from notification_service import (
     notify_client_analysis_update, notify_admin_analysis_request,
     deliver_report_to_client,
 )
-from stripe_service import create_checkout_session, stripe_configured
+from stripe_service import (
+    create_checkout_session, register_apple_pay_domains, stripe_configured,
+)
 from persistent_storage import setup_persistent_paths, get_storage_status
 from central_time import format_report_stamp, central_now
 
@@ -1485,6 +1487,10 @@ with app.app_context():
     ensure_admin_user()
     _backfill_empty_original_ai()
     _unpublish_empty_reports()
+    if stripe_configured():
+        register_apple_pay_domains(
+            os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+        )
 
 
 if __name__ == '__main__':
