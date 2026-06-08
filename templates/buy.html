@@ -1,36 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Purchase a Scan — Root Cause{% endblock %}
+{% block title %}Get Your Analysis — Root Cause{% endblock %}
 
 {% block content %}
 <section class="hero" style="padding:3rem 2rem;">
-    <h1 style="font-size:2.5rem;">Purchase a Scan</h1>
-    <p class="tagline">Bioenergetic Hair + Saliva Analysis</p>
+    <h1 style="font-size:2.5rem;">Get Your Analysis</h1>
+    <p class="tagline">Bioenergetic Hair + Saliva Scan</p>
 </section>
 
-<div class="container" style="max-width:640px;">
-    <div class="card purchase-card" style="margin-top:-2rem; position:relative;">
-        <div class="purchase-pricing">
-            <p class="purchase-was">$229</p>
-            <p class="purchase-now">$199</p>
-            <p><strong>$30 off — limited time offer</strong></p>
-        </div>
+<div class="container" style="max-width:520px;">
+    <div class="card purchase-card checkout-single-card" style="margin-top:-2rem;">
+        <p class="purchase-now" style="margin:0 0 0.5rem;">$199</p>
+        <p style="color:var(--text-muted); margin:0 0 1.5rem;">One personalized bioenergetic analysis</p>
 
-        {% with show_email_field=true, show_coupon=true, uid='buy' %}
-        {% include '_purchase_buttons.html' %}
-        {% endwith %}
+        {% include '_checkout_single.html' %}
 
-        <p style="margin-top:1.5rem; font-size:0.9rem; color:var(--text-muted); text-align:center;">
-            After payment, <a href="{{ url_for('register') }}">create your free account</a> for sample instructions and your client portal.
+        <p style="margin-top:1.25rem; font-size:0.9rem; color:var(--text-muted); text-align:center;">
+            After payment, <a href="{{ url_for('register') }}">create your free account</a> for collection instructions and your client portal.
         </p>
     </div>
 
     <div class="card" style="margin-top:1.25rem;">
-        <h2 style="font-family:'Playfair Display',serif; color:var(--green-dark); font-size:1.15rem;">What's included</h2>
+        <h2 style="font-family:'Playfair Display',serif; color:var(--green-dark); font-size:1.15rem; margin-top:0;">What's included</h2>
         <ul style="margin:0.5rem 0 0; padding-left:1.25rem; color:var(--text-muted); line-height:1.7;">
             <li>Full bioenergetic hair + saliva scan analysis</li>
             <li>Personalized report on your client portal</li>
             <li>Supplement and lab recommendations</li>
-            <li>Optional Grok analysis when you upload medical records</li>
         </ul>
     </div>
 </div>

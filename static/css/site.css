@@ -1032,3 +1032,13 @@ input[type="file"] {
   flex: 1 1 220px;
   width: auto;
 }
+
+.checkout-single-card { text-align: center; padding: 2rem 1.5rem; }
+
+.checkout-single-form { margin: 0; }
+
+.checkout-single-btn {
+  width: 100%;
+  font-size: 1.15rem;
+  padding: 1rem 1.5rem;
+}

@@ -21,8 +21,8 @@
         {% if admin_preview %}
         <p class="admin-preview-note">Purchase buttons are hidden in admin preview.</p>
         {% else %}
-        {% with user_email=user.email, show_email_field=false, show_coupon=false, layout='row', uid='dash', button_label_single='Purchase Additional Scan — $199', button_label_bundle='4 Scans Bundle — $499', show_bundle_savings=true %}
-        {% include '_purchase_buttons.html' %}
+        {% with button_text='Purchase Additional Scan — $199' %}
+        {% include '_checkout_single.html' %}
         {% endwith %}
         {% endif %}
     </div>

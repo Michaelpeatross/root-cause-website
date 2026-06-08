@@ -945,6 +945,8 @@ def create_checkout():
     email = request.form.get('email', '').strip() or session.get('email') or None
     coupon = request.form.get('coupon', '').strip()
     product = request.form.get('product') or request.args.get('product', 'single')
+    if product not in ('single', 'bundle_4'):
+        product = 'single'
     session_url, error = create_checkout_session(site_url, email, coupon, product)
     if session_url:
         return redirect(session_url)

@@ -15,7 +15,7 @@
 <div class="container">
     <div class="trust-banner">
         <p><strong>Non-invasive · Personalized Report · Supplement Recommendations</strong></p>
-        <p><span style="text-decoration:line-through; color:#999;">$229</span> &nbsp;→&nbsp; <span style="color:var(--green); font-weight:700; font-size:1.2rem;">$199 today</span> ($30 off)</p>
+        <p><span style="color:var(--green); font-weight:700; font-size:1.2rem;">$199</span> · Bioenergetic Hair + Saliva Analysis</p>
     </div>
 
     <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">Discover the Root Cause</h2>
@@ -33,21 +33,6 @@
             <h3>🌱 Supplement Guidance</h3>
             <p>Targeted recommendations and lab suggestions based on your unique scan.</p>
         </div>
-    </div>
-
-    <div class="card purchase-card" style="margin-top:2.5rem; text-align:center;">
-        <h2 style="font-family:'Playfair Display',serif; color:var(--green-dark);">Purchase a Scan</h2>
-        <p style="color:var(--text-muted);">Pay securely with credit card, Apple Pay, or Stripe Link.</p>
-        <div class="purchase-pricing" style="margin:1rem 0;">
-            <p class="purchase-was">$229</p>
-            <p class="purchase-now" style="font-size:2.5rem;">$199</p>
-        </div>
-        {% with show_email_field=true, show_coupon=false, uid='home' %}
-        {% include '_purchase_buttons.html' %}
-        {% endwith %}
-        <p style="margin-top:1rem; font-size:0.9rem;">
-            <a href="{{ url_for('buy') }}">View full purchase page →</a>
-        </p>
     </div>
 </div>
 {% endblock %}
