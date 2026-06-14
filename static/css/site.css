@@ -915,6 +915,118 @@ input[type="file"] {
 .lab-links { font-size: 0.85rem; }
 .lab-links a { font-weight: 600; }
 
+.grok-assistant {
+  margin: 1.25rem 0 0.5rem;
+  padding: 1rem 1.1rem;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, #eef6ff, #f8fbff);
+  border: 1px solid #c5daf0;
+}
+
+.grok-ask-label {
+  display: block;
+  font-weight: 700;
+  color: #1a5276;
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.grok-ask-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.grok-ask-input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid #b8cfe6;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+.grok-ask-btn {
+  flex-shrink: 0;
+  padding: 0.65rem 1rem;
+}
+
+.grok-ask-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.grok-term-sample {
+  color: #1a5276;
+  font-weight: 600;
+  border-bottom: 1px dashed #5dade2;
+}
+
+.grok-response-panel {
+  margin-top: 0.85rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: #fff;
+  border-left: 4px solid #2980b9;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.grok-response-panel.is-loading {
+  opacity: 0.85;
+}
+
+.grok-response-label {
+  font-weight: 700;
+  color: #1a5276;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.grok-response-body p {
+  margin: 0.35rem 0;
+}
+
+.grok-loading {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.grok-error-note {
+  font-size: 0.82rem;
+  color: #856404;
+}
+
+a.grok-term {
+  color: #1a5276;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px dashed #5dade2;
+  cursor: pointer;
+}
+
+a.grok-term:hover,
+a.grok-term:focus {
+  color: #0d3d56;
+  border-bottom-color: #2980b9;
+  background: rgba(93, 173, 226, 0.12);
+}
+
+.grok-analysis-content a.grok-term-strong {
+  border-bottom: none;
+}
+
+.grok-clear-link {
+  font-size: 0.8rem;
+  color: #1a5276;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.grok-clear-link:hover {
+  color: #0d3d56;
+}
+
 .scan-date-group:last-child ul li:last-child { border-bottom: none; }
 
 .approval-panel label input[type="checkbox"] {

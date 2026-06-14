@@ -34,5 +34,54 @@
             <p>Targeted recommendations and lab suggestions based on your unique scan.</p>
         </div>
     </div>
+
+    <div class="card" style="margin-top:2rem; max-width:720px; margin-left:auto; margin-right:auto;">
+        <h3 style="font-family:'Playfair Display',serif; color:var(--green-dark); text-align:center;">Ask Grok about the Scans</h3>
+        <p style="text-align:center; color:var(--text-muted); font-size:0.9rem;">Questions about what the tests measure, how to read results, or general scan patterns? Grok answers using Root Cause educational knowledge.</p>
+
+        <form id="home-grok-form" style="margin-top:1rem;">
+            <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+                <input type="text" id="home-grok-input" placeholder="e.g. What do high sensitivity readings usually mean? How are the hair samples tested?" style="flex:1; min-width:220px; padding:0.6rem; border:1px solid #b8cfe6; border-radius:8px;" maxlength="400">
+                <button type="submit" class="btn btn-primary">Ask Grok</button>
+            </div>
+        </form>
+
+        <div id="home-grok-response" hidden style="margin-top:0.75rem; padding:0.75rem; background:#fff; border-left:4px solid #2980b9; border-radius:4px; font-size:0.92rem;">
+            <div style="font-weight:700; color:#1a5276; font-size:0.85rem; margin-bottom:0.3rem;">Grok</div>
+            <div id="home-grok-body"></div>
+        </div>
+        <p style="font-size:0.75rem; color:var(--text-muted); text-align:center; margin-top:0.5rem;">Educational only — not medical advice.</p>
+    </div>
 </div>
+
+<script>
+(function(){
+  var form = document.getElementById('home-grok-form');
+  var input = document.getElementById('home-grok-input');
+  var panel = document.getElementById('home-grok-response');
+  var body = document.getElementById('home-grok-body');
+  if(!form || !input || !panel) return;
+
+  function escapeHtml(t){ return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    var q = (input.value || '').trim();
+    if(!q) return;
+    panel.hidden = false;
+    body.innerHTML = '<p class="grok-loading" style="color:#666;font-style:italic;">Thinking…</p>';
+    fetch('/api/grok/public', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({question: q})
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if(d.error){ body.innerHTML = '<p>'+escapeHtml(d.error)+'</p>'; return; }
+      var paras = (d.answer || 'No response.').split(/\n{2,}/);
+      body.innerHTML = paras.map(function(p){ return '<p>'+escapeHtml(p.trim())+'</p>'; }).join('');
+    }).catch(function(){
+      body.innerHTML = '<p>Sorry, could not reach Grok right now.</p>';
+    });
+  });
+})();
+</script>
 {% endblock %}

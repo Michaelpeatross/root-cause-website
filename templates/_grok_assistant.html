@@ -1,0 +1,26 @@
+{% if report_id and not admin_preview %}
+<div class="grok-assistant" data-report-id="{{ report_id }}">
+    <form class="grok-ask-form" autocomplete="off">
+        <label class="grok-ask-label" for="grok-ask-input-{{ report_id }}">Ask Grok anything about your analysis</label>
+        <div class="grok-ask-row">
+            <input
+                type="text"
+                id="grok-ask-input-{{ report_id }}"
+                class="grok-ask-input"
+                placeholder="e.g. What should I focus on first? Why does my thyroid show up?"
+                maxlength="500"
+            >
+            <button type="submit" class="btn btn-primary grok-ask-btn">Ask Grok</button>
+        </div>
+        <p class="grok-ask-hint">Click any <span class="grok-term-sample">highlighted term</span> in your analysis for an instant explanation.</p>
+    </form>
+    <div class="grok-response-panel" hidden></div>
+</div>
+<script>
+window.GROK_ASSISTANT = {
+    reportId: {{ report_id }},
+    terms: {{ grok_terms|tojson }}
+};
+</script>
+<script src="{{ url_for('static', filename='js/grok_assistant.js') }}" defer></script>
+{% endif %}

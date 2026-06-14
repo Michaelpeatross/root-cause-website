@@ -8,14 +8,19 @@
     {% else %}
     <h4 style="margin:0 0 0.75rem; color:#856404;">⏳ Not on client portal yet</h4>
     {% endif %}
-    <form method="POST" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center;">
+    <form method="POST" style="display:inline; margin-right:0.5rem;">
+        <input type="hidden" name="action" value="refresh_original_grok">
+        <input type="hidden" name="report_id" value="{{ r.id }}">
+        <button type="submit" class="btn btn-outline" style="padding:0.5rem 1rem; font-size:0.85rem;">Re-run Grok Scan Analysis</button>
+    </form>
+    <form method="POST" style="display:flex; flex-wrap:wrap; gap:1rem; align-items:center; margin-top:0.75rem;">
         <input type="hidden" name="action" value="approve">
         <input type="hidden" name="report_id" value="{{ r.id }}">
         <label style="display:flex; align-items:center; gap:0.4rem; font-weight:600; cursor:pointer;">
             <input type="checkbox" name="send_email" {% if not r.email_sent %}checked{% endif %}> Send Email
         </label>
         <label style="display:flex; align-items:center; gap:0.4rem; font-weight:600; cursor:pointer;">
-            <input type="checkbox" name="send_sms"> Send Text (SMS)
+            <input type="checkbox" name="send_sms" {% if not r.sms_sent %}checked{% endif %}> Send Text (SMS) <small style="font-weight:400; color:var(--text-muted)">(cheapest via Textbelt)</small>
         </label>
         <button type="submit" class="btn btn-primary" style="padding:0.6rem 1.2rem;">
             {% if r.approved %}Notify Client{% else %}Publish &amp; Notify Client{% endif %}

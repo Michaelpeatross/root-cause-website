@@ -133,3 +133,17 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
             return session.url, None
         except stripe.error.StripeError as retry_exc:
             return None, str(getattr(retry_exc, 'user_message', None) or retry_exc)
+def retrieve_checkout_session(session_id):
+    """Retrieve a checkout session by ID for post-purchase processing (e.g. thank you notifications).
+    Returns the session object or None on error.
+    """
+    if not stripe_configured() or not session_id:
+        return None
+    try:
+        return stripe.checkout.Session.retrieve(
+            session_id,
+            expand=['customer_details', 'payment_intent']
+        )
+    except Exception as exc:
+        print(f'[Root Cause] Failed to retrieve checkout session {session_id}: {exc}')
+        return None

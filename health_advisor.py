@@ -502,9 +502,10 @@ BIOENERGETIC SCAN DATA:
 {scan_raw[:8000]}
 
 Write for an average adult (8th-grade reading level).
-- 2–4 short paragraphs in plain language.
-- Name the main body systems or patterns that stood out.
-- Mention sensitivities, nutritional gaps, or toxins only if clearly present in the scan.
+- 3–5 short paragraphs or clear sections.
+- For each key pattern or finding, briefly explain: What this typically tests/measures in a bioenergetic scan, and what the client's results appear to indicate (in plain language).
+- Name the main body systems, sensitivities, or patterns that stood out.
+- Use <strong> around important terms/pattern names so they can be interactively explained later.
 - Do NOT include raw numbers or percentages.
 - Do NOT recommend specific products or affiliate links.
 - Address the client by first name once in the opening sentence.
@@ -512,7 +513,7 @@ Write for an average adult (8th-grade reading level).
 Respond in HTML only (no markdown). Use exactly this structure:
 <section class="scan-section">
   <h2>Original Scan Analysis</h2>
-  <p class="scan-lead">A plain-language overview of what your bioenergetic scan found.</p>
+  <p class="scan-lead">A plain-language overview of what your bioenergetic scan found, including what key areas test for and what your results suggest.</p>
   <div class="scan-summary">
     <p>...</p>
   </div>
@@ -614,8 +615,11 @@ CLIENT MEDICAL DOCUMENTS (all uploaded labs, blood work, and medical records —
 
 Cross-reference scan findings with lab values across the client's full uploaded medical history.
 Note trends over time when multiple documents are present.
-For supplements, recommend specific affordable products. For labs, mention
-Any Lab Test Now, Walk-In Lab, or Ulta Lab Tests as low-cost options.
+For key scan findings, briefly note what the bioenergetic pattern tests for and what the results + labs together suggest.
+For supplements, recommend specific affordable products. For blood tests and labs,
+recommend ordering through GoodLabs only (https://goodlabs.com/book-tests).
+Do not mention Quest, LabCorp, Any Lab Test Now, Walk-In Lab, Ulta Lab Tests,
+or any other lab provider.
 
 Respond in HTML only (no markdown). Use this structure:
 <section class="report-section ai-section">
@@ -627,7 +631,7 @@ Respond in HTML only (no markdown). Use this structure:
   <p class="rec-note">Educational guidance only — not medical advice.</p>
 </section>
 
-Be specific to this client's data. Keep lists concise (3-6 items each)."""
+Be specific to this client's data. Keep lists concise (3-6 items each). Use <strong> on important test/pattern names."""
 
     content = _grok_chat(
         prompt,

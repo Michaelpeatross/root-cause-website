@@ -1,11 +1,12 @@
 from flask import (
     Flask, render_template, request, redirect, url_for, flash, session,
-    send_from_directory, abort,
+    send_from_directory, abort, jsonify,
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
+import re
 from datetime import datetime
 from collections import OrderedDict
 
@@ -23,6 +24,10 @@ from health_advisor import (
     get_health_recommendations, classify_medical_document, get_last_grok_error,
     test_grok_connection,
 )
+from grok_assistant import (
+    collect_grok_terms, grok_answer_question, grok_explain_term,
+    check_grok_rate_limit, grok_public_scan_question, check_public_grok_rate_limit,
+)
 from scan_reconciliation import reconcile_scan_with_blood_tests
 from notification_service import (
     notify_client_analysis_update, notify_admin_analysis_request,
@@ -30,6 +35,7 @@ from notification_service import (
 )
 from stripe_service import (
     create_checkout_session, register_apple_pay_domains, stripe_configured,
+    retrieve_checkout_session,
 )
 from persistent_storage import setup_persistent_paths, get_storage_status
 from central_time import format_report_stamp, central_now
@@ -965,6 +971,33 @@ def create_checkout():
 
 @app.route('/checkout/success')
 def checkout_success():
+    """Render success page and send automated thank-you email + SMS (if phone collected at checkout)."""
+    session_id = request.args.get('session_id')
+    session = retrieve_checkout_session(session_id) if session_id else None
+
+    if session and getattr(session, 'payment_status', None) == 'paid':
+        # Extract customer info (email always present for checkout, phone from collection)
+        email = session.customer_email
+        phone = None
+        name = None
+        if hasattr(session, 'customer_details') and session.customer_details:
+            phone = getattr(session.customer_details, 'phone', None)
+            name = getattr(session.customer_details, 'name', None)
+
+        product_key = (getattr(session, 'metadata', None) or {}).get('product', 'single')
+        product_names = {
+            'single': 'Root Cause Bioenergetic Scan',
+            'bundle_4': 'Root Cause 4-Scan Bundle',
+        }
+        product_name = product_names.get(product_key, 'Root Cause Scan')
+
+        try:
+            from notification_service import send_purchase_thank_you
+            site_url = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+            send_purchase_thank_you(email, name, phone, product_name, site_url)
+        except Exception as exc:
+            print(f"[Root Cause] Post-purchase thank you failed: {exc}")
+
     return render_template('checkout_success.html')
 
 
@@ -981,6 +1014,40 @@ def _find_user_by_email(email):
     return User.query.filter(db.func.lower(User.email) == normalized).first()
 
 
+def _normalize_phone(phone):
+    """Normalize phone to +1xxxxxxxxxx format (US). Matches logic in notification_service."""
+    if not phone:
+        return ''
+    digits = re.sub(r'\D', '', str(phone).strip())
+    if len(digits) == 10:
+        return f'+1{digits}'
+    if len(digits) == 11 and digits.startswith('1'):
+        return f'+{digits}'
+    if str(phone).strip().startswith('+'):
+        return '+' + digits
+    return f'+{digits}' if digits else ''
+
+
+def _find_user_by_identifier(identifier):
+    """Find user by email (case-insensitive) or phone number."""
+    if not identifier:
+        return None
+
+    # Try as email first
+    user = _find_user_by_email(identifier)
+    if user:
+        return user
+
+    # Try as phone
+    norm_phone = _normalize_phone(identifier)
+    if norm_phone:
+        for u in User.query.filter(User.phone.isnot(None)).all():
+            if _normalize_phone(u.phone) == norm_phone:
+                return u
+
+    return None
+
+
 def _start_user_session(user):
     session.permanent = True
     session['user_id'] = user.id
@@ -993,49 +1060,140 @@ def _start_user_session(user):
 def login():
     if request.method == 'POST':
         action = request.form.get('action', 'login')
-        raw_email = request.form.get('email', '').strip()
-        email = _normalize_email(raw_email)
+        raw_identifier = request.form.get('email', '').strip()  # Can be email or phone
         password = request.form.get('password', '')
+
+        # Resolve user by email or phone
+        user = _find_user_by_identifier(raw_identifier)
 
         if action == 'reset_password':
             new_password = request.form.get('new_password', '')
             confirm = request.form.get('confirm_password', '')
-            user = _find_user_by_email(email)
-            if not user:
-                flash('No account found for that email. Create a free account first.', 'error')
+            entered_code = (request.form.get('reset_code') or '').strip()
+            # Resolve user (supports phone or email)
+            reset_user = user or _find_user_by_identifier(raw_identifier) or _find_user_by_email(raw_identifier)
+
+            if not reset_user:
+                flash('No account found. Create a free account first.', 'error')
             elif len(new_password) < 6:
                 flash('Password must be at least 6 characters.', 'error')
             elif new_password != confirm:
                 flash('Passwords do not match.', 'error')
             else:
-                user.password = generate_password_hash(new_password)
-                db.session.commit()
-                flash('Password updated. Please sign in with your new password.', 'success')
-            return render_template('login.html', show_reset=True, email=raw_email)
+                # Check if this reset is phone-based (requires SMS code verification)
+                is_phone_reset = False
+                if reset_user and reset_user.phone:
+                    norm_id = _normalize_phone(raw_identifier)
+                    if norm_id and _normalize_phone(reset_user.phone) == norm_id:
+                        is_phone_reset = True
 
-        user = _find_user_by_email(email)
+                if is_phone_reset:
+                    # SMS code flow for phone-based password reset
+                    pending_code = session.get('reset_code')
+                    pending_uid = session.get('reset_user_id')
+                    pending_time = session.get('reset_code_time', 0)
+
+                    import time
+                    if time.time() - pending_time > 600:  # 10 min expiry
+                        pending_code = None
+
+                    if not pending_code or pending_uid != reset_user.id:
+                        # First submit with phone — send code via SMS
+                        import random
+                        code = f"{random.randint(100000, 999999)}"
+                        session['reset_code'] = code
+                        session['reset_user_id'] = reset_user.id
+                        session['reset_code_time'] = time.time()
+
+                        site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+                        try:
+                            from notification_service import send_sms
+                            sms_msg = (
+                                f'Root Cause password reset code: {code}. '
+                                f'Expires in 10 minutes. Enter this code + your new password on the login "Forgot password" form.'
+                            )
+                            send_sms(reset_user.phone, sms_msg)
+                            flash('A reset code has been sent to your phone via SMS. Enter the code (above) + your new password to complete the reset.', 'success')
+                        except Exception:
+                            flash('Could not send SMS reset code. Please try email reset or contact support.', 'error')
+                        return render_template('login.html', show_reset=True, email=raw_identifier)
+
+                    if entered_code != pending_code:
+                        flash('Invalid reset code. Check your SMS and try again.', 'error')
+                        return render_template('login.html', show_reset=True, email=raw_identifier)
+
+                    # Valid code — clear it
+                    session.pop('reset_code', None)
+                    session.pop('reset_user_id', None)
+                    session.pop('reset_code_time', None)
+
+                # Set the new password (direct for email, code-verified for phone)
+                reset_user.password = generate_password_hash(new_password)
+                db.session.commit()
+
+                # Notify via cheapest SMS (Textbelt preferred) + email that password changed
+                client_name = reset_user.name or raw_identifier.split('@')[0]
+                try:
+                    from notification_service import send_sms
+                    from email_service import send_plain_email
+                    site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+                    sms_msg = (
+                        f'Root Cause: Your password was just changed. '
+                        f'If this was not you, contact support immediately. '
+                        f'Login: {site}/login'
+                    )
+                    send_sms(reset_user.phone, sms_msg)
+
+                    email_subject = 'Root Cause Password Changed'
+                    email_body = (
+                        f'Hi {client_name},\n\n'
+                        f'Your Root Cause password was successfully updated.\n\n'
+                        f'If you did not make this change, contact your practitioner right away.\n\n'
+                        f'You can log in here: {site}/login\n\n'
+                        f'— Root Cause Bioenergetics'
+                    )
+                    send_plain_email(reset_user.email, email_subject, email_body)
+                except Exception:
+                    pass  # Don't block the reset flow if notifications fail
+
+                flash('Password updated. Please sign in with your new password. We sent a confirmation text and email.', 'success')
+            return render_template('login.html', show_reset=True, email=raw_identifier)
+
         if user and user.password and check_password_hash(user.password, password):
             _start_user_session(user)
             flash('Welcome back!', 'success')
             return redirect(url_for('admin') if user.is_admin else url_for('dashboard'))
 
         if not user:
+            # Check for existing reports by email (if identifier looks like email) or by phone-resolved email
+            norm_email = _normalize_email(raw_identifier)
             has_reports = Report.query.filter(
-                db.func.lower(Report.user_email) == email
+                db.func.lower(Report.user_email) == norm_email
             ).first()
+            if not has_reports:
+                # If phone was used, try to resolve to a user email for reports check
+                norm_phone = _normalize_phone(raw_identifier)
+                if norm_phone:
+                    for u in User.query.filter(User.phone.isnot(None)).all():
+                        if _normalize_phone(u.phone) == norm_phone:
+                            has_reports = Report.query.filter(
+                                db.func.lower(Report.user_email) == _normalize_email(u.email)
+                            ).first()
+                            if has_reports:
+                                break
             if has_reports:
                 flash(
-                    'No login account yet, but we have reports for this email. '
-                    'Click Create Account and use the same email to access your portal.',
+                    'No login account yet, but we have reports for this email/phone. '
+                    'Click Create Account and use the same email or phone to access your portal.',
                     'error',
                 )
             else:
-                flash('No account found. Create a free account or check your email.', 'error')
+                flash('No account found. Create a free account or check your email/phone.', 'error')
         elif not user.password:
             flash('Account needs a password. Use "Forgot password" below to set one.', 'error')
         else:
             flash(
-                f'Incorrect password for {raw_email}. Use Forgot Password to reset it.',
+                f'Incorrect password for {raw_identifier}. Use Forgot Password to reset it.',
                 'error',
             )
 
@@ -1050,12 +1208,15 @@ def register():
         email = _normalize_email(raw_email)
         password = request.form.get('password', '')
         confirm = request.form.get('confirm_password', '')
+        phone = request.form.get('phone', '').strip()
         if not email:
             flash('A valid email is required.', 'error')
         elif len(password) < 6:
             flash('Password must be at least 6 characters.', 'error')
         elif password != confirm:
             flash('Passwords do not match.', 'error')
+        elif not phone:
+            flash('A mobile phone number is required for SMS notifications (welcome messages, report ready alerts, password resets).', 'error')
         elif _find_user_by_email(email):
             flash('Email already registered. Please log in.', 'error')
             return redirect(url_for('login', email=email))
@@ -1064,12 +1225,22 @@ def register():
                 name=name,
                 email=email,
                 password=generate_password_hash(password),
+                phone=phone,
                 is_admin=False,
             )
             db.session.add(user)
             db.session.commit()
             _start_user_session(user)
-            flash('Account created — welcome to your portal!', 'success')
+
+            # Send friendly welcome email + SMS (if phone)
+            try:
+                from notification_service import send_welcome_to_root_cause
+                site_url = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+                send_welcome_to_root_cause(user.email, user.name, user.phone, site_url)
+            except Exception as exc:
+                print(f"[Root Cause] Welcome notification failed for {user.email}: {exc}")
+
+            flash('Account created — welcome to your portal! We sent a welcome text and email.', 'success')
             return redirect(url_for('dashboard'))
     return render_template('register.html')
 
@@ -1093,6 +1264,7 @@ def _build_dashboard_context(email):
     documents = _get_client_documents(email)
     _ensure_document_labels(documents)
     latest_report = reports[0] if reports else None
+    grok_terms = collect_grok_terms(latest_report) if latest_report else []
     return {
         'reports': reports,
         'reports_by_date': _group_reports_by_date(reports),
@@ -1100,6 +1272,8 @@ def _build_dashboard_context(email):
         'recommendations': get_personalized_recommendations(latest_report, documents),
         'stripe_ready': stripe_configured(),
         'user': _client_user_info(email),
+        'report_id': latest_report.id if latest_report else None,
+        'grok_terms': grok_terms,
     }
 
 
@@ -1214,7 +1388,76 @@ def view_report(report_id):
         report=report,
         view=view,
         user={'name': session.get('name', 'Client')},
+        report_id=report.id,
+        grok_terms=collect_grok_terms(report),
+        admin_preview=False,
     )
+
+
+@app.route('/api/grok/ask', methods=['POST'])
+def grok_ask_api():
+    if not session.get('user_id'):
+        return jsonify({'error': 'Login required'}), 401
+
+    data = request.get_json(silent=True) or {}
+    report_id = data.get('report_id')
+    question = (data.get('question') or '').strip()
+    term = (data.get('term') or '').strip()
+
+    if not report_id:
+        return jsonify({'error': 'report_id required'}), 400
+
+    report = Report.query.get(report_id)
+    if not report:
+        return jsonify({'error': 'Report not found'}), 404
+    if not _user_owns_report(report):
+        return jsonify({'error': 'Access denied'}), 403
+    if not session.get('is_admin') and not report.approved:
+        return jsonify({'error': 'Report not available'}), 403
+
+    # Rate limit to protect expensive Grok calls (per authenticated user + report)
+    allowed, retry_after = check_grok_rate_limit(session.get('email'), report.id)
+    if not allowed:
+        return jsonify({
+            'error': f'Please wait {retry_after} seconds before asking again.',
+            'retry_after': retry_after
+        }), 429
+
+    documents = _get_client_documents(report.user_email)
+    client_name = session.get('name', 'Client')
+
+    if term and not question:
+        answer, source = grok_explain_term(
+            term, report, documents=documents, client_name=client_name,
+        )
+        return jsonify({'answer': answer, 'source': source, 'term': term})
+
+    if not question:
+        return jsonify({'error': 'question or term required'}), 400
+
+    answer, source = grok_answer_question(
+        question, report, documents=documents, client_name=client_name,
+    )
+    return jsonify({'answer': answer, 'source': source, 'question': question})
+
+
+@app.route('/api/grok/public', methods=['POST'])
+def grok_public_api():
+    """Public (no login) Q&A about scans in general. Rate limited."""
+    data = request.get_json(silent=True) or {}
+    question = (data.get('question') or '').strip()
+    if not question:
+        return jsonify({'error': 'question required'}), 400
+
+    allowed, retry_after = check_public_grok_rate_limit()
+    if not allowed:
+        return jsonify({
+            'error': f'Please wait {retry_after} seconds before asking again.',
+            'retry_after': retry_after
+        }), 429
+
+    answer, source = grok_public_scan_question(question)
+    return jsonify({'answer': answer, 'source': source, 'question': question})
 
 
 @app.route('/reports/<int:report_id>/pdf')

@@ -100,61 +100,11 @@ SUPPLEMENT_PRODUCTS = [
     },
 ]
 
-LAB_PROVIDERS = [
-    {
-        'keywords': [
-            'comprehensive metabolic', 'cmp', 'metabolic panel', 'cbc',
-            'complete blood', 'blood panel', 'vitamin d', 'ferritin', 'zinc',
-            'b12', 'folate', 'thyroid', 'tsh', 'lipid', 'cholesterol',
-            'inflammatory', 'crp', 'hs-crp', 'ggt', 'alt', 'ast', 'liver panel',
-            'hormone', 'cortisol', 'sex hormone', 'testosterone', 'estrogen',
-        ],
-        'label': 'Any Lab Test Now',
-        'url': 'https://www.anylabtestnow.com/',
-        'note': 'Walk-in, no doctor order — compare local pricing',
-    },
-    {
-        'keywords': [
-            'stool', 'calprotectin', 'fecal', 'gi map', 'comprehensive stool',
-            'parasite', 'microbiome', 'sibo',
-        ],
-        'label': 'Walk-In Lab (Stool & GI Panels)',
-        'url': 'https://www.walkinlab.com/products/view/complete-stool-analysis',
-        'note': 'Online order, often lowest price for specialty panels',
-    },
-    {
-        'keywords': [
-            'thyroid', 'tsh', 'free t3', 'free t4', 'antibod', 'hormone panel',
-        ],
-        'label': 'Ulta Lab Tests — Thyroid Panel',
-        'url': 'https://www.ultalabtests.com/thyroid-panel',
-        'note': 'No insurance needed, online discounted pricing',
-    },
-    {
-        'keywords': [
-            'food sensitivity', 'igg', 'allergy', 'sensitivity panel',
-        ],
-        'label': 'Walk-In Lab — Food Sensitivity',
-        'url': 'https://www.walkinlab.com/food-sensitivity-tests',
-        'note': 'Compare IgG panels online',
-    },
-    {
-        'keywords': [
-            'organic acids', 'oat', 'neurotransmitter', 'mycotoxin', 'mold',
-        ],
-        'label': 'Any Lab Test Now — Specialty Testing',
-        'url': 'https://www.anylabtestnow.com/test-menu/',
-        'note': 'Search specialty metabolite panels',
-    },
-    {
-        'keywords': [
-            'heavy metal', 'mercury', 'lead', 'toxin', 'detox',
-        ],
-        'label': 'Walk-In Lab — Heavy Metals',
-        'url': 'https://www.walkinlab.com/heavy-metals-tests',
-        'note': 'Direct-to-consumer heavy metal screens',
-    },
-]
+GOODLABS_BOOK_URL = os.environ.get(
+    'GOODLABS_BOOK_URL', 'https://goodlabs.com/book-tests',
+)
+GOODLABS_LABEL = 'GoodLabs'
+GOODLABS_NOTE = 'Order blood tests online — no doctor visit required'
 
 
 def amazon_link(asin=None, search_term=None):
@@ -178,30 +128,9 @@ def match_supplement_link(supplement_text):
 
 
 def match_lab_links(lab_text):
-    """Return list of (provider_label, url, note) matching a lab recommendation."""
-    lower = lab_text.lower()
-    matches = []
-    for provider in LAB_PROVIDERS:
-        if any(kw in lower for kw in provider['keywords']):
-            matches.append((provider['label'], provider['url'], provider['note']))
-    if not matches:
-        matches.append((
-            'Any Lab Test Now — Search Tests',
-            'https://www.anylabtestnow.com/test-menu/',
-            'Walk-in labs, no doctor order required',
-        ))
-        matches.append((
-            'Walk-In Lab — Online Ordering',
-            'https://www.walkinlab.com/',
-            'Often lowest online pricing for blood work',
-        ))
-    seen = set()
-    unique = []
-    for label, url, note in matches:
-        if url not in seen:
-            seen.add(url)
-            unique.append((label, url, note))
-    return unique[:2]
+    """Return GoodLabs link for a blood test recommendation."""
+    del lab_text  # All lab orders route through GoodLabs
+    return [(GOODLABS_LABEL, GOODLABS_BOOK_URL, GOODLABS_NOTE)]
 
 
 def supplement_list_html(supplements):
@@ -218,17 +147,16 @@ def supplement_list_html(supplements):
 
 
 def lab_list_html(labs):
-    """Build HTML list with lab provider links."""
+    """Build HTML list with GoodLabs ordering links."""
     items = []
     for lab in labs:
-        providers = match_lab_links(lab)
-        provider_links = ' · '.join(
-            f'<a href="{escape(url)}" target="_blank" rel="noopener">{escape(label)}</a>'
-            for label, url, _note in providers
-        )
+        _label, url, _note = match_lab_links(lab)[0]
         items.append(
             f'<li><strong>{escape(lab)}</strong><br>'
-            f'<span class="lab-links">{provider_links}</span></li>'
+            f'<span class="lab-links">'
+            f'<a href="{escape(url)}" target="_blank" rel="noopener">'
+            f'Order on {escape(GOODLABS_LABEL)}</a>'
+            f'</span></li>'
         )
     return ''.join(items)
 
@@ -262,8 +190,6 @@ def enrich_html_with_affiliate_links(html_content):
 
     def replace_lab_section(match):
         section = match.group(0)
-        if 'anylabtestnow.com' in section or 'walkinlab.com' in section:
-            return section
         items = re.findall(r'<li>(.*?)</li>', section, re.DOTALL | re.IGNORECASE)
         if not items:
             return section
@@ -272,13 +198,13 @@ def enrich_html_with_affiliate_links(html_content):
             plain = re.sub(r'<[^>]+>', '', item).strip()
             if not plain:
                 continue
-            providers = match_lab_links(plain)
-            links = ' · '.join(
-                f'<a href="{escape(u)}" target="_blank" rel="noopener">{escape(l)}</a>'
-                for l, u, _n in providers
-            )
+            _label, url, _note = match_lab_links(plain)[0]
             new_items.append(
-                f'<li><strong>{escape(plain)}</strong><br><span class="lab-links">{links}</span></li>'
+                f'<li><strong>{escape(plain)}</strong><br>'
+                f'<span class="lab-links">'
+                f'<a href="{escape(url)}" target="_blank" rel="noopener">'
+                f'Order on {escape(GOODLABS_LABEL)}</a>'
+                f'</span></li>'
             )
         header = re.search(r'<h4[^>]*>.*?Lab.*?</h4>', section, re.I)
         header_html = header.group(0) if header else '<h4>Labs to Discuss</h4>'

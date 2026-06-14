@@ -60,9 +60,11 @@
         <h2>Grok Analysis</h2>
         <p style="color:var(--text-muted);">Your original scan analysis is preserved. After you upload medical records, request an updated analysis.</p>
 
+        {% include '_grok_assistant.html' %}
+
         <details open class="rec-panel" style="margin-top:1rem;">
             <summary style="cursor:pointer; font-weight:700; color:var(--green-dark); font-size:1.05rem; padding:0.5rem 0;">📋 Original Scan Analysis</summary>
-            <div class="rec-content" style="padding:0.5rem 0 1rem;">
+            <div class="rec-content grok-analysis-content" style="padding:0.5rem 0 1rem;">
                 {% if recommendations.original_ai_html %}
                 {{ recommendations.original_ai_html|safe }}
                 {% else %}
@@ -74,7 +76,7 @@
         {% if recommendations.has_updates %}
         <details open class="rec-panel" style="margin-top:0.5rem;">
             <summary style="cursor:pointer; font-weight:700; color:#1a5276; font-size:1.05rem; padding:0.5rem 0;">🔄 Updates</summary>
-            <div class="rec-content" style="padding:0.5rem 0 1rem;">
+            <div class="rec-content grok-analysis-content" style="padding:0.5rem 0 1rem;">
                 {% if recommendations.updated_at %}
                 <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 0.75rem;">Last updated {{ recommendations.updated_at }}</p>
                 {% endif %}
@@ -189,7 +191,7 @@
         <form method="POST" style="margin-top:0.75rem;">
             <input type="hidden" name="action" value="update_phone">
             <div class="form-group">
-                <label for="phone">Mobile number (SMS)</label>
+                <label for="phone">Mobile number (SMS for report ready + password reset confirmations)</label>
                 <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" placeholder="225-555-1234">
             </div>
             <button type="submit" class="btn btn-outline" style="margin-bottom:0.75rem;">Save Phone</button>

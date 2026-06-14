@@ -87,7 +87,8 @@ def _local_reconciliation(scan_raw, medical_text, client_name):
                 'name': label,
                 'note': (
                     f'Resonated on your scan. No matching blood test was found in '
-                    f'uploaded records — consider conventional labs to verify.'
+                    f'uploaded records — consider ordering blood tests through '
+                    f'GoodLabs to verify.'
                 ),
             })
 
@@ -234,7 +235,7 @@ Do not include raw lab numbers or scan percentages — use plain descriptions on
         prompt,
         system='You compare wellness scans with conventional lab work. Respond in clean HTML only.',
         temperature=0.3,
-        timeout=90,
+        timeout=50,
     )
     if not content:
         return None

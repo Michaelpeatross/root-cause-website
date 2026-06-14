@@ -2,6 +2,23 @@
 # REQUIRED: Starter plan or higher + disk "rootcause-data" mounted below.
 # In the Render dashboard, confirm Environment has DATA_DIR and Disk is attached.
 # Without both, every git push redeploy wipes client logins, reports, and uploads.
+#
+# SMS (Textbelt is the cheapest option you just purchased):
+#   TEXTBELT_API_KEY = your key from textbelt.com (prefers this for lowest cost)
+#   (Optional fallback) TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_FROM_NUMBER
+#
+# Email (Brevo free tier recommended - see step-by-step in chat):
+#   SMTP_HOST=smtp-relay.brevo.com
+#   SMTP_FROM=reports@root-cause-test.com   # or info@ or noreply@
+#   SMTP_USER=your Brevo account email
+#   SMTP_PASSWORD=the SMTP key you generate in Brevo (not the API key)
+#   SMTP_PORT=587
+#   SMTP_USE_TLS=true
+#
+# For receiving at info@ / reports@ etc for free: Use Cloudflare Email Routing (forward to your Gmail)
+#   1. Add domain to Cloudflare (change nameservers at registrar)
+#   2. Enable Email Routing and create routes like info@ -> your@gmail.com
+#   This keeps everything free for low volume.
 services:
   - type: web
     name: root-cause-website
@@ -22,6 +39,27 @@ services:
         sync: false
       - key: SITE_URL
         value: https://www.root-cause-test.com
+      # SMS (report ready + password reset confirmations). TEXTBELT_API_KEY is the cheapest
+      # low-volume option (textbelt.com, ~0.3¢/text). Falls back to TWILIO if no Textbelt key.
+      - key: TEXTBELT_API_KEY
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      # Email (also used for report delivery). Any SMTP that supports TLS.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: SMTP_PORT
+        value: '587'
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
     disk:
       name: rootcause-data
       mountPath: /opt/render/project/src/data

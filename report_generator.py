@@ -298,7 +298,7 @@ def generate_report_text(email, title, raw_data, ai_recommendations_html=None):
         _label, url = match_supplement_link(s)
         lines.append(f'  • {_label}: {url}')
 
-    lines.extend(['', 'RECOMMENDED LABS (online ordering)'])
+    lines.extend(['', 'RECOMMENDED BLOOD TESTS (GoodLabs)'])
     for l in labs[:6]:
         providers = match_lab_links(l)
         urls = ', '.join(f'{name}: {url}' for name, url, _n in providers)
@@ -450,8 +450,8 @@ def generate_report_html(
       <ul>{supp_html}</ul>
     </section>
     <section class="report-section rec-box">
-      <h3>🩺 Recommended Conventional Labs</h3>
-      <p class="rec-note">Low-cost walk-in and online lab options (Any Lab Test Now, Walk-In Lab, Ulta Lab Tests).</p>
+      <h3>🩺 Recommended Blood Tests</h3>
+      <p class="rec-note">Order through <a href="https://goodlabs.com/book-tests" target="_blank" rel="noopener">GoodLabs</a> — online blood tests, no doctor visit required.</p>
       <ul>{lab_html}</ul>
     </section>
   </div>

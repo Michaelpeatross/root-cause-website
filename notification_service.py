@@ -1,11 +1,17 @@
 """Email and SMS notifications for clients and admin."""
 import base64
+import json
 import os
 import re
 import urllib.parse
 import urllib.request
 
 from email_service import send_plain_email
+
+
+def _textbelt_key():
+    """Cheapest reliable option for low-volume SMS (textbelt.com). ~0.3¢/text vs Twilio ~0.75-1¢."""
+    return (os.environ.get('TEXTBELT_API_KEY') or '').strip()
 
 
 def _twilio_configured():
@@ -30,13 +36,37 @@ def _normalize_phone(number):
 
 
 def send_sms(to_number, message):
-    """Send SMS via Twilio. Returns (success, message)."""
+    """Send SMS. Prefers Textbelt (cheapest for low volume) if TEXTBELT_API_KEY is set,
+    otherwise falls back to Twilio. Returns (success: bool, message: str).
+    """
     to_num = _normalize_phone(to_number)
     if not to_num:
         return False, 'No phone number on file.'
-    if not _twilio_configured():
-        return False, 'SMS not configured (set TWILIO_* environment variables).'
 
+    textbelt_key = _textbelt_key()
+    if textbelt_key:
+        # Textbelt: one of the cheapest production SMS options (~$3 per 1,000 texts, simple REST)
+        try:
+            data = urllib.parse.urlencode({
+                'phone': to_num,
+                'message': (message or '')[:1500],
+                'key': textbelt_key,
+            }).encode('utf-8')
+            req = urllib.request.Request('https://textbelt.com/text', data=data, method='POST')
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                result = json.loads(resp.read().decode('utf-8'))
+            if result.get('success'):
+                return True, f'SMS sent to {to_num} (Textbelt).'
+            else:
+                err = result.get('error') or result.get('message') or 'Unknown Textbelt error'
+                return False, f'Textbelt error: {err}'
+        except Exception as exc:
+            return False, f'Textbelt failed: {exc}'
+
+    if not _twilio_configured():
+        return False, 'SMS not configured (set TEXTBELT_API_KEY for cheapest, or TWILIO_* vars).'
+
+    # Twilio fallback (existing implementation)
     sid = os.environ['TWILIO_ACCOUNT_SID']
     token = os.environ['TWILIO_AUTH_TOKEN']
     from_num = os.environ['TWILIO_FROM_NUMBER']
@@ -141,3 +171,80 @@ def notify_admin_analysis_request(client_name, client_email, report_title):
         f'New analysis sent to client.',
     )
     return email_ok, email_msg, sms_ok, sms_msg
+def send_purchase_thank_you(customer_email, customer_name, customer_phone, product_name, site_url):
+    """Send automated thank-you email (and SMS if phone provided) for a completed purchase.
+    Called after successful Stripe checkout.
+    """
+    if not customer_email:
+        return
+    name = customer_name or (customer_email.split('@')[0] if customer_email else 'Customer')
+
+    # Email
+    try:
+        subject = f"Thank you for your {product_name} purchase!"
+        body = (
+            f"Hi {name},\n\n"
+            f"Thank you for purchasing the {product_name}!\n\n"
+            f"Your payment has been successfully processed.\n\n"
+            f"Next steps:\n"
+            f"- Log in or create your free account using {customer_email} at {site_url}/login\n"
+            f"- Review collection instructions: {site_url}/instructions\n"
+            f"- Your practitioner will prepare and publish your personalized bioenergetic report.\n\n"
+            f"If you have any questions, just reply to this email.\n\n"
+            f"- Root Cause Bioenergetics\n{site_url}"
+        )
+        send_plain_email(customer_email, subject, body)
+    except Exception as exc:
+        print(f"[Root Cause] Purchase thank-you email failed for {customer_email}: {exc}")
+
+    # SMS (if we have a phone from checkout collection)
+    if customer_phone:
+        try:
+            sms_msg = (
+                f"Root Cause: Thank you for your {product_name} purchase! "
+                f"Check email at {customer_email} for details. "
+                f"Login at {site_url}/login to proceed with your scan collection."
+            )
+            send_sms(customer_phone, sms_msg)
+        except Exception as exc:
+            print(f"[Root Cause] Purchase thank-you SMS failed for {customer_phone}: {exc}")
+
+
+def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, site_url):
+    """Send a friendly welcome email (and SMS if phone) when a new client account is created."""
+    if not customer_email:
+        return
+    name = customer_name or (customer_email.split('@')[0] if customer_email else 'there')
+
+    # Welcome Email
+    try:
+        subject = "Welcome to Root Cause Bioenergetics!"
+        body = (
+            f"Hi {name},\n\n"
+            f"Welcome to Root Cause! We're thrilled you've joined us on your wellness journey.\n\n"
+            f"With Root Cause Bioenergetic Hair + Saliva Analysis, we help uncover hidden patterns "
+            f"in sensitivities, toxins, metabolic function, and more — all from the comfort of home.\n\n"
+            f"Next steps:\n"
+            f"- If you haven't purchased yet, visit {site_url}/buy to get started.\n"
+            f"- Read the easy collection instructions: {site_url}/instructions\n"
+            f"- Create or log into your portal at {site_url}/login\n"
+            f"- Once your sample is processed, your personalized report will appear here.\n\n"
+            f"Questions? Just reply to this email — we're here to help.\n\n"
+            f"Here's to discovering your root cause,\n"
+            f"— The Root Cause Team\n{site_url}"
+        )
+        send_plain_email(customer_email, subject, body)
+    except Exception as exc:
+        print(f"[Root Cause] Welcome email failed for {customer_email}: {exc}")
+
+    # SMS welcome (if phone on file)
+    if customer_phone:
+        try:
+            sms_msg = (
+                f"Welcome to Root Cause, {name}! Your account is ready. "
+                f"Check your email for next steps or login at {site_url}/login. "
+                f"We're excited to help uncover your root causes."
+            )
+            send_sms(customer_phone, sms_msg)
+        except Exception as exc:
+            print(f"[Root Cause] Welcome SMS failed for {customer_phone}: {exc}")

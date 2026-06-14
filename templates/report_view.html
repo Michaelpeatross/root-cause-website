@@ -11,27 +11,52 @@
                 <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark); margin:0; font-size:1.5rem;">{{ report.title }}</h1>
                 <span style="color:var(--text-muted);">{{ report.date }}</span>
                 {% if report.analysis_updated %}
-                <br><small style="color:var(--green);">Analysis updated {{ report.analysis_updated }}</small>
+                <br><small style="color:var(--green);">Grok updated {{ report.analysis_updated }}</small>
                 {% endif %}
             </div>
             {% if report.pdf_filename %}
             <a href="{{ url_for('download_report_pdf', report_id=report.id) }}" class="btn btn-primary">Download PDF</a>
             {% endif %}
         </div>
-        {% if report.reconciled_at or report.blood_reconciliation_html %}
+
         <div class="scan-view-tabs" style="padding:0.75rem 1.5rem 0; display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <a href="{{ url_for('view_report', report_id=report.id, view='updated') }}" class="btn {% if view != 'original' %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Updated (Blood Tests)</a>
-            <a href="{{ url_for('view_report', report_id=report.id, view='original') }}" class="btn {% if view == 'original' %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Original Scan</a>
+            <a href="{{ url_for('view_report', report_id=report.id, view='scan') }}" class="btn {% if view == 'scan' or not view %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Scan Report</a>
+            <a href="{{ url_for('view_report', report_id=report.id, view='original') }}" class="btn {% if view == 'original' %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Original Scan Analysis</a>
+            {% if report.analysis_updated or report.blood_reconciliation_html %}
+            <a href="{{ url_for('view_report', report_id=report.id, view='updates') }}" class="btn {% if view == 'updates' %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Updates</a>
+            {% endif %}
         </div>
-        {% if report.reconciled_at and view != 'original' %}
-        <p style="padding:0 1.5rem; color:var(--text-muted); font-size:0.9rem;">Blood tests applied {{ report.reconciled_at }}</p>
-        {% endif %}
-        {% endif %}
+
+        <div style="padding:0 1.5rem;">
+            {% include '_grok_assistant.html' %}
+        </div>
+
         <div class="report-card-body card" style="margin:0; box-shadow:none;">
-            {% if view == 'original' and report.original_generated_report %}
-            {{ report.original_generated_report|safe }}
+            {% if view == 'original' %}
+                <div class="grok-analysis-content">
+                {% if report.original_ai_recommendations %}
+                {{ report.original_ai_recommendations|safe }}
+                {% elif report.ai_recommendations %}
+                {{ report.ai_recommendations|safe }}
+                {% else %}
+                <p style="color:var(--text-muted);">Original Grok analysis not available for this report.</p>
+                {% endif %}
+                </div>
+            {% elif view == 'updates' %}
+                <div class="grok-analysis-content">
+                {% if report.blood_reconciliation_html %}
+                {{ report.blood_reconciliation_html|safe }}
+                {% endif %}
+                {% if report.ai_recommendations %}
+                {{ report.ai_recommendations|safe }}
+                {% else %}
+                <p style="color:var(--text-muted);">No updated analysis yet. Upload medical documents and request an updated Grok analysis.</p>
+                {% endif %}
+                </div>
             {% else %}
-            {{ report.generated_report|safe }}
+                <div class="grok-analysis-content">
+                {{ (report.original_generated_report or report.generated_report)|safe }}
+                </div>
             {% endif %}
         </div>
     </div>
