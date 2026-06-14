@@ -58,6 +58,11 @@
                     </div>
                 </div>
                 <a href="{{ url_for('admin', client=c.email) }}#report-form" class="btn btn-primary" style="font-size:0.8rem; padding:0.3rem 0.65rem;">Create Report</a>
+                <form method="POST" style="display:inline; margin-left:0.25rem;" onsubmit="return confirm('Permanently delete this account and ALL its reports, documents, scans and data? This cannot be undone.');">
+                    <input type="hidden" name="action" value="delete_user">
+                    <input type="hidden" name="client_email" value="{{ c.email }}">
+                    <button type="submit" class="btn" style="font-size:0.7rem; padding:0.2rem 0.45rem; background:#c0392b; color:#fff; border:none;">Delete</button>
+                </form>
             </li>
             {% endfor %}
         </ul>
@@ -73,6 +78,11 @@
                     <span class="client-bucket-email">{{ c.email }}</span>
                 </div>
                 <a href="{{ url_for('admin', client=c.email) }}#report-form" class="btn btn-outline" style="font-size:0.8rem; padding:0.3rem 0.65rem;">Create Report</a>
+                <form method="POST" style="display:inline; margin-left:0.25rem;" onsubmit="return confirm('Permanently delete this account and ALL its reports, documents, scans and data? This cannot be undone.');">
+                    <input type="hidden" name="action" value="delete_user">
+                    <input type="hidden" name="client_email" value="{{ c.email }}">
+                    <button type="submit" class="btn" style="font-size:0.7rem; padding:0.2rem 0.45rem; background:#c0392b; color:#fff; border:none;">Delete</button>
+                </form>
             </li>
             {% endfor %}
         </ul>
@@ -105,6 +115,11 @@
                         <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.35rem;">
                             <a href="{{ url_for('admin', client=c.email) }}#report-form" class="btn btn-primary client-portal-link">Create Report</a>
                             <a href="{{ url_for('admin_client_portal', email=c.email) }}" class="btn btn-outline client-portal-link">View Portal</a>
+                            <form method="POST" style="display:inline; margin-left:0.25rem;" onsubmit="return confirm('Permanently delete this account and ALL its reports, documents, scans and data? This cannot be undone.');">
+                                <input type="hidden" name="action" value="delete_user">
+                                <input type="hidden" name="client_email" value="{{ c.email }}">
+                                <button type="submit" class="btn" style="font-size:0.7rem; padding:0.2rem 0.45rem; background:#c0392b; color:#fff; border:none;">Delete</button>
+                            </form>
                         </div>
                     </li>
                     {% endfor %}
@@ -133,20 +148,92 @@
                             {% endfor %}
                         </select>
                     </div>
+                    <button type="submit" name="action" value="delete_user" class="btn" style="background:#c0392b; color:#fff; font-size:0.8rem; padding:0.3rem 0.6rem; margin-top:0.4rem;" onclick="return confirm('DELETE selected client + ALL data forever?');">Delete Selected Client Account</button>
+                </form>
+
+                <!-- Separate delete form for safety (doesn't interfere with upload) -->
+                <form method="POST" style="margin-top:0.75rem;">
+                    <input type="hidden" name="action" value="delete_user">
+                    <div style="display:flex; gap:0.4rem; align-items:center;">
+                        <select name="client_email" style="flex:1; font-size:0.85rem;">
+                            <option value="">— or choose to delete —</option>
+                            {% for c in clients %}
+                            <option value="{{ c.email }}">{{ c.name }} ({{ c.email }})</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn" style="background:#c0392b; color:white; border:none; font-size:0.75rem; padding:0.3rem 0.55rem;" onclick="return confirm('Permanently delete this account and everything?');">Delete</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-grid {% if reports %}has-reports{% endif %}" style="margin-top:2rem;">
+        <div class="admin-form-panel">
+            <div class="card" id="upload-docs-form">
+                <h2>Upload Medical Documents to Client Portal</h2>
+                <p style="color:var(--text-muted); font-size:0.9rem;">Add blood work, lab PDFs, or medical records to a client's portal on their behalf.</p>
+                <form method="POST" enctype="multipart/form-data" style="margin-top:1rem;">
+                    <input type="hidden" name="action" value="upload_client_documents">
+                    <div class="form-group">
+                        <label for="doc_client_email">Client Email</label>
+                        <select id="doc_client_email" name="doc_client_email" required>
+                            <option value="">— Choose a client —</option>
+                            {% for c in clients %}
+                            <option value="{{ c.email }}" {% if selected_client == c.email %}selected{% endif %}>{{ c.name }} ({{ c.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label for="client_documents">Medical files</label>
                         <input type="file" id="client_documents" name="client_documents" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.heic,.heif,image/*" multiple required>
                     </div>
-                    <div class="form-group">
-                        <label for="doc_test_date">Test date (optional)</label>
-                        <input type="date" id="doc_test_date" name="doc_test_date">
+                </form>
+
+                <form method="POST" style="margin-top:0.75rem; padding-top:0.5rem; border-top:1px dashed #eee;">
+                    <input type="hidden" name="action" value="delete_user">
+                    <div style="display:flex; gap:0.4rem; align-items:flex-end;">
+                        <div style="flex:1;">
+                            <label style="font-size:0.8rem;">Delete client account</label>
+                            <select name="client_email" style="width:100%; font-size:0.85rem;">
+                                <option value="">— select client —</option>
+                                {% for c in clients %}
+                                <option value="{{ c.email }}">{{ c.name }} ({{ c.email }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <button type="submit" class="btn" style="background:#c0392b; color:white; border:none; font-size:0.8rem; padding:0.4rem 0.7rem;" onclick="return confirm('DELETE this client + ALL data permanently?');">Delete</button>
                     </div>
-                    <button type="submit" class="btn btn-primary">Upload to Client Portal</button>
                 </form>
             </div>
+        </div>
+    </div>
 
-            <div class="card" style="margin-top:1.5rem;">
-                <h2>New Bio Scan Report</h2>
+    <!-- Danger Zone: Delete Client Account -->
+    <div class="card" style="margin-top:1.5rem; border:2px solid #c0392b; background:#fff5f5;">
+        <h2 style="color:#c0392b; margin-bottom:0.5rem;">⚠️ Danger Zone: Delete Client Account</h2>
+        <p style="color:#721c24; font-size:0.9rem; margin:0 0 0.75rem;">
+            This will permanently remove the client, all their reports, documents, scan PDFs, and data from the system. This action cannot be undone.
+        </p>
+        <form method="POST" onsubmit="return confirm('Are you absolutely sure you want to PERMANENTLY DELETE this client and ALL data?');">
+            <input type="hidden" name="action" value="delete_user">
+            <div style="display:flex; gap:0.5rem; align-items:flex-end; flex-wrap:wrap;">
+                <div style="flex:1; min-width:220px;">
+                    <label for="delete_client_email" style="font-size:0.85rem; display:block; margin-bottom:0.2rem;">Select Client to Delete</label>
+                    <select id="delete_client_email" name="client_email" required style="width:100%;">
+                        <option value="">— Choose a client —</option>
+                        {% for c in clients %}
+                        <option value="{{ c.email }}">{{ c.name }} ({{ c.email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="btn" style="background:#c0392b; color:white; border:none; font-weight:600; padding:0.5rem 1rem; white-space:nowrap;">Delete Client Account Permanently</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem;">
+        <h2>New Bio Scan Report</h2>
                 <div style="background:#fdecea; border:1px solid #f5c6cb; border-left:4px solid #c0392b; padding:0.85rem 1rem; border-radius:8px; margin-bottom:1rem;">
                     <strong style="color:#721c24;">Use scanner files, not portal downloads</strong>
                     <span style="color:#721c24; font-size:0.9rem; display:block; margin-top:0.35rem;">
