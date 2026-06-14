@@ -264,9 +264,9 @@ def _backfill_empty_original_ai():
 
 
 def _user_owns_report(report):
-    if session.get('is_admin'):
+    if current_user.is_admin:
         return True
-    return _normalize_email(session.get('email')) == _normalize_email(report.user_email)
+    return _normalize_email(current_user.email) == _normalize_email(report.user_email)
 
 
 def _get_client_documents(email):
@@ -1048,6 +1048,21 @@ def _find_user_by_identifier(identifier):
     return None
 
 
+def _get_current_user():
+    """Return the logged-in User object if valid, else clear session and return None.
+    This ensures deleted accounts cannot stay logged in.
+    """
+    uid = session.get('user_id')
+    if not uid:
+        return None
+    user = User.query.get(uid)
+    if not user:
+        # Account was deleted; invalidate the session
+        session.clear()
+        return None
+    return user
+
+
 def _start_user_session(user):
     session.permanent = True
     session['user_id'] = user.id
@@ -1058,6 +1073,10 @@ def _start_user_session(user):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    current_user = _get_current_user()
+    if current_user:
+        return redirect(url_for('dashboard'))
+
     if request.method == 'POST':
         action = request.form.get('action', 'login')
         raw_identifier = request.form.get('email', '').strip()  # Can be email or phone
@@ -1287,10 +1306,11 @@ def _render_client_dashboard(email, admin_preview=False):
 
 @app.route('/dashboard', methods=['GET', 'POST'])
 def dashboard():
-    if not session.get('user_id'):
+    current_user = _get_current_user()
+    if not current_user:
         return redirect(url_for('login'))
 
-    email = session['email']
+    email = current_user.email
 
     if request.method == 'POST':
         action = request.form.get('action')
@@ -1359,7 +1379,8 @@ def dashboard():
 
 @app.route('/admin/client-portal')
 def admin_client_portal():
-    if not session.get('is_admin'):
+    current_user = _get_current_user()
+    if not current_user or not current_user.is_admin:
         flash('Admin access required.', 'error')
         return redirect(url_for('login'))
 
@@ -1373,12 +1394,13 @@ def admin_client_portal():
 
 @app.route('/reports/<int:report_id>')
 def view_report(report_id):
-    if not session.get('user_id'):
+    current_user = _get_current_user()
+    if not current_user:
         return redirect(url_for('login'))
     report = Report.query.get_or_404(report_id)
     if not _user_owns_report(report) or not report.generated_report:
         abort(403)
-    if not session.get('is_admin') and not report.approved:
+    if not current_user.is_admin and not report.approved:
         abort(403)
     view = request.args.get('view', 'scan')
     if view not in ('scan', 'original', 'updates'):
@@ -1396,7 +1418,8 @@ def view_report(report_id):
 
 @app.route('/api/grok/ask', methods=['POST'])
 def grok_ask_api():
-    if not session.get('user_id'):
+    current_user = _get_current_user()
+    if not current_user:
         return jsonify({'error': 'Login required'}), 401
 
     data = request.get_json(silent=True) or {}
@@ -1412,11 +1435,11 @@ def grok_ask_api():
         return jsonify({'error': 'Report not found'}), 404
     if not _user_owns_report(report):
         return jsonify({'error': 'Access denied'}), 403
-    if not session.get('is_admin') and not report.approved:
+    if not current_user.is_admin and not report.approved:
         return jsonify({'error': 'Report not available'}), 403
 
     # Rate limit to protect expensive Grok calls (per authenticated user + report)
-    allowed, retry_after = check_grok_rate_limit(session.get('email'), report.id)
+    allowed, retry_after = check_grok_rate_limit(current_user.email, report.id)
     if not allowed:
         return jsonify({
             'error': f'Please wait {retry_after} seconds before asking again.',
@@ -1424,7 +1447,7 @@ def grok_ask_api():
         }), 429
 
     documents = _get_client_documents(report.user_email)
-    client_name = session.get('name', 'Client')
+    client_name = current_user.name or current_user.email.split('@')[0]
 
     if term and not question:
         answer, source = grok_explain_term(
@@ -1462,12 +1485,13 @@ def grok_public_api():
 
 @app.route('/reports/<int:report_id>/pdf')
 def download_report_pdf(report_id):
-    if not session.get('user_id'):
+    current_user = _get_current_user()
+    if not current_user:
         return redirect(url_for('login'))
     report = Report.query.get_or_404(report_id)
     if not _user_owns_report(report):
         abort(403)
-    if not session.get('is_admin') and not report.approved:
+    if not current_user.is_admin and not report.approved:
         abort(403)
     if not report.pdf_filename or not _report_has_substantive_html(report):
         flash(
@@ -1485,7 +1509,8 @@ def download_report_pdf(report_id):
 
 @app.route('/admin/scan-pdf/<int:scan_id>')
 def download_scan_pdf(scan_id):
-    if not session.get('is_admin'):
+    current_user = _get_current_user()
+    if not current_user or not current_user.is_admin:
         abort(403)
     scan = ReportScanPdf.query.get_or_404(scan_id)
     return send_from_directory(
@@ -1498,10 +1523,11 @@ def download_scan_pdf(scan_id):
 
 @app.route('/documents/<int:doc_id>')
 def download_document(doc_id):
-    if not session.get('user_id'):
+    current_user = _get_current_user()
+    if not current_user:
         return redirect(url_for('login'))
     doc = ClientDocument.query.get_or_404(doc_id)
-    if not session.get('is_admin') and _normalize_email(session.get('email')) != _normalize_email(doc.user_email):
+    if not current_user.is_admin and _normalize_email(current_user.email) != _normalize_email(doc.user_email):
         abort(403)
     return send_from_directory(
         documents_dir,
@@ -1513,7 +1539,8 @@ def download_document(doc_id):
 
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
-    if not session.get('is_admin'):
+    current_user = _get_current_user()
+    if not current_user or not current_user.is_admin:
         flash('Admin access required.', 'error')
         return redirect(url_for('login'))
 
@@ -1560,6 +1587,31 @@ def admin():
                     selected_client = doc_email
                 except ValueError as exc:
                     flash(str(exc), 'error')
+
+        elif action == 'delete_user':
+            target_email = _normalize_email(
+                request.form.get('client_email') or request.form.get('email') or ''
+            )
+            if not target_email:
+                flash('No client selected to delete.', 'error')
+            elif target_email == session.get('email'):
+                flash('You cannot delete your own admin account from here.', 'error')
+            else:
+                # Delete related data first (order matters for FKs)
+                ReportScanPdf.query.join(Report).filter(
+                    Report.user_email == target_email
+                ).delete(synchronize_session=False)
+                Report.query.filter_by(user_email=target_email).delete(synchronize_session=False)
+                ClientDocument.query.filter_by(user_email=target_email).delete(synchronize_session=False)
+
+                user = _find_user_by_email(target_email)
+                if user:
+                    db.session.delete(user)
+                db.session.commit()
+
+                flash(f'Account and all data permanently deleted for {target_email}. Any active sessions for this account have been invalidated.', 'success')
+                if selected_client == target_email:
+                    selected_client = ''
 
         elif action == 'approve' and report_id:
             report = Report.query.get(report_id)
