@@ -44,6 +44,56 @@
   #grok-float { position: fixed; bottom: 20px; right: 20px; z-index: 2147483647; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
   #grok-bubble { width: 52px; height: 52px; border-radius: 9999px; background: linear-gradient(135deg, #1f2937, #111827); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 10px 15px -3px rgb(0 0 0 / .25), 0 4px 6px -4px rgb(0 0 0 / .25); cursor: pointer; border: 2px solid #374151; transition: transform .1s ease; }
   #grok-bubble:hover { transform: scale(1.05); }
+  #grok-bubble-label {
+    position: absolute;
+    right: 58px;
+    bottom: 8px;
+    background: #111827;
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px 2px 7px;
+    border-radius: 999px;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .25s ease;
+    font-weight: 600;
+    letter-spacing: .2px;
+  }
+  #grok-label {
+    position: absolute;
+    right: 58px;
+    bottom: 12px;
+    background: #111827;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    pointer-events: auto;
+    cursor: pointer;
+    z-index: 10;
+  }
+  #grok-label:hover {
+    background: #1f2937;
+  }
+  #grok-bubble:hover::after {
+    content: "Free scan help";
+    position: absolute;
+    right: 60px;
+    top: 14px;
+    background: #111827;
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    pointer-events: none;
+  }
   #grok-panel { position: absolute; bottom: 68px; right: 0; width: min(360px, 92vw); max-height: 540px; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 25px -5px rgb(0 0 0 / .1), 0 8px 10px -6px rgb(0 0 0 / .1); display: none; flex-direction: column; }
   #grok-panel.open { display: flex; }
   #grok-header { background: #111827; color: #f3f4f6; padding: 9px 12px; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: space-between; letter-spacing: .3px; }
@@ -59,10 +109,12 @@
   #grok-disclaimer { font-size: 9.5px; color: #64748b; text-align: center; padding: 5px 8px 7px; background: #fff; border-top: 1px solid #f1f5f9; }
 </style>
 <div id="grok-float" aria-live="polite">
-  <button id="grok-bubble" type="button" aria-haspopup="dialog" aria-expanded="false" title="Ask Grok • Root Cause scans & remedies">🧬</button>
+  <button id="grok-bubble" type="button" aria-haspopup="dialog" aria-expanded="false" title="Click to chat with Grok – free AI help for your scan results">🧬</button>
+  <div id="grok-label">Ask me anything</div>
+  <div id="grok-bubble-label">Free scan help</div>
   <div id="grok-panel" role="dialog" aria-label="Ask Grok chat">
     <div id="grok-header">
-      <span>Ask Grok about your scan</span>
+      <span>Ask Grok (free AI help for scans)</span>
       <button id="grok-close" type="button" aria-label="Close chat">×</button>
     </div>
     <div id="grok-messages"></div>
@@ -83,13 +135,48 @@
   const sendBtn = document.getElementById('grok-send');
   let hist = [];
   try { hist = JSON.parse(localStorage.getItem('rc_grok_hist') || '[]'); } catch (_) {}
+
+  // Friendly first-time label for new users on public page
+  const labelEl = document.getElementById('grok-bubble-label');
+  if (labelEl && !localStorage.getItem('grok_intro_seen')) {
+    setTimeout(() => { labelEl.style.opacity = '1'; }, 900);
+    const hide = () => {
+      labelEl.style.opacity = '0';
+      localStorage.setItem('grok_intro_seen', '1');
+    };
+    bubble.addEventListener('click', hide, {once:true});
+    setTimeout(() => { if (!localStorage.getItem('grok_intro_seen')) hide(); }, 6200);
+  }
+
+  // Make the "Ask me anything" label clickable to open the chat
+  const grokLabel = document.getElementById('grok-label');
+  if (grokLabel) {
+    grokLabel.addEventListener('click', () => {
+      if (!panel.classList.contains('open')) open();
+    });
+  }
   function render() {
     msgsEl.innerHTML = '';
     if (!hist.length) {
       const greet = document.createElement('div');
       greet.className = 'grok-msg bot';
-      greet.textContent = "Hi! Ask me about Root Cause energetic imbalances, hormones, remedies, or your latest scan.";
+      greet.textContent = "Hi! I'm Grok, a free AI helper for Root Cause scans. Ask about your results, what imbalances mean, remedies, hormones, or bioenergetics. New here? Type anything!";
       msgsEl.appendChild(greet);
+
+      // Friendly suggestions for new users
+      const sugg = document.createElement('div');
+      sugg.style.cssText = 'font-size:10.5px; color:#64748b; margin:6px 0 0; line-height:1.35;';
+      sugg.innerHTML = 'Quick examples: <span class="grok-sugg" data-q="What does high cortisol mean?">high cortisol?</span> <span class="grok-sugg" data-q="How do I read my report?">read report?</span> <span class="grok-sugg" data-q="Remedies for low energy?">low energy?</span>';
+      msgsEl.appendChild(sugg);
+
+      // Make suggestions clickable
+      sugg.querySelectorAll('.grok-sugg').forEach(el => {
+        el.style.cssText = 'color:#2563eb; cursor:pointer; background:#f1f5f9; padding:1px 5px; border-radius:3px; font-size:10px;';
+        el.onclick = () => {
+          inputEl.value = el.dataset.q;
+          submit();
+        };
+      });
     } else {
       hist.forEach(item => {
         const d = document.createElement('div');
