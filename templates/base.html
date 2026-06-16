@@ -39,5 +39,131 @@
     {% endwith %}
 
     {% block content %}{% endblock %}
+<!-- FLOATING ASK GROK WIDGET (self-contained, inserted for all pages) -->
+<style>
+  #grok-float { position: fixed; bottom: 20px; right: 20px; z-index: 2147483647; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  #grok-bubble { width: 52px; height: 52px; border-radius: 9999px; background: linear-gradient(135deg, #1f2937, #111827); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 10px 15px -3px rgb(0 0 0 / .25), 0 4px 6px -4px rgb(0 0 0 / .25); cursor: pointer; border: 2px solid #374151; transition: transform .1s ease; }
+  #grok-bubble:hover { transform: scale(1.05); }
+  #grok-panel { position: absolute; bottom: 68px; right: 0; width: min(360px, 92vw); max-height: 540px; background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; box-shadow: 0 20px 25px -5px rgb(0 0 0 / .1), 0 8px 10px -6px rgb(0 0 0 / .1); display: none; flex-direction: column; }
+  #grok-panel.open { display: flex; }
+  #grok-header { background: #111827; color: #f3f4f6; padding: 9px 12px; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: space-between; letter-spacing: .3px; }
+  #grok-close { background: none; border: 0; color: #9ca3af; font-size: 22px; line-height: 1; cursor: pointer; padding: 0 6px; }
+  #grok-messages { flex: 1; overflow-y: auto; padding: 12px; background: #f8fafc; font-size: 13.5px; line-height: 1.45; scrollbar-width: thin; }
+  .grok-msg { margin: 7px 0; padding: 9px 11px; border-radius: 10px; max-width: 84%; white-space: pre-wrap; word-break: break-word; }
+  .grok-msg.user { background: #111827; color: #fff; margin-left: auto; border-bottom-right-radius: 3px; }
+  .grok-msg.bot { background: #fff; border: 1px solid #e2e8f0; border-bottom-left-radius: 3px; }
+  #grok-input-row { display: flex; gap: 6px; padding: 10px; background: #fff; border-top: 1px solid #e5e7eb; }
+  #grok-input { flex: 1; border: 1px solid #cbd5e1; border-radius: 999px; padding: 8px 13px; font-size: 13.5px; outline: none; }
+  #grok-input:focus { border-color: #64748b; }
+  #grok-send { background: #111827; color: #fff; border: 0; border-radius: 999px; padding: 0 15px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  #grok-disclaimer { font-size: 9.5px; color: #64748b; text-align: center; padding: 5px 8px 7px; background: #fff; border-top: 1px solid #f1f5f9; }
+</style>
+<div id="grok-float" aria-live="polite">
+  <button id="grok-bubble" type="button" aria-haspopup="dialog" aria-expanded="false" title="Ask Grok • Root Cause scans & remedies">🧬</button>
+  <div id="grok-panel" role="dialog" aria-label="Ask Grok chat">
+    <div id="grok-header">
+      <span>Ask Grok about your scan</span>
+      <button id="grok-close" type="button" aria-label="Close chat">×</button>
+    </div>
+    <div id="grok-messages"></div>
+    <div id="grok-input-row">
+      <input id="grok-input" type="text" placeholder="e.g. What does high cortisol mean on my report?" autocomplete="off" />
+      <button id="grok-send" type="button">Ask</button>
+    </div>
+    <div id="grok-disclaimer">For educational use only. Not medical advice.</div>
+  </div>
+</div>
+<script>
+(function () {
+  const bubble = document.getElementById('grok-bubble');
+  const panel = document.getElementById('grok-panel');
+  const closeBtn = document.getElementById('grok-close');
+  const msgsEl = document.getElementById('grok-messages');
+  const inputEl = document.getElementById('grok-input');
+  const sendBtn = document.getElementById('grok-send');
+  let hist = [];
+  try { hist = JSON.parse(localStorage.getItem('rc_grok_hist') || '[]'); } catch (_) {}
+  function render() {
+    msgsEl.innerHTML = '';
+    if (!hist.length) {
+      const greet = document.createElement('div');
+      greet.className = 'grok-msg bot';
+      greet.textContent = "Hi! Ask me about Root Cause energetic imbalances, hormones, remedies, or your latest scan.";
+      msgsEl.appendChild(greet);
+    } else {
+      hist.forEach(item => {
+        const d = document.createElement('div');
+        d.className = 'grok-msg ' + (item.u ? 'user' : 'bot');
+        d.textContent = item.t;
+        msgsEl.appendChild(d);
+      });
+    }
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+  }
+  function persist() {
+    try { localStorage.setItem('rc_grok_hist', JSON.stringify(hist.slice(-12))); } catch (_) {}
+  }
+  function add(text, isUser) {
+    const d = document.createElement('div');
+    d.className = 'grok-msg ' + (isUser ? 'user' : 'bot');
+    d.textContent = text;
+    msgsEl.appendChild(d);
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+    hist.push({ u: isUser, t: text });
+    persist();
+  }
+  function open() {
+    panel.classList.add('open');
+    bubble.setAttribute('aria-expanded', 'true');
+    render();
+    setTimeout(() => inputEl.focus(), 30);
+  }
+  function close() {
+    panel.classList.remove('open');
+    bubble.setAttribute('aria-expanded', 'false');
+  }
+  bubble.addEventListener('click', () => {
+    if (panel.classList.contains('open')) close(); else open();
+  });
+  closeBtn.addEventListener('click', close);
+  async function submit() {
+    const q = inputEl.value.trim();
+    if (!q) return;
+    add(q, true);
+    inputEl.value = '';
+    const temp = document.createElement('div');
+    temp.className = 'grok-msg bot';
+    temp.textContent = '…';
+    msgsEl.appendChild(temp);
+    msgsEl.scrollTop = msgsEl.scrollHeight;
+    try {
+      const r = await fetch('/api/grok/public', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q, history: hist.slice(-5).map(h => ({role: h.u?'user':'assistant', content:h.t})) })
+      });
+      const j = await r.json().catch(() => ({}));
+      msgsEl.removeChild(temp);
+      const ans = j.answer || j.response || j.text || "I couldn't retrieve an answer just now. Please try rephrasing.";
+      add(ans, false);
+    } catch (e) {
+      if (temp.parentNode) temp.parentNode.removeChild(temp);
+      add("Sorry — there was a connection issue reaching the assistant. Try again shortly.", false);
+    }
+  }
+  sendBtn.addEventListener('click', submit);
+  inputEl.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); submit(); }
+  });
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key === '?' && document.activeElement.tagName === 'BODY') {
+      ev.preventDefault();
+      if (!panel.classList.contains('open')) open();
+    }
+    if (ev.key === 'Escape' && panel.classList.contains('open')) close();
+  });
+  window.__openAskGrok = open;
+})();
+</script>
 </body>
 </html>

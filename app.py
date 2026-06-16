@@ -1055,7 +1055,7 @@ def _get_current_user():
     uid = session.get('user_id')
     if not uid:
         return None
-    user = User.query.get(uid)
+    user = db.session.get(User, uid)
     if not user:
         # Account was deleted; invalidate the session
         session.clear()
@@ -1598,8 +1598,12 @@ def admin():
                 flash('You cannot delete your own admin account from here.', 'error')
             else:
                 # Delete related data first (order matters for FKs)
-                ReportScanPdf.query.join(Report).filter(
-                    Report.user_email == target_email
+                # SAFE: use subquery so the .delete() query itself has no .join()
+                # (this fixes the "Can't call Query.delete() when join() has been called" crash)
+                ReportScanPdf.query.filter(
+                    ReportScanPdf.report_id.in_(
+                        db.session.query(Report.id).filter(Report.user_email == target_email)
+                    )
                 ).delete(synchronize_session=False)
                 Report.query.filter_by(user_email=target_email).delete(synchronize_session=False)
                 ClientDocument.query.filter_by(user_email=target_email).delete(synchronize_session=False)
