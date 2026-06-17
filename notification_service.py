@@ -115,7 +115,8 @@ def deliver_report_to_client(
             f'— Root Cause Bioenergetics'
         )
         ok, msg = send_plain_email(
-            client_email, subject, body, pdf_bytes, f'{report_title}.pdf'
+            client_email, subject, body, pdf_bytes, f'{report_title}.pdf',
+            from_email='Reports@root-cause-test.com'
         )
         results.append(('email', ok, msg))
     else:
@@ -170,7 +171,7 @@ def notify_admin_analysis_request(client_name, client_email, report_title):
         f'A new analysis has been generated and sent to the client.\n\n'
         f'Review in admin panel: {site}/admin'
     )
-    email_ok, email_msg = send_plain_email(admin_email, subject, body)
+    email_ok, email_msg = send_plain_email(admin_email, subject, body, from_email='Info@root-cause-test.com')
     sms_ok, sms_msg = send_sms(
         admin_phone,
         f'Root Cause Admin: {client_name} requested updated analysis for "{report_title}". '
@@ -199,7 +200,7 @@ def send_purchase_thank_you(customer_email, customer_name, customer_phone, produ
             f"If you have any questions, just reply to this email.\n\n"
             f"- Root Cause Bioenergetics\n{site_url}"
         )
-        send_plain_email(customer_email, subject, body)
+        send_plain_email(customer_email, subject, body, from_email='Info@root-cause-test.com')
     except Exception as exc:
         print(f"[Root Cause] Purchase thank-you email failed for {customer_email}: {exc}")
 
@@ -242,7 +243,7 @@ def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, si
             f"Here's to discovering your root cause,\n"
             f"— The Root Cause Team\n{site_url}"
         )
-        email_ok, email_msg = send_plain_email(customer_email, subject, body)
+        email_ok, email_msg = send_plain_email(customer_email, subject, body, from_email='Info@root-cause-test.com')
         if email_ok:
             print(f"[Root Cause] Welcome email sent to {customer_email}")
         else:

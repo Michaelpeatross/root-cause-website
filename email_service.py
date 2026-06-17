@@ -10,9 +10,11 @@ def _smtp_configured():
     return bool(os.environ.get('SMTP_HOST') and os.environ.get('SMTP_FROM'))
 
 
-def send_plain_email(to_email, subject, text_body, pdf_bytes=None, pdf_filename='report.pdf'):
-    """Send a plain email with optional PDF attachment."""
-    return _send_email(to_email, subject, text_body, pdf_bytes, pdf_filename)
+def send_plain_email(to_email, subject, text_body, pdf_bytes=None, pdf_filename='report.pdf', from_email=None):
+    """Send a plain email with optional PDF attachment.
+    If from_email is provided, it will be used as the From address (must be allowed by your SMTP).
+    """
+    return _send_email(to_email, subject, text_body, pdf_bytes, pdf_filename, from_email=from_email)
 
 
 def send_report_email(to_email, subject, text_body, pdf_bytes=None, pdf_filename='report.pdf'):
@@ -23,11 +25,11 @@ def send_report_email(to_email, subject, text_body, pdf_bytes=None, pdf_filename
     return _send_email(to_email, subject, text_body, pdf_bytes, pdf_filename)
 
 
-def _send_email(to_email, subject, text_body, pdf_bytes=None, pdf_filename='report.pdf'):
+def _send_email(to_email, subject, text_body, pdf_bytes=None, pdf_filename='report.pdf', from_email=None):
     if not _smtp_configured():
         return False, 'Email not configured (set SMTP_HOST and SMTP_FROM environment variables).'
 
-    from_addr = os.environ['SMTP_FROM']
+    from_addr = from_email or os.environ['SMTP_FROM']
     host = os.environ['SMTP_HOST']
     port = int(os.environ.get('SMTP_PORT', '587'))
     user = os.environ.get('SMTP_USER', from_addr)

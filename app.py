@@ -1177,7 +1177,7 @@ def login():
                         f'You can log in here: {site}/login\n\n'
                         f'— Root Cause Bioenergetics'
                     )
-                    send_plain_email(reset_user.email, email_subject, email_body)
+                    send_plain_email(reset_user.email, email_subject, email_body, from_email='Info@root-cause-test.com')
                 except Exception:
                     pass  # Don't block the reset flow if notifications fail
 
@@ -1813,7 +1813,7 @@ def textbelt_sms_reply():
             f"Time: {datetime.utcnow()}\n"
             f"View admin: {site}/admin"
         )
-        send_plain_email(admin_email, "Root Cause - New SMS Reply from Client", body)
+        send_plain_email(admin_email, "Root Cause - New SMS Reply from Client", body, from_email='Info@root-cause-test.com')
     except Exception as e:
         current_app.logger.error(f"Failed to notify admin of SMS reply: {e}")
 
