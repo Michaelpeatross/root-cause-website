@@ -901,6 +901,8 @@ def _approve_and_send_report(report, send_email=False, send_sms=False):
     if report.generated_report and send_email:
         pdf_bytes = pdf_to_bytes(report.generated_report)
 
+    site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+    reply_url = f"{site.rstrip('/')}/api/textbelt/reply"
     results = deliver_report_to_client(
         report.user_email,
         client_name,
@@ -910,6 +912,7 @@ def _approve_and_send_report(report, send_email=False, send_sms=False):
         pdf_bytes=pdf_bytes,
         send_email=send_email,
         send_sms=send_sms,
+        reply_webhook_url=reply_url,
     )
 
     messages = []
@@ -994,7 +997,8 @@ def checkout_success():
         try:
             from notification_service import send_purchase_thank_you
             site_url = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
-            send_purchase_thank_you(email, name, phone, product_name, site_url)
+            reply_url = f"{site_url.rstrip('/')}/api/textbelt/reply"
+            send_purchase_thank_you(email, name, phone, product_name, site_url, reply_webhook_url=reply_url)
         except Exception as exc:
             print(f"[Root Cause] Post-purchase thank you failed: {exc}")
 
@@ -1129,10 +1133,11 @@ def login():
                             from notification_service import send_sms
                             sms_msg = (
                                 f'Root Cause password reset code: {code}. '
-                                f'Expires in 10 minutes. Enter this code + your new password on the login "Forgot password" form.'
+                                f'Expires in 10 minutes. Enter this code + your new password on the login "Forgot password" form. Reply to this text if you need help.'
                             )
-                            send_sms(reset_user.phone, sms_msg)
-                            flash('A reset code has been sent to your phone via SMS. Enter the code (above) + your new password to complete the reset.', 'success')
+                            reply_url = f"{site.rstrip('/')}/api/textbelt/reply"
+                            send_sms(reset_user.phone, sms_msg, reply_webhook_url=reply_url)
+                            flash('A reset code has been sent to your phone via SMS. Enter the code (above) + your new password to complete the reset. You can also reply to the SMS.', 'success')
                         except Exception:
                             flash('Could not send SMS reset code. Please try email reset or contact support.', 'error')
                         return render_template('login.html', show_reset=True, email=raw_identifier)
@@ -1159,9 +1164,10 @@ def login():
                     sms_msg = (
                         f'Root Cause: Your password was just changed. '
                         f'If this was not you, contact support immediately. '
-                        f'Login: {site}/login'
+                        f'Login: {site}/login . Reply to this text for help.'
                     )
-                    send_sms(reset_user.phone, sms_msg)
+                    reply_url = f"{site.rstrip('/')}/api/textbelt/reply"
+                    send_sms(reset_user.phone, sms_msg, reply_webhook_url=reply_url)
 
                     email_subject = 'Root Cause Password Changed'
                     email_body = (
@@ -1255,11 +1261,13 @@ def register():
             try:
                 from notification_service import send_welcome_to_root_cause
                 site_url = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
-                send_welcome_to_root_cause(user.email, user.name, user.phone, site_url)
+                reply_url = f"{site_url.rstrip('/')}/api/textbelt/reply"
+                send_welcome_to_root_cause(user.email, user.name, user.phone, site_url, reply_webhook_url=reply_url)
             except Exception as exc:
                 print(f"[Root Cause] Welcome notification failed for {user.email}: {exc}")
 
-            flash('Account created — welcome to your portal! We sent a welcome text and email.', 'success')
+            flash('Account created! Check your email (and phone for SMS) for the welcome message. '
+                  'It can take a minute or two to arrive. If nothing shows up, check spam and your server logs.', 'success')
             return redirect(url_for('dashboard'))
     return render_template('register.html')
 
@@ -1777,6 +1785,40 @@ def logout():
     session.clear()
     flash('You have been logged out.', 'success')
     return redirect(url_for('index'))
+
+
+@app.route('/api/textbelt/reply', methods=['POST'])
+def textbelt_sms_reply():
+    """Webhook for Textbelt SMS replies.
+    Textbelt will POST JSON like {"textId": "...", "fromNumber": "...", "text": "..."} 
+    when a user replies to a message sent with replyWebhookUrl.
+    """
+    data = request.get_json(silent=True) or request.form.to_dict()
+    text_id = data.get('textId')
+    from_number = data.get('fromNumber')
+    text = data.get('text')
+
+    current_app.logger.info(f"Textbelt reply received: textId={text_id} from={from_number} text={text}")
+
+    # Notify admin via email (if configured)
+    try:
+        admin_email = os.environ.get('ADMIN_EMAIL', 'michaelpeatross@gmail.com')
+        from email_service import send_plain_email
+        site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+        body = (
+            f"SMS reply received from user:\n\n"
+            f"From: {from_number}\n"
+            f"Text ID: {text_id}\n"
+            f"Message: {text}\n\n"
+            f"Time: {datetime.utcnow()}\n"
+            f"View admin: {site}/admin"
+        )
+        send_plain_email(admin_email, "Root Cause - New SMS Reply from Client", body)
+    except Exception as e:
+        current_app.logger.error(f"Failed to notify admin of SMS reply: {e}")
+
+    # Acknowledge to Textbelt
+    return jsonify({"status": "received"}), 200
 
 
 with app.app_context():

@@ -35,9 +35,10 @@ def _normalize_phone(number):
     return f'+{digits}' if digits else ''
 
 
-def send_sms(to_number, message):
+def send_sms(to_number, message, reply_webhook_url=None):
     """Send SMS. Prefers Textbelt (cheapest for low volume) if TEXTBELT_API_KEY is set,
     otherwise falls back to Twilio. Returns (success: bool, message: str).
+    If reply_webhook_url is provided, Textbelt will POST replies to that URL.
     """
     to_num = _normalize_phone(to_number)
     if not to_num:
@@ -47,11 +48,15 @@ def send_sms(to_number, message):
     if textbelt_key:
         # Textbelt: one of the cheapest production SMS options (~$3 per 1,000 texts, simple REST)
         try:
-            data = urllib.parse.urlencode({
+            data_dict = {
                 'phone': to_num,
                 'message': (message or '')[:1500],
                 'key': textbelt_key,
-            }).encode('utf-8')
+                'sender': 'Root Cause',  # For regulatory compliance - set in your Textbelt key settings too
+            }
+            if reply_webhook_url:
+                data_dict['replyWebhookUrl'] = reply_webhook_url
+            data = urllib.parse.urlencode(data_dict).encode('utf-8')
             req = urllib.request.Request('https://textbelt.com/text', data=data, method='POST')
             with urllib.request.urlopen(req, timeout=15) as resp:
                 result = json.loads(resp.read().decode('utf-8'))
@@ -93,7 +98,7 @@ def send_sms(to_number, message):
 
 def deliver_report_to_client(
     client_email, client_name, client_phone, report_title, plain_text,
-    pdf_bytes=None, send_email=True, send_sms=True,
+    pdf_bytes=None, send_email=True, send_sms=True, reply_webhook_url=None,
 ):
     """Send report to client via selected channels. Returns list of status messages."""
     site = os.environ.get('SITE_URL', 'https://root-cause-website.onrender.com')
@@ -120,7 +125,8 @@ def deliver_report_to_client(
         ok, msg = send_sms(
             client_phone,
             f'Root Cause: Your report "{report_title}" is ready. '
-            f'Log in to your portal: {site}/login',
+            f'Log in to your portal: {site}/login . Reply to this text for help.',
+            reply_webhook_url=reply_webhook_url,
         )
         results.append(('sms', ok, msg))
     else:
@@ -171,7 +177,7 @@ def notify_admin_analysis_request(client_name, client_email, report_title):
         f'New analysis sent to client.',
     )
     return email_ok, email_msg, sms_ok, sms_msg
-def send_purchase_thank_you(customer_email, customer_name, customer_phone, product_name, site_url):
+def send_purchase_thank_you(customer_email, customer_name, customer_phone, product_name, site_url, reply_webhook_url=None):
     """Send automated thank-you email (and SMS if phone provided) for a completed purchase.
     Called after successful Stripe checkout.
     """
@@ -203,20 +209,23 @@ def send_purchase_thank_you(customer_email, customer_name, customer_phone, produ
             sms_msg = (
                 f"Root Cause: Thank you for your {product_name} purchase! "
                 f"Check email at {customer_email} for details. "
-                f"Login at {site_url}/login to proceed with your scan collection."
+                f"Login at {site_url}/login to proceed with your scan collection. Reply to this text for help."
             )
-            send_sms(customer_phone, sms_msg)
+            send_sms(customer_phone, sms_msg, reply_webhook_url=reply_webhook_url)
         except Exception as exc:
             print(f"[Root Cause] Purchase thank-you SMS failed for {customer_phone}: {exc}")
 
 
-def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, site_url):
-    """Send a friendly welcome email (and SMS if phone) when a new client account is created."""
+def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, site_url, reply_webhook_url=None):
+    """Send a friendly welcome email (and SMS if phone) when a new client account is created.
+    If reply_webhook_url is provided, SMS replies will be sent to that URL.
+    """
     if not customer_email:
         return
     name = customer_name or (customer_email.split('@')[0] if customer_email else 'there')
 
     # Welcome Email
+    email_ok = False
     try:
         subject = "Welcome to Root Cause Bioenergetics!"
         body = (
@@ -233,7 +242,11 @@ def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, si
             f"Here's to discovering your root cause,\n"
             f"— The Root Cause Team\n{site_url}"
         )
-        send_plain_email(customer_email, subject, body)
+        email_ok, email_msg = send_plain_email(customer_email, subject, body)
+        if email_ok:
+            print(f"[Root Cause] Welcome email sent to {customer_email}")
+        else:
+            print(f"[Root Cause] Welcome email not sent to {customer_email}: {email_msg}")
     except Exception as exc:
         print(f"[Root Cause] Welcome email failed for {customer_email}: {exc}")
 
@@ -243,8 +256,12 @@ def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, si
             sms_msg = (
                 f"Welcome to Root Cause, {name}! Your account is ready. "
                 f"Check your email for next steps or login at {site_url}/login. "
-                f"We're excited to help uncover your root causes."
+                f"We're excited to help uncover your root causes. Reply to this text for assistance."
             )
-            send_sms(customer_phone, sms_msg)
+            sms_ok, sms_msg = send_sms(customer_phone, sms_msg, reply_webhook_url=reply_webhook_url)
+            if sms_ok:
+                print(f"[Root Cause] Welcome SMS sent to {customer_phone}")
+            else:
+                print(f"[Root Cause] Welcome SMS not sent to {customer_phone}: {sms_msg}")
         except Exception as exc:
             print(f"[Root Cause] Welcome SMS failed for {customer_phone}: {exc}")
