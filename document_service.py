@@ -11,7 +11,7 @@ ALLOWED_EXTENSIONS = {
     '.doc', '.docx', '.heic', '.heif',
     '.zip', '.xml', '.csv', '.json',  # for health/wearable data exports (Apple Health, Fitbit, etc.)
 }
-MAX_UPLOAD_BYTES = 16 * 1024 * 1024
+MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB (needed for large Apple Health export.zip files)
 MAX_FILES_PER_UPLOAD = 25
 
 
@@ -35,7 +35,7 @@ def save_upload(file_storage, upload_dir):
     size = file_storage.tell()
     file_storage.seek(0)
     if size > MAX_UPLOAD_BYTES:
-        raise ValueError('File too large (max 16 MB).')
+        raise ValueError('File too large (max 100 MB).')
 
     os.makedirs(upload_dir, exist_ok=True)
     ext = os.path.splitext(original)[1].lower()

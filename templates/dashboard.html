@@ -148,7 +148,7 @@
             <div class="form-group">
                 <label for="documents">Files (select many)</label>
                 <input type="file" id="documents" name="documents" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.heic,.heif,image/*,.zip,.xml,.csv,.json" multiple required>
-                <p style="font-size:0.85rem; color:var(--text-muted); margin:0.35rem 0 0;">PDF, lab reports, photos, screenshots, or health exports (ZIP/XML/CSV/JSON) — up to 25 files, 16 MB each</p>
+                <p style="font-size:0.85rem; color:var(--text-muted); margin:0.35rem 0 0;">PDF, lab reports, photos, screenshots, or health exports (ZIP/XML/CSV/JSON) — up to 25 files, 100 MB each</p>
             </div>
             <div class="form-group">
                 <label for="test_date">Test date for all files (optional)</label>
@@ -218,7 +218,7 @@
                 <label for="health_files">Health data files (Apple export, CSVs, etc.)</label>
                 <input type="file" id="health_files" name="health_files" accept=".zip,.xml,.csv,.json,.txt" multiple required>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0;">
-                    You can upload multiple exports. Large Apple Health zips are supported.
+                    You can upload multiple exports (max 100 MB each). Large Apple Health zips are supported. If too big, unzip and upload only the export.xml file.
                 </p>
             </div>
             <div class="form-group">
