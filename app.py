@@ -2,6 +2,8 @@ from flask import (
     Flask, render_template, request, redirect, url_for, flash, session,
     send_from_directory, abort, jsonify, current_app,
 )
+
+from grok_assistant import grok_public_scan_question  # for auto-replies to client SMS
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -1800,20 +1802,41 @@ def textbelt_sms_reply():
 
     current_app.logger.info(f"Textbelt reply received: textId={text_id} from={from_number} text={text}")
 
+    site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+    reply_url = f"{site.rstrip('/')}/api/textbelt/reply"
+
+    # Auto-reply with Grok for scan-related questions (public mode)
+    grok_response = None
+    try:
+        if text and text.strip().lower() not in ['stop', 'start', 'unsubscribe']:
+            grok_response, _ = grok_public_scan_question(text)
+            if grok_response:
+                from notification_service import send_sms
+                ok, msg = send_sms(from_number, grok_response, reply_webhook_url=reply_url)
+                if ok:
+                    current_app.logger.info(f"Grok auto-replied via SMS to {from_number}")
+                else:
+                    current_app.logger.warning(f"Grok SMS reply failed: {msg}")
+    except Exception as e:
+        current_app.logger.error(f"Grok auto-reply error: {e}")
+
     # Notify admin via email (if configured)
     try:
         admin_email = os.environ.get('ADMIN_EMAIL', 'michaelpeatross@gmail.com')
         from email_service import send_plain_email
-        site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
         body = (
             f"SMS reply received from user:\n\n"
             f"From: {from_number}\n"
             f"Text ID: {text_id}\n"
             f"Message: {text}\n\n"
+        )
+        if grok_response:
+            body += f"Grok auto-responded: {grok_response}\n\n"
+        body += (
             f"Time: {datetime.utcnow()}\n"
             f"View admin: {site}/admin"
         )
-        send_plain_email(admin_email, "Root Cause - New SMS Reply from Client", body, from_email='Info@root-cause-test.com')
+        send_plain_email(admin_email, "Root Cause - New SMS Reply from Client", body, from_email=admin_email)
     except Exception as e:
         current_app.logger.error(f"Failed to notify admin of SMS reply: {e}")
 
