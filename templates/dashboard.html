@@ -180,6 +180,61 @@
         {% endif %}
     </div>
 
+    <!-- NEW: Wearable / Health Device Connection -->
+    <div class="card" style="margin-top: 1.5rem; border: 2px dashed var(--green-dark);">
+        <h2>📱 Connect Health Devices &amp; Wearables</h2>
+        <p style="color: var(--text-muted);">
+            Upload data from your <strong>Apple Watch</strong>, Fitbit, Garmin, Oura, Whoop, or other health monitors.
+            Grok will analyze heart rate, sleep, steps, HRV, activity and more, and include insights in your reports.
+        </p>
+
+        <details style="margin-bottom: 1rem;">
+            <summary style="cursor: pointer; font-weight: 600; color: var(--green-dark);">How to export from Apple Watch (easiest)</summary>
+            <ol style="margin: 0.5rem 0 0 1.25rem; font-size: 0.9rem;">
+                <li>Open the <strong>Health</strong> app on your iPhone.</li>
+                <li>Tap your profile picture (top right).</li>
+                <li>Scroll down and tap <strong>Export All Health Data</strong>.</li>
+                <li>Save the .zip file (or unzip and upload the export.xml inside).</li>
+                <li>Come back here and upload below.</li>
+            </ol>
+            <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">Apple Health exports contain your full history — Grok will focus on recent relevant trends.</p>
+        </details>
+
+        <details style="margin-bottom: 1rem;">
+            <summary style="cursor: pointer; font-weight: 600; color: var(--green-dark);">Other devices (Fitbit, Garmin, Oura, etc.)</summary>
+            <ul style="margin: 0.5rem 0 0 1.25rem; font-size: 0.9rem;">
+                <li>Log into the device's web or app dashboard.</li>
+                <li>Look for "Export data", "Download CSV", "Health data export", or "Share data".</li>
+                <li>Upload the CSV, JSON, or XML file(s) here.</li>
+            </ul>
+        </details>
+
+        {% if admin_preview %}
+        <p class="admin-preview-note">Health device upload hidden in admin preview.</p>
+        {% else %}
+        <form method="POST" enctype="multipart/form-data" style="margin-top: 0.5rem;">
+            <input type="hidden" name="action" value="upload_health_data">
+            <div class="form-group">
+                <label for="health_files">Health data files (Apple export, CSVs, etc.)</label>
+                <input type="file" id="health_files" name="health_files" accept=".zip,.xml,.csv,.json,.txt" multiple required>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0;">
+                    You can upload multiple exports. Large Apple Health zips are supported.
+                </p>
+            </div>
+            <div class="form-group">
+                <label for="health_test_date">Approximate date range for this data (optional)</label>
+                <input type="date" id="health_test_date" name="health_test_date">
+            </div>
+            <button type="submit" class="btn btn-primary">Upload Health / Wearable Data</button>
+        </form>
+        {% endif %}
+
+        <p style="font-size: 0.85rem; margin-top: 0.75rem; color: var(--text-muted);">
+            <strong>Grok will automatically generate a wearable data summary right after upload.</strong><br>
+            Then request "Updated Grok Analysis" below so the summary + raw data are incorporated into your full report.
+        </p>
+    </div>
+
     {% if reports %}
     <div class="card">
         <h2>Request Updated Grok Analysis</h2>

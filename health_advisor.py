@@ -362,7 +362,7 @@ def _local_medical_notes_html(medical_text, client_name):
   <h2>Your Medical Records — Plain English Notes</h2>
   <p class="scan-lead">A quick overview of how your uploaded lab work connects to your scan.</p>
   <div class="scan-summary">
-    <p>We reviewed your uploaded medical documents alongside your bioenergetic scan. Share these records with your practitioner and discuss any out-of-range values at your next visit.</p>
+    <p>We reviewed your uploaded medical documents and any wearable health data (Apple Watch, fitness trackers, heart rate, sleep, activity, etc.) alongside your bioenergetic scan. Share these records with your practitioner and discuss any out-of-range values at your next visit.</p>
     <p><em>Recommendations incorporate all documents you uploaded to your client portal.</em></p>
   </div>
 </section>"""
@@ -414,7 +414,7 @@ def _local_recommendations_html(scan_raw, medical_text, client_name):
 
     doc_note = ''
     if medical_text and len(medical_text.strip()) > 50:
-        doc_note = '<p><em>Recommendations incorporate all your uploaded medical documents.</em></p>'
+        doc_note = '<p><em>Recommendations incorporate all your uploaded medical documents <strong>and any wearable health data</strong> (Apple Watch, fitness trackers, etc.).</em></p>'
 
     return f"""<section class="report-section ai-section">
   <h3>🧠 Personalized Health Options for {client_name}</h3>
@@ -554,7 +554,7 @@ Client: {client_name}
 SCAN EXCERPT (for context only):
 {scan_raw[:8000]}
 
-CLIENT MEDICAL DOCUMENTS:
+CLIENT MEDICAL DOCUMENTS AND WEARABLE DATA (Apple Watch, fitness trackers, heart rate, sleep, steps, etc.):
 {medical_text[:40000]}
 
 Write for an average adult with no medical background.
@@ -610,7 +610,7 @@ Client: {client_name} ({client_email})
 BIOENERGETIC SCAN DATA (paste + PDF extracts):
 {scan_raw[:12000]}
 
-CLIENT MEDICAL DOCUMENTS (all uploaded labs, blood work, and medical records — any date):
+CLIENT MEDICAL DOCUMENTS (all uploaded labs, blood work, medical records, AND wearable health data from Apple Watch / fitness trackers / health monitors — any date):
 {medical_text[:50000] if medical_text else 'None uploaded yet.'}
 
 Cross-reference scan findings with lab values across the client's full uploaded medical history.
@@ -674,3 +674,44 @@ def get_health_recommendations(
     if grok_html:
         return enrich_html_with_affiliate_links(grok_html), 'grok'
     return _local_recommendations_html(scan_raw, medical_text, client_name), 'local'
+
+
+def generate_wearable_summary(wearable_text: str, client_email: str) -> str:
+    """Use Grok to auto-generate a concise, actionable summary of uploaded wearable/health monitor data.
+    Returns plain text summary or empty string on failure.
+    """
+    if not wearable_text or len(wearable_text.strip()) < 40:
+        return ""
+
+    excerpt = wearable_text[:12000]  # keep context reasonable
+
+    prompt = f"""You are a helpful wellness analyst for Root Cause Bioenergetics.
+
+Analyze the following wearable / health monitor data (Apple Watch, fitness tracker, etc.) and produce a clear, plain-language summary.
+
+Focus on:
+- Key trends in heart rate (resting, average, variability if present)
+- Sleep patterns and quality
+- Activity / steps / movement levels
+- Any notable patterns, outliers, or correlations
+- How this data might relate to stress, recovery, energy, or bioenergetic findings
+
+Keep it concise (3–6 short paragraphs). Be encouraging but factual. Do not give medical advice or diagnosis.
+
+WEARABLE DATA:
+{excerpt}
+
+CLIENT: {client_email}
+"""
+
+    content = _grok_chat(
+        prompt,
+        system="You summarize wearable health data clearly for clients. Stay educational and non-diagnostic.",
+        temperature=0.25,
+        timeout=45,
+    )
+
+    if content:
+        return content.strip()
+
+    return ""
