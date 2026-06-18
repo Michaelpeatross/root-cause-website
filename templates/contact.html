@@ -1,0 +1,52 @@
+﻿{% extends "base.html" %}
+{% block title %}Contact Us — Root Cause{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 700px; margin: 2rem auto;">
+    <h1 style="font-family: 'Playfair Display', serif; color: var(--green-dark);">Contact Us</h1>
+    
+    <p style="font-size: 1.1rem; color: var(--text-muted);">
+        Have questions about our bioenergetic hair and saliva scans, costs, accuracy, what we test for, or anything else?
+        <strong>Text us</strong> and get instant answers powered by Grok.
+    </p>
+
+    <div style="background: #f8f9fa; border: 2px solid var(--green-dark); border-radius: 8px; padding: 1.5rem; margin: 1.5rem 0;">
+        <h2 style="margin-top: 0; color: var(--green-dark);">📱 Text Us — Get Questions Answered</h2>
+        
+        <p>Enter your phone number and question below. We will text you back right away (Grok handles scan-related questions instantly).</p>
+        
+        <form method="POST">
+            <div style="margin-bottom: 1rem;">
+                <label for="phone" style="display: block; font-weight: 600; margin-bottom: 0.25rem;">Your Phone Number</label>
+                <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567" required 
+                       style="width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;">
+                <small style="color: #666;">Replies come from 510-680-1079</small>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <label for="message" style="display: block; font-weight: 600; margin-bottom: 0.25rem;">Your Question</label>
+                <textarea id="message" name="message" rows="4" required placeholder="E.g. How much does a scan cost? Is it accurate? What does it test for?" 
+                          style="width: 100%; padding: 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-size: 1rem;"></textarea>
+            </div>
+            
+            <button type="submit" style="background: var(--green-dark); color: white; border: none; padding: 0.75rem 2rem; font-size: 1.05rem; border-radius: 6px; cursor: pointer;">
+                Text Us Now
+            </button>
+        </form>
+        
+        <p style="font-size: 0.85rem; color: #666; margin-top: 1rem;">
+            Standard SMS rates may apply. Reply <strong>STOP</strong> anytime to unsubscribe. 
+            Grok provides educational information only — not medical advice.
+        </p>
+    </div>
+
+    <div style="margin-top: 2rem;">
+        <h3>Other ways to reach us</h3>
+        <ul>
+            <li><strong>Email:</strong> Info@root-cause-test.com</li>
+            <li>Use the floating <strong>Ask Grok</strong> button on any page for instant scan questions.</li>
+            <li>Register for a free account and get personalized insights.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

@@ -33,8 +33,9 @@ from grok_assistant import (
 from scan_reconciliation import reconcile_scan_with_blood_tests
 from notification_service import (
     notify_client_analysis_update, notify_admin_analysis_request,
-    deliver_report_to_client,
+    deliver_report_to_client, send_sms,
 )
+from grok_assistant import grok_public_scan_question
 from stripe_service import (
     create_checkout_session, register_apple_pay_domains, stripe_configured,
     retrieve_checkout_session,
@@ -1273,6 +1274,75 @@ def register():
                   'It can take a minute or two to arrive. If nothing shows up, check spam and your server logs.', 'success')
             return redirect(url_for('dashboard'))
     return render_template('register.html')
+
+
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    if request.method == 'POST':
+        phone = request.form.get('phone', '').strip()
+        message = request.form.get('message', '').strip()
+
+        if not phone or not message:
+            flash('Please provide both a phone number and your question.', 'error')
+            return render_template('contact.html')
+
+        to_num = _normalize_phone(phone)
+        if not to_num:
+            flash('Please enter a valid phone number.', 'error')
+            return render_template('contact.html')
+
+        try:
+            # Get Grok answer for the question
+            grok_answer, _ = grok_public_scan_question(message)
+
+            site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+            reply_url = f"{site.rstrip('/')}/api/textbelt/reply"
+
+            # Send SMS with Grok answer + invitation to continue conversation
+            sms_body = (
+                f"Thanks for texting Root Cause! Here's what Grok says:\n\n"
+                f"{grok_answer}\n\n"
+                f"Reply to this text with more questions about scans."
+            )
+
+            sms_ok, sms_msg = send_sms(
+                to_num,
+                sms_body,
+                reply_webhook_url=reply_url,
+                from_number="+15106801079"
+            )
+
+            # Notify admin
+            try:
+                from email_service import send_plain_email
+                admin_body = (
+                    f"New Text Us contact:\n\n"
+                    f"Phone: {to_num}\n"
+                    f"Question: {message}\n\n"
+                    f"Grok answered:\n{grok_answer}\n\n"
+                    f"SMS status: {'Sent' if sms_ok else sms_msg}"
+                )
+                send_plain_email(
+                    os.environ.get('ADMIN_EMAIL', 'michaelpeatross@gmail.com'),
+                    "Root Cause - New Text Us Inquiry",
+                    admin_body,
+                    from_email='Info@root-cause-test.com'
+                )
+            except Exception:
+                pass
+
+            if sms_ok:
+                flash('Thanks! We texted Grok\'s answer to your phone. Reply anytime for more help.', 'success')
+            else:
+                flash(f'Thanks for your question! We tried to text you but hit an issue: {sms_msg}. Check email or try again.', 'error')
+
+            return render_template('contact.html')
+
+        except Exception as exc:
+            flash(f'Sorry, something went wrong sending the text. Please try again or email us. ({exc})', 'error')
+            return render_template('contact.html')
+
+    return render_template('contact.html')
 
 
 def _client_user_info(email):
