@@ -256,7 +256,8 @@ def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, si
         try:
             sms_msg = (
                 f"Welcome to Root Cause, {name}! Your account is ready. "
-                f"Check your email for next steps. We're excited to help uncover your root causes. Reply to this text for assistance."
+                f"Check your email for next steps or login at {site_url}/login. "
+                f"We're excited to help uncover your root causes. Reply to this text for assistance."
             )
             sms_ok, sms_msg = send_sms(customer_phone, sms_msg, reply_webhook_url=reply_webhook_url)
             if sms_ok:

@@ -1,6 +1,6 @@
 from flask import (
     Flask, render_template, request, redirect, url_for, flash, session,
-    send_from_directory, abort, jsonify,
+    send_from_directory, abort, jsonify, current_app,
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
