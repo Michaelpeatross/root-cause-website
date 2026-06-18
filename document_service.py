@@ -245,32 +245,33 @@ def extract_text(file_path, original_name, *, max_pages=30, max_chars=20000, all
         try:
             import zipfile
             with zipfile.ZipFile(file_path, 'r') as z:
-                # Apple Health export typically has export.xml
                 xml_members = [n for n in z.namelist() if n.lower().endswith('.xml') or 'export' in n.lower()]
                 if xml_members:
                     with z.open(xml_members[0]) as f:
-                        # Return truncated XML text; the wearable summary Grok will parse key fields
-                        raw = f.read().decode('utf-8', errors='ignore')[:15000]
-                        return f'[Apple Health / Wearable Export XML from {xml_members[0]}]\n{raw}\n[... truncated for processing ...]'
-                # other zip contents
+                        raw = f.read().decode('utf-8', errors='ignore')
+                        summary = _summarize_apple_health_xml(raw)
+                        return f'[Apple Health / Wearable Data Summary from {xml_members[0]}]\n{summary}'
                 members = ', '.join(z.namelist()[:8])
-                return f'[ZIP uploaded: {original_name} containing: {members} ...]'
+                return f'[ZIP archive uploaded: {original_name} containing: {members} ...]'
         except Exception:
             return f'[ZIP archive uploaded: {original_name} — extraction failed]'
 
     if ext == '.xml':
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()[:15000]
-                return f'[XML document - likely health export]\n{content}\n[... truncated ...]'
+                raw = f.read()
+                if 'HKQuantityType' in raw or 'Record' in raw[:1000]:
+                    summary = _summarize_apple_health_xml(raw)
+                    return f'[Apple Health / Wearable Data Summary]\n{summary}'
+                return f'[XML document]\n{raw[:5000]}\n[... truncated ...]'
         except Exception:
             return f'[XML uploaded: {original_name}]'
 
     if ext == '.csv':
         try:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                lines = [line.strip() for line in f.readlines()[:100]]
-                return '[CSV health data]\n' + '\n'.join(lines) + '\n[... truncated ...]'
+                lines = [line.strip() for line in f.readlines()[:50]]
+                return '[CSV health data summary (first 50 lines)]\n' + '\n'.join(lines)
         except Exception:
             return f'[CSV uploaded: {original_name}]'
 
@@ -279,12 +280,49 @@ def extract_text(file_path, original_name, *, max_pages=30, max_chars=20000, all
             import json
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                text = json.dumps(data, indent=2)[:8000]
-                return f'[JSON health data]\n{text}\n[... truncated ...]'
+                text = json.dumps(data, indent=2)[:4000]
+                return f'[JSON health data summary]\n{text}\n[... truncated ...]'
         except Exception:
             return f'[JSON uploaded: {original_name}]'
 
     return f'[Document uploaded: {original_name}]'
+
+
+def _summarize_apple_health_xml(xml_content: str, max_records: int = 20) -> str:
+    """Parse Apple Health XML and return a compact summary of key wearable metrics.
+    This keeps the text small for Grok and avoids token bloat.
+    """
+    try:
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(xml_content)
+        metrics = {}
+        samples = []
+        for record in list(root.findall('.//Record'))[:300]:
+            rtype = record.get('type', '').replace('HKQuantityTypeIdentifier', '').replace('HKCategoryTypeIdentifier', '')
+            value = record.get('value')
+            unit = record.get('unit', '')
+            date = record.get('startDate', '')[:10]
+            if not value:
+                continue
+            try:
+                val = float(value)
+            except:
+                continue
+            if any(k in rtype for k in ['HeartRate', 'RestingHeartRate', 'StepCount', 'Distance', 'ActiveEnergy', 'FlightsClimbed', 'Sleep', 'HeartRateVariability']):
+                if rtype not in metrics:
+                    metrics[rtype] = []
+                metrics[rtype].append(val)
+                if len(samples) < max_records:
+                    samples.append(f"{date} {rtype}: {val} {unit}")
+        summary_lines = []
+        for k, vals in metrics.items():
+            avg = sum(vals) / len(vals)
+            summary_lines.append(f"{k}: avg={avg:.1f}, min={min(vals):.1f}, max={max(vals):.1f} ({len(vals)} samples)")
+        if samples:
+            summary_lines.append("Sample entries: " + "; ".join(samples[:8]))
+        return "\n".join(summary_lines) if summary_lines else "No relevant wearable metrics parsed from export."
+    except Exception as e:
+        return f"Failed to parse Apple Health XML summary: {str(e)[:80]}. (Raw data will still be available for full analysis if needed.)"
 
 
 def parse_date_from_text(text):
