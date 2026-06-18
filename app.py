@@ -1427,6 +1427,8 @@ def dashboard():
                 if partial_errors:
                     msg += f' Some files skipped: {"; ".join(partial_errors[:3])}'
                 flash(msg, 'success')
+            except Exception as exc:
+                flash(f'Upload failed: {exc}', 'error')
 
         elif action == 'upload_health_data':
             try:
@@ -1480,8 +1482,6 @@ def dashboard():
                     flash(msg, 'success')
             except Exception as exc:
                 flash(f'Upload failed: {exc}', 'error')
-            except ValueError as exc:
-                flash(str(exc), 'error')
         elif action == 'request_analysis':
             report = _client_has_usable_scan_report(email)
             if report:
