@@ -915,6 +915,7 @@ def _approve_and_send_report(report, send_email=False, send_sms=False):
         send_email=send_email,
         send_sms=send_sms,
         reply_webhook_url=reply_url,
+        from_number="+15106801079",
     )
 
     messages = []
@@ -1138,7 +1139,7 @@ def login():
                                 f'Expires in 10 minutes. Enter this code + your new password on the login "Forgot password" form. Reply to this text if you need help.'
                             )
                             reply_url = f"{site.rstrip('/')}/api/textbelt/reply"
-                            send_sms(reset_user.phone, sms_msg, reply_webhook_url=reply_url)
+                            send_sms(reset_user.phone, sms_msg, reply_webhook_url=reply_url, from_number="+15106801079")
                             flash('A reset code has been sent to your phone via SMS. Enter the code (above) + your new password to complete the reset. You can also reply to the SMS.', 'success')
                         except Exception:
                             flash('Could not send SMS reset code. Please try email reset or contact support.', 'error')
@@ -1169,7 +1170,7 @@ def login():
                         f'Login: {site}/login . Reply to this text for help.'
                     )
                     reply_url = f"{site.rstrip('/')}/api/textbelt/reply"
-                    send_sms(reset_user.phone, sms_msg, reply_webhook_url=reply_url)
+                    send_sms(reset_user.phone, sms_msg, reply_webhook_url=reply_url, from_number="+15106801079")
 
                     email_subject = 'Root Cause Password Changed'
                     email_body = (
@@ -1264,7 +1265,7 @@ def register():
                 from notification_service import send_welcome_to_root_cause
                 site_url = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
                 reply_url = f"{site_url.rstrip('/')}/api/textbelt/reply"
-                send_welcome_to_root_cause(user.email, user.name, user.phone, site_url, reply_webhook_url=reply_url)
+                send_welcome_to_root_cause(user.email, user.name, user.phone, site_url, reply_webhook_url=reply_url, from_number="+15106801079")
             except Exception as exc:
                 print(f"[Root Cause] Welcome notification failed for {user.email}: {exc}")
 
@@ -1680,6 +1681,80 @@ def admin():
             else:
                 flash('Report not found or missing scan data.', 'error')
 
+        elif action == 'send_custom':
+            client_email = _normalize_email(request.form.get('client_email') or '')
+            custom_message = (request.form.get('message') or '').strip()
+            do_email = request.form.get('send_email') == 'on'
+            do_sms = request.form.get('send_sms') == 'on'
+            sel_report_id = request.form.get('report_id')
+            attach = request.files.get('attach_document')
+            from_num = "+15106801079"
+
+            if not client_email or not custom_message:
+                flash('Client email and message are required.', 'error')
+            else:
+                user = _find_user_by_email(client_email)
+                if not user:
+                    flash('Client not found.', 'error')
+                else:
+                    pdf_b = None
+                    pdf_n = None
+                    if attach and attach.filename:
+                        try:
+                            pdf_b = attach.read()
+                            pdf_n = attach.filename
+                        except Exception:
+                            pass
+
+                    site_url = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+                    reply_url = f"{site_url.rstrip('/')}/api/textbelt/reply"
+
+                    sent_msgs = []
+                    if sel_report_id:
+                        rpt = Report.query.get(sel_report_id)
+                        if rpt:
+                            # Send the report with the custom message as note
+                            msgs = deliver_report_to_client(
+                                client_email,
+                                user.name or client_email.split('@')[0],
+                                user.phone or '',
+                                rpt.title or 'Report',
+                                (custom_message or '') + "\n\nSee the attached report for details.",
+                                pdf_bytes=pdf_b,
+                                send_email=do_email,
+                                send_sms=do_sms,
+                                reply_webhook_url=reply_url,
+                                from_number=from_num,
+                            )
+                            sent_msgs = [m[2] for m in msgs if m[1] is not None]
+                        else:
+                            flash('Selected report not found.', 'error')
+                    else:
+                        # Pure custom text + optional doc
+                        from email_service import send_plain_email
+                        if do_email:
+                            subj = "Root Cause - Custom Message / Report / Reminder / Grok Suggestion"
+                            body = custom_message
+                            if pdf_n:
+                                body += f"\n\nAttached: {pdf_n} (view in email or login to portal)"
+                            ok, emsg = send_plain_email(
+                                client_email, subj, body, pdf_b, pdf_n, from_email='Info@root-cause-test.com'
+                            )
+                            sent_msgs.append(f'Email: {emsg}')
+
+                        if do_sms and user.phone:
+                            sms_body = custom_message[:1500]
+                            if pdf_n:
+                                sms_body += " (see email for attached document; login for full details)"
+                            ok, smsg = send_sms(
+                                user.phone, sms_body, reply_webhook_url=reply_url, from_number=from_num
+                            )
+                            sent_msgs.append(f'SMS: {smsg}')
+
+                    if sent_msgs:
+                        flash('Sent: ' + ' | '.join(sent_msgs), 'success')
+                    selected_client = client_email
+
         elif not email:
             flash('Select a client or enter a new client email.', 'error')
         else:
@@ -1812,7 +1887,7 @@ def textbelt_sms_reply():
             grok_response, _ = grok_public_scan_question(text)
             if grok_response:
                 from notification_service import send_sms
-                ok, msg = send_sms(from_number, grok_response, reply_webhook_url=reply_url)
+                ok, msg = send_sms(from_number, grok_response, reply_webhook_url=reply_url, from_number="+15106801079")
                 if ok:
                     current_app.logger.info(f"Grok auto-replied via SMS to {from_number}")
                 else:

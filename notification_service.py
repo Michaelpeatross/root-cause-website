@@ -35,16 +35,26 @@ def _normalize_phone(number):
     return f'+{digits}' if digits else ''
 
 
-def send_sms(to_number, message, reply_webhook_url=None):
+DEFAULT_SMS_FROM_NUMBER = "+15106801079"
+
+
+def send_sms(to_number, message, reply_webhook_url=None, from_number=None):
     """Send SMS. Prefers Textbelt (cheapest for low volume) if TEXTBELT_API_KEY is set,
     otherwise falls back to Twilio. Returns (success: bool, message: str).
     If reply_webhook_url is provided, Textbelt will POST replies to that URL.
+    from_number: optional specific caller ID (e.g. +15106801079). Supported on Twilio.
+    Note: Textbelt uses shared numbers; numeric from is not directly supported (use Twilio for fixed number).
     """
     to_num = _normalize_phone(to_number)
     if not to_num:
         return False, 'No phone number on file.'
 
+    sms_from = _normalize_phone(from_number) if from_number else _normalize_phone(DEFAULT_SMS_FROM_NUMBER)
+
     textbelt_key = _textbelt_key()
+    if sms_from and _twilio_configured():
+        textbelt_key = None  # force Twilio to use specific from number (e.g. +15106801079)
+
     if textbelt_key:
         # Textbelt: one of the cheapest production SMS options (~$3 per 1,000 texts, simple REST)
         try:
@@ -74,7 +84,7 @@ def send_sms(to_number, message, reply_webhook_url=None):
     # Twilio fallback (existing implementation)
     sid = os.environ['TWILIO_ACCOUNT_SID']
     token = os.environ['TWILIO_AUTH_TOKEN']
-    from_num = os.environ['TWILIO_FROM_NUMBER']
+    from_num = sms_from or os.environ.get('TWILIO_FROM_NUMBER') or os.environ.get('SMS_FROM_NUMBER', '')
 
     body = urllib.parse.urlencode({
         'To': to_num,
@@ -98,7 +108,7 @@ def send_sms(to_number, message, reply_webhook_url=None):
 
 def deliver_report_to_client(
     client_email, client_name, client_phone, report_title, plain_text,
-    pdf_bytes=None, send_email=True, send_sms=True, reply_webhook_url=None,
+    pdf_bytes=None, send_email=True, send_sms=True, reply_webhook_url=None, from_number=None,
 ):
     """Send report to client via selected channels. Returns list of status messages."""
     site = os.environ.get('SITE_URL', 'https://root-cause-website.onrender.com')
@@ -128,6 +138,7 @@ def deliver_report_to_client(
             f'Root Cause: Your report "{report_title}" is ready. '
             f'Log in to your portal: {site}/login . Reply to this text for help.',
             reply_webhook_url=reply_webhook_url,
+            from_number=from_number,
         )
         results.append(('sms', ok, msg))
     else:
@@ -217,7 +228,7 @@ def send_purchase_thank_you(customer_email, customer_name, customer_phone, produ
             print(f"[Root Cause] Purchase thank-you SMS failed for {customer_phone}: {exc}")
 
 
-def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, site_url, reply_webhook_url=None):
+def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, site_url, reply_webhook_url=None, from_number=None):
     """Send a friendly welcome email (and SMS if phone) when a new client account is created.
     If reply_webhook_url is provided, SMS replies will be sent to that URL.
     """
@@ -258,7 +269,7 @@ def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, si
                 f"Welcome to Root Cause, {name}! Your account is ready. "
                 f"Check your email for next steps. We're excited to help uncover your root causes. Reply to this text for assistance."
             )
-            sms_ok, sms_msg = send_sms(customer_phone, sms_msg, reply_webhook_url=reply_webhook_url)
+            sms_ok, sms_msg = send_sms(customer_phone, sms_msg, reply_webhook_url=reply_webhook_url, from_number=from_number)
             if sms_ok:
                 print(f"[Root Cause] Welcome SMS sent to {customer_phone}")
             else:

@@ -11,6 +11,51 @@
     </form>
     <span style="font-size:0.85rem; color:var(--text-muted); margin-left:0.5rem;">Uses <code>XAI_API_KEY</code> on Render (~0.001¢ per test)</span>
 
+    {# NEW: Send to Clients - text, email, reports, Grok suggestions, reminders, any document #}
+    <div class="card" style="margin-top:1.25rem; border:2px solid var(--green-dark);">
+        <h2 style="margin-bottom:0.25rem;">Send to Client (Email + SMS from 5106801079)</h2>
+        <p style="color:var(--text-muted); font-size:0.85rem; margin:0 0 0.75rem;">
+            Send custom text, reminders, Grok suggestions, full reports, or any document. SMS will use 5106801079 when Twilio is configured for that number.
+        </p>
+        <form method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="action" value="send_custom">
+
+            <label style="font-size:0.85rem;">Client:</label><br>
+            <select name="client_email" required style="max-width:100%; margin-bottom:0.5rem;">
+                {% for c in clients %}
+                <option value="{{ c.email }}" {% if selected_client == c.email %}selected{% endif %}>
+                    {{ c.name or c.email }} ({{ c.email }}) {% if c.phone %}— {{ c.phone }}{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+
+            <label style="font-size:0.85rem;">Message / Note / Grok Suggestion / Reminder (required):</label><br>
+            <textarea name="message" rows="3" required placeholder="E.g. Your latest Grok suggestions: ... or Reminder: upload new docs by Friday. Or paste report summary here." style="width:100%; margin-bottom:0.5rem;"></textarea>
+
+            <label style="font-size:0.85rem;">Optional: Attach document (PDF, etc.)</label><br>
+            <input type="file" name="attach_document" style="margin-bottom:0.5rem;"><br>
+
+            <label style="font-size:0.85rem;">Or send with existing report:</label><br>
+            <select name="report_id" style="max-width:100%; margin-bottom:0.5rem;">
+                <option value="">— None (custom only) —</option>
+                {% for r in reports %}
+                <option value="{{ r.id }}">{{ r.title }} for {{ r.user_email }} ({{ r.date }})</option>
+                {% endfor %}
+            </select>
+
+            <div style="margin-bottom:0.5rem;">
+                <label><input type="checkbox" name="send_email" checked> Send Email</label>
+                <label style="margin-left:1rem;"><input type="checkbox" name="send_sms" checked> Send SMS (from 5106801079)</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Send Now</button>
+            <span style="font-size:0.8rem; color:var(--text-muted); margin-left:0.5rem;">Client will receive on their registered phone/email.</span>
+        </form>
+        <p style="font-size:0.8rem; color:var(--text-muted); margin-top:0.5rem;">
+            Tip: Paste Grok suggestions from a client's report view, or use this for reminders and ad-hoc notes + docs.
+        </p>
+    </div>
+
     {% if storage_status.warnings %}
     <div class="card" style="margin-top:1.25rem; border:2px solid #c0392b; background:#fff5f5;">
         <h2 style="margin:0 0 0.5rem; color:#c0392b; font-size:1rem;">Data persistence warning</h2>
