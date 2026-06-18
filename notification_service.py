@@ -64,7 +64,7 @@ def send_sms(to_number, message, reply_webhook_url=None):
                 return True, f'SMS sent to {to_num} (Textbelt).'
             else:
                 err = result.get('error') or result.get('message') or 'Unknown Textbelt error'
-                return False, f'Textbelt error: {err}'
+                return False, f'Textbelt error: {err}. Check your key compliance and whitelist at textbelt.com for the replyWebhookUrl (and sender name "Root Cause"). Full response: {result}'
         except Exception as exc:
             return False, f'Textbelt failed: {exc}'
 
