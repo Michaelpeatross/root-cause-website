@@ -259,11 +259,7 @@ def _recommendations(active_categories):
             "Omega-3 and magnesium glycinate",
         ]
     if not labs:
-        labs = [
-            "Comprehensive metabolic panel",
-            "Thyroid panel (TSH, Free T3/T4)",
-            "Vitamin D, zinc, ferritin",
-        ]
+        labs = ["Blood tests available through GoodLabs"]
     return supplements[:8], labs[:8]
 
 

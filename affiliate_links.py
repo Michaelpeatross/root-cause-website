@@ -128,8 +128,7 @@ def match_supplement_link(supplement_text):
 
 
 def match_lab_links(lab_text):
-    """Return GoodLabs link for a blood test recommendation."""
-    del lab_text  # All lab orders route through GoodLabs
+    """Always return only GoodLabs for blood test recommendations."""
     return [(GOODLABS_LABEL, GOODLABS_BOOK_URL, GOODLABS_NOTE)]
 
 
@@ -147,18 +146,16 @@ def supplement_list_html(supplements):
 
 
 def lab_list_html(labs):
-    """Build HTML list with GoodLabs ordering links."""
-    items = []
-    for lab in labs:
-        _label, url, _note = match_lab_links(lab)[0]
-        items.append(
-            f'<li><strong>{escape(lab)}</strong><br>'
-            f'<span class="lab-links">'
-            f'<a href="{escape(url)}" target="_blank" rel="noopener">'
-            f'Order on {escape(GOODLABS_LABEL)}</a>'
-            f'</span></li>'
-        )
-    return ''.join(items)
+    """Build HTML list with GoodLabs ordering links. Only GoodLabs suggestions."""
+    url = GOODLABS_BOOK_URL
+    # Always only offer GoodLabs, ignore specific lab names for the list items
+    return (
+        f'<li>'
+        f'<a href="{escape(url)}" target="_blank" rel="noopener">'
+        f'Order recommended blood tests on {escape(GOODLABS_LABEL)}</a> '
+        f'<span class="affiliate-note">— online, no doctor visit required</span>'
+        f'</li>'
+    )
 
 
 def enrich_html_with_affiliate_links(html_content):
@@ -190,25 +187,18 @@ def enrich_html_with_affiliate_links(html_content):
 
     def replace_lab_section(match):
         section = match.group(0)
-        items = re.findall(r'<li>(.*?)</li>', section, re.DOTALL | re.IGNORECASE)
-        if not items:
-            return section
-        new_items = []
-        for item in items:
-            plain = re.sub(r'<[^>]+>', '', item).strip()
-            if not plain:
-                continue
-            _label, url, _note = match_lab_links(plain)[0]
-            new_items.append(
-                f'<li><strong>{escape(plain)}</strong><br>'
-                f'<span class="lab-links">'
-                f'<a href="{escape(url)}" target="_blank" rel="noopener">'
-                f'Order on {escape(GOODLABS_LABEL)}</a>'
-                f'</span></li>'
-            )
+        # Always only offer GoodLabs, no other providers or specific routing
+        url = GOODLABS_BOOK_URL
         header = re.search(r'<h4[^>]*>.*?Lab.*?</h4>', section, re.I)
         header_html = header.group(0) if header else '<h4>Labs to Discuss</h4>'
-        return f'{header_html}<ul>{"".join(new_items)}</ul>'
+        return (
+            f'{header_html}<ul>'
+            f'<li><a href="{escape(url)}" target="_blank" rel="noopener">'
+            f'Order blood tests on {escape(GOODLABS_LABEL)}</a> '
+            f'<span class="affiliate-note">— online blood tests, no doctor visit required</span>'
+            f'</li>'
+            f'</ul>'
+        )
 
     html = re.sub(
         r'<h4[^>]*>.*?Supplement.*?</h4>\s*<ul>.*?</ul>',

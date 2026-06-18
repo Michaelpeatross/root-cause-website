@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 ALLOWED_EXTENSIONS = {
     '.pdf', '.txt', '.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp',
     '.doc', '.docx', '.heic', '.heif',
+    '.zip', '.xml', '.csv', '.json',  # for health/wearable data exports (Apple Health, Fitbit, etc.)
 }
 MAX_UPLOAD_BYTES = 16 * 1024 * 1024
 MAX_FILES_PER_UPLOAD = 25
@@ -27,7 +28,7 @@ def save_upload(file_storage, upload_dir):
     original = secure_filename(file_storage.filename)
     if not allowed_file(original):
         raise ValueError(
-            f'"{original}" type not allowed. Use PDF, images (PNG/JPG/WEBP/GIF), TXT, or DOC/DOCX.'
+            f'"{original}" type not allowed. Use PDF, images (PNG/JPG/WEBP/GIF), TXT, DOC/DOCX, or health data exports (ZIP, XML, CSV, JSON).'
         )
 
     file_storage.seek(0, os.SEEK_END)
@@ -239,6 +240,49 @@ def extract_text(file_path, original_name, *, max_pages=30, max_chars=20000, all
 
     if ext in {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp', '.heic', '.heif'}:
         return f'[Medical image/screenshot uploaded: {original_name} — review with your practitioner]'
+
+    if ext == '.zip':
+        try:
+            import zipfile
+            with zipfile.ZipFile(file_path, 'r') as z:
+                # Apple Health export typically has export.xml
+                xml_members = [n for n in z.namelist() if n.lower().endswith('.xml') or 'export' in n.lower()]
+                if xml_members:
+                    with z.open(xml_members[0]) as f:
+                        # Return truncated XML text; the wearable summary Grok will parse key fields
+                        raw = f.read().decode('utf-8', errors='ignore')[:15000]
+                        return f'[Apple Health / Wearable Export XML from {xml_members[0]}]\n{raw}\n[... truncated for processing ...]'
+                # other zip contents
+                members = ', '.join(z.namelist()[:8])
+                return f'[ZIP uploaded: {original_name} containing: {members} ...]'
+        except Exception:
+            return f'[ZIP archive uploaded: {original_name} — extraction failed]'
+
+    if ext == '.xml':
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                content = f.read()[:15000]
+                return f'[XML document - likely health export]\n{content}\n[... truncated ...]'
+        except Exception:
+            return f'[XML uploaded: {original_name}]'
+
+    if ext == '.csv':
+        try:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = [line.strip() for line in f.readlines()[:100]]
+                return '[CSV health data]\n' + '\n'.join(lines) + '\n[... truncated ...]'
+        except Exception:
+            return f'[CSV uploaded: {original_name}]'
+
+    if ext == '.json':
+        try:
+            import json
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                text = json.dumps(data, indent=2)[:8000]
+                return f'[JSON health data]\n{text}\n[... truncated ...]'
+        except Exception:
+            return f'[JSON uploaded: {original_name}]'
 
     return f'[Document uploaded: {original_name}]'
 
