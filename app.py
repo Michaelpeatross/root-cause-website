@@ -1989,6 +1989,89 @@ def textbelt_sms_reply():
     return jsonify({"status": "received"}), 200
 
 
+@app.route('/twilio/voice', methods=['GET', 'POST'])
+def twilio_voice():
+    """Handle incoming voice calls on the Twilio number (e.g. 510-680-1079).
+    Clients call the number and Grok answers questions about Root Cause scans.
+    """
+    # Initial greeting + gather speech
+    twiml = '''<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say voice="alice">Hello, this is Grok from Root Cause Bioenergetics. How can I help you today with questions about our scans, costs, accuracy, or what we test for?</Say>
+    <Pause length="1"/>
+    <Gather input="speech" action="/twilio/gather" method="POST" timeout="10" speechTimeout="auto" language="en-US" bargeIn="false">
+        <Say voice="alice">Please speak your question after the tone.</Say>
+    </Gather>
+    <Say voice="alice">Sorry I didn't hear anything. Please call back or text us. Goodbye.</Say>
+</Response>'''
+    return twiml, 200, {'Content-Type': 'text/xml'}
+
+
+@app.route('/twilio/gather', methods=['POST'])
+def twilio_gather():
+    """Process speech from the caller and respond with Grok."""
+    speech = request.form.get('SpeechResult', '').strip()
+    from_number = request.form.get('From', 'unknown')
+
+    if not speech:
+        twiml = '''<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say voice="alice">I didn't catch that. Please try your question again or text us at our number.</Say>
+    <Gather input="speech" action="/twilio/gather" method="POST" timeout="8" speechTimeout="auto" language="en-US">
+        <Say voice="alice">Go ahead with your question.</Say>
+    </Gather>
+    <Say voice="alice">Goodbye.</Say>
+</Response>'''
+        return twiml, 200, {'Content-Type': 'text/xml'}
+
+    try:
+        current_app.logger.info(f"Twilio voice call from {from_number}: {speech}")
+
+        # Get Grok answer using the same public scan logic
+        grok_answer, _ = grok_public_scan_question(speech)
+
+        # Keep responses reasonable length for voice
+        if len(grok_answer) > 900:
+            grok_answer = grok_answer[:850] + "... For more, reply by text or visit our website."
+
+        # Respond and allow follow-up
+        twiml = f'''<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say voice="alice">{grok_answer}</Say>
+    <Pause length="1"/>
+    <Gather input="speech" action="/twilio/gather" method="POST" timeout="10" speechTimeout="auto" language="en-US">
+        <Say voice="alice">Do you have another question about the scans?</Say>
+    </Gather>
+    <Say voice="alice">Thanks for calling Root Cause. Have a great day.</Say>
+</Response>'''
+
+        # Also notify admin (like SMS replies)
+        try:
+            admin_email = os.environ.get('ADMIN_EMAIL', 'michaelpeatross@gmail.com')
+            from email_service import send_plain_email
+            site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+            body = (
+                f"Voice call received from: {from_number}\n\n"
+                f"Client said: {speech}\n\n"
+                f"Grok responded: {grok_answer}\n\n"
+                f"Time: {datetime.utcnow()}\n"
+                f"View admin: {site}/admin"
+            )
+            send_plain_email(admin_email, "Root Cause - New Voice Call from Client", body, from_email='Info@root-cause-test.com')
+        except Exception as email_err:
+            current_app.logger.error(f"Failed to email voice call: {email_err}")
+
+        return twiml, 200, {'Content-Type': 'text/xml'}
+
+    except Exception as e:
+        current_app.logger.error(f"Twilio Grok voice error: {e}")
+        twiml = '''<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+    <Say voice="alice">Sorry, I'm having trouble processing right now. Please text your question instead or call back later. Goodbye.</Say>
+</Response>'''
+        return twiml, 200, {'Content-Type': 'text/xml'}
+
+
 with app.app_context():
     db.create_all()
     migrate_schema()
