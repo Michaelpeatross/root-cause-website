@@ -189,15 +189,30 @@
         </p>
 
         <details style="margin-bottom: 1rem;">
-            <summary style="cursor: pointer; font-weight: 600; color: var(--green-dark);">How to export from Apple Watch (easiest)</summary>
-            <ol style="margin: 0.5rem 0 0 1.25rem; font-size: 0.9rem;">
-                <li>Open the <strong>Health</strong> app on your iPhone.</li>
-                <li>Tap your profile picture (top right).</li>
-                <li>Scroll down and tap <strong>Export All Health Data</strong>.</li>
-                <li>Save the .zip file (or unzip and upload the export.xml inside).</li>
-                <li>Come back here and upload below.</li>
+            <summary style="cursor: pointer; font-weight: 600; color: var(--green-dark);">Easiest way to upload Apple Health data (clients)</summary>
+            <ol style="margin: 0.4rem 0 0 1.25rem; font-size: 0.92rem; line-height: 1.35;">
+                <li>On your iPhone: Open <strong>Health</strong> app → tap your picture (top right) → scroll down → <strong>Export All Health Data</strong>.</li>
+                <li>Get the zip to a computer: AirDrop it, save to iCloud, or email it to yourself.</li>
+                <li>Upload the zip file (or the export.xml inside it) using the box below.</li>
             </ol>
-            <p style="font-size: 0.85rem; color: #666; margin-top: 0.5rem;">Apple Health exports contain your full history — Grok will focus on recent relevant trends.</p>
+            <p style="font-size: 0.85rem; margin: 0.4rem 0; color: #555;">
+                That's it for most people. The site automatically uses your <strong>recent data only</strong>.
+            </p>
+            <p style="margin: 0.3rem 0;">
+                <strong>If the file is too big to upload:</strong> Unzip on the computer, delete the folders named <em>electrocardograms</em> and <em>workout-routes</em>, then upload what's left.
+            </p>
+            <p style="margin-top: 0.35rem; display: flex; gap: 8px; flex-wrap: wrap;">
+                <a href="/health-app" class="btn btn-primary" style="font-size:0.9rem; padding:0.35rem 0.7rem;">
+                    📱 Open Web App (install on iPhone)
+                </a>
+                <a href="/download/health-uploader" class="btn btn-outline" style="font-size:0.9rem; padding:0.35rem 0.7rem;">
+                    💻 Download Desktop Tool
+                </a>
+            </p>
+            <p style="font-size: 0.8rem; color: #666;">
+                Want a real <strong>iOS App on the App Store</strong> using HealthKit directly? 
+                Full starter code + instructions are ready in the project (<code>ios-app/README.md</code>).
+            </p>
         </details>
 
         <details style="margin-bottom: 1rem;">
@@ -218,7 +233,8 @@
                 <label for="health_files">Health data files (Apple export, CSVs, etc.)</label>
                 <input type="file" id="health_files" name="health_files" accept=".zip,.xml,.csv,.json,.txt" multiple required>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0;">
-                    You can upload multiple exports (max 100 MB each). Large Apple Health zips are supported. If too big, unzip and upload only the export.xml file. Grok will auto-generate a compact summary on upload.
+                    Just upload the Apple zip (or export.xml). Most clients can upload directly.<br>
+                    The system focuses on your recent data. If it's too big, delete the two big folders after unzipping first.
                 </p>
             </div>
             <div class="form-group">
@@ -230,8 +246,8 @@
         {% endif %}
 
         <p style="font-size: 0.85rem; margin-top: 0.75rem; color: var(--text-muted);">
-            <strong>Grok will automatically generate a wearable data summary right after upload.</strong><br>
-            Then request "Updated Grok Analysis" below so the summary + raw data are incorporated into your full report.
+            Upload creates a safe local summary of recent wearable data.<br>
+            Click <strong>"Request Updated Grok Analysis"</strong> to have Grok analyze the trends and put them into your full report.
         </p>
     </div>
 

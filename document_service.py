@@ -11,7 +11,7 @@ ALLOWED_EXTENSIONS = {
     '.doc', '.docx', '.heic', '.heif',
     '.zip', '.xml', '.csv', '.json',  # for health/wearable data exports (Apple Health, Fitbit, etc.)
 }
-MAX_UPLOAD_BYTES = 100 * 1024 * 1024  # 100 MB (needed for large Apple Health export.zip files)
+MAX_UPLOAD_BYTES = 200 * 1024 * 1024  # allow most Apple Health zips so clients can usually upload directly
 MAX_FILES_PER_UPLOAD = 25
 
 
@@ -247,9 +247,11 @@ def extract_text(file_path, original_name, *, max_pages=30, max_chars=20000, all
             with zipfile.ZipFile(file_path, 'r') as z:
                 xml_members = [n for n in z.namelist() if n.lower().endswith('.xml') or 'export' in n.lower()]
                 if xml_members:
+                    info = z.getinfo(xml_members[0])
+                    # Always try to summarize recent data (the parser uses bounded deques so it only keeps newest readings).
+                    # This lets clients usually just upload the full zip.
                     with z.open(xml_members[0]) as f:
-                        raw = f.read().decode('utf-8', errors='ignore')
-                        summary = _summarize_apple_health_xml(raw)
+                        summary = _summarize_apple_health_xml(f)
                         return f'[Apple Health / Wearable Data Summary from {xml_members[0]}]\n{summary}'
                 members = ', '.join(z.namelist()[:8])
                 return f'[ZIP archive uploaded: {original_name} containing: {members} ...]'
@@ -258,12 +260,16 @@ def extract_text(file_path, original_name, *, max_pages=30, max_chars=20000, all
 
     if ext == '.xml':
         try:
+            # Try to summarize even large direct .xml files (recent-only logic keeps memory low)
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                raw = f.read()
-                if 'HKQuantityType' in raw or 'Record' in raw[:1000]:
-                    summary = _summarize_apple_health_xml(raw)
+                # peek first 1k to decide
+                peek = f.read(1000)
+                f.seek(0)
+                if 'HKQuantityType' in peek or 'Record' in peek:
+                    summary = _summarize_apple_health_xml(f)
                     return f'[Apple Health / Wearable Data Summary]\n{summary}'
-                return f'[XML document]\n{raw[:5000]}\n[... truncated ...]'
+                content = peek + f.read(4000)
+                return f'[XML document]\n{content}\n[... truncated ...]'
         except Exception:
             return f'[XML uploaded: {original_name}]'
 
@@ -288,39 +294,81 @@ def extract_text(file_path, original_name, *, max_pages=30, max_chars=20000, all
     return f'[Document uploaded: {original_name}]'
 
 
-def _summarize_apple_health_xml(xml_content: str, max_records: int = 20) -> str:
-    """Parse Apple Health XML and return a compact summary of key wearable metrics.
-    This keeps the text small for Grok and avoids token bloat.
+def _summarize_apple_health_xml(xml_file_or_content, max_records: int = 30) -> str:
+    """Parse Apple Health XML and return a compact summary focused on RECENT data.
+    Uses bounded deques so full multi-GB history exports still only keep the newest samples.
+    Safe for large client uploads.
     """
     try:
+        from collections import deque
         import xml.etree.ElementTree as ET
-        root = ET.fromstring(xml_content)
-        metrics = {}
-        samples = []
-        for record in list(root.findall('.//Record'))[:300]:
-            rtype = record.get('type', '').replace('HKQuantityTypeIdentifier', '').replace('HKCategoryTypeIdentifier', '')
-            value = record.get('value')
-            unit = record.get('unit', '')
-            date = record.get('startDate', '')[:10]
-            if not value:
-                continue
-            try:
-                val = float(value)
-            except:
-                continue
-            if any(k in rtype for k in ['HeartRate', 'RestingHeartRate', 'StepCount', 'Distance', 'ActiveEnergy', 'FlightsClimbed', 'Sleep', 'HeartRateVariability']):
-                if rtype not in metrics:
-                    metrics[rtype] = []
-                metrics[rtype].append(val)
-                if len(samples) < max_records:
-                    samples.append(f"{date} {rtype}: {val} {unit}")
+
+        # We keep only the most recent values per metric (newest data wins)
+        metrics = {}          # rtype -> deque of recent values
+        recent_samples = deque(maxlen=max_records)
+        count = 0
+        MAX_ITER = 5000       # safety cap - we can scan more now because we don't store everything
+
+        def add_value(rtype, val, unit, date):
+            if rtype not in metrics:
+                metrics[rtype] = deque(maxlen=200)  # keep last ~200 readings per metric
+            metrics[rtype].append(val)
+            recent_samples.append(f"{date} {rtype}: {val} {unit}")
+
+        if isinstance(xml_file_or_content, str):
+            root = ET.fromstring(xml_file_or_content)
+            for record in root.findall('.//Record'):
+                if count >= MAX_ITER:
+                    break
+                count += 1
+                rtype = record.get('type', '').replace('HKQuantityTypeIdentifier', '').replace('HKCategoryTypeIdentifier', '')
+                value = record.get('value')
+                unit = record.get('unit', '')
+                date = record.get('startDate', '')[:10]
+                if not value:
+                    continue
+                try:
+                    val = float(value)
+                except:
+                    continue
+                if any(k in rtype for k in ['HeartRate', 'RestingHeartRate', 'StepCount', 'Distance', 'ActiveEnergy', 'FlightsClimbed', 'Sleep', 'HeartRateVariability']):
+                    add_value(rtype, val, unit, date)
+        else:
+            context = ET.iterparse(xml_file_or_content, events=('end',))
+            for event, elem in context:
+                if elem.tag == 'Record':
+                    if count >= MAX_ITER:
+                        elem.clear()
+                        break
+                    count += 1
+                    rtype = elem.get('type', '').replace('HKQuantityTypeIdentifier', '').replace('HKCategoryTypeIdentifier', '')
+                    value = elem.get('value')
+                    unit = elem.get('unit', '')
+                    date = elem.get('startDate', '')[:10]
+                    if value:
+                        try:
+                            val = float(value)
+                            if any(k in rtype for k in ['HeartRate', 'RestingHeartRate', 'StepCount', 'Distance', 'ActiveEnergy', 'FlightsClimbed', 'Sleep', 'HeartRateVariability']):
+                                add_value(rtype, val, unit, date)
+                        except:
+                            pass
+                    elem.clear()
+
         summary_lines = []
         for k, vals in metrics.items():
-            avg = sum(vals) / len(vals)
-            summary_lines.append(f"{k}: avg={avg:.1f}, min={min(vals):.1f}, max={max(vals):.1f} ({len(vals)} samples)")
-        if samples:
-            summary_lines.append("Sample entries: " + "; ".join(samples[:8]))
-        return "\n".join(summary_lines) if summary_lines else "No relevant wearable metrics parsed from export."
+            if not vals:
+                continue
+            vlist = list(vals)  # last N values
+            avg = sum(vlist) / len(vlist)
+            summary_lines.append(f"{k}: recent avg={avg:.1f}, min={min(vlist):.1f}, max={max(vlist):.1f} ({len(vlist)} samples)")
+
+        if recent_samples:
+            summary_lines.append("Recent sample entries: " + "; ".join(list(recent_samples)[-8:]))
+
+        if not summary_lines:
+            return "No relevant wearable metrics parsed from export."
+
+        return "\n".join(summary_lines) + "\n(Note: Summary uses your most recent data only.)"
     except Exception as e:
         return f"Failed to parse Apple Health XML summary: {str(e)[:80]}. (Raw data will still be available for full analysis if needed.)"
 

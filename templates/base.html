@@ -3,6 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- PWA support for installable "app" experience on iPhone/Android -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#2e7d32">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Root Cause Health">
     <title>{% block title %}Root Cause{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
     {% block extra_head %}{% endblock %}
@@ -251,6 +257,34 @@
     if (ev.key === 'Escape' && panel.classList.contains('open')) close();
   });
   window.__openAskGrok = open;
+})();
+</script>
+
+<!-- Simple analytics for admin: page visits, time on page, exits, searches -->
+<script>
+(function() {
+  const startTime = Date.now();
+  const currentPath = location.pathname;
+
+  function sendExit() {
+    const timeSpent = Math.round((Date.now() - startTime) / 1000);
+    try {
+      navigator.sendBeacon('/api/analytics/exit', JSON.stringify({
+        path: currentPath,
+        timeSpent: timeSpent
+      }));
+    } catch (e) {}
+  }
+
+  // Send on page hide / before unload (works for click off, tab close, back button)
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'hidden') sendExit();
+  });
+  window.addEventListener('beforeunload', sendExit);
+  window.addEventListener('pagehide', sendExit);
+
+  // Optional: log explicit searches if any global search exists
+  // (Grok searches are already logged server-side)
 })();
 </script>
 </body>

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Health Uploader - Root Cause{% endblock %}
+
+{% block extra_head %}
+<style>
+  .app-container { max-width: 480px; margin: 0 auto; padding: 16px; }
+  .app-header { text-align: center; margin-bottom: 24px; }
+  .app-header h1 { font-size: 1.6rem; margin: 0; }
+  .upload-box {
+    border: 3px dashed #2e7d32;
+    border-radius: 16px;
+    padding: 40px 20px;
+    text-align: center;
+    margin: 20px 0;
+    background: #f8fff8;
+  }
+  .btn-big {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    font-size: 1.1rem;
+    margin-top: 12px;
+  }
+  .status { margin-top: 20px; padding: 12px; border-radius: 8px; background: #f5f5f5; font-family: monospace; white-space: pre-wrap; }
+  .step { margin-bottom: 16px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="app-container">
+  <div class="app-header">
+    <h1>📱 Root Cause Health</h1>
+    <p>Send your Apple Watch data to Grok</p>
+  </div>
+
+  <div class="card">
+    <h2>Step 1: Export from iPhone</h2>
+    <ol>
+      <li>Open the <strong>Health</strong> app</li>
+      <li>Tap your profile picture</li>
+      <li>Scroll down → <strong>Export All Health Data</strong></li>
+      <li>Share the .zip to your computer or Files app</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2>Step 2: Upload here</h2>
+
+    {% if not session.get('user_id') %}
+      <p><strong>You need to be logged in.</strong></p>
+      <a href="{{ url_for('login') }}" class="btn btn-primary btn-big">Log In to Continue</a>
+    {% else %}
+
+    <form id="upload-form" enctype="multipart/form-data">
+      <div class="upload-box" id="drop-zone">
+        <p><strong>Drop your export.zip here</strong><br>or</p>
+        <input type="file" id="health_file" name="file" accept=".zip,.xml" required style="margin: 10px 0;">
+        <p style="font-size: 0.85rem; color: #666;">Max ~200MB. We'll focus on recent data.</p>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-big" id="upload-btn">
+        Upload to Grok
+      </button>
+    </form>
+
+    <div id="status" class="status" style="display:none;"></div>
+
+    <p style="margin-top: 20px; font-size: 0.9rem;">
+      After uploading, go to your <a href="{{ url_for('dashboard') }}">Dashboard</a> and click
+      <strong>"Request Updated Grok Analysis"</strong>.
+    </p>
+
+    {% endif %}
+  </div>
+
+  <div style="text-align:center; margin-top:30px; font-size:0.8rem; color:#888;">
+    <strong>On iPhone:</strong> Tap Share → "Add to Home Screen" to install as an app.
+  </div>
+</div>
+
+<script>
+  const form = document.getElementById('upload-form');
+  const statusBox = document.getElementById('status');
+  const btn = document.getElementById('upload-btn');
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      btn.textContent = 'Uploading...';
+      statusBox.style.display = 'block';
+      statusBox.textContent = 'Preparing upload...\n';
+
+      const formData = new FormData(form);
+      const fileInput = document.getElementById('health_file');
+
+      try {
+        // Use the same API the desktop app uses
+        const response = await fetch('/api/client/upload_health', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          statusBox.textContent = '✅ Success!\n\n' + result.message + '\n\nNow go to your Dashboard and request an analysis update.';
+        } else {
+          statusBox.textContent = '❌ Error: ' + (result.error || 'Upload failed');
+        }
+      } catch (err) {
+        statusBox.textContent = '❌ Network error: ' + err.message;
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Upload to Grok';
+    });
+
+    // Simple drag & drop
+    const dropZone = document.getElementById('drop-zone');
+    if (dropZone) {
+      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = '#e8f5e9'; });
+      dropZone.addEventListener('dragleave', () => { dropZone.style.background = '#f8fff8'; });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.background = '#f8fff8';
+        const file = e.dataTransfer.files[0];
+        if (file) {
+          const dt = new DataTransfer();
+          dt.items.add(file);
+          document.getElementById('health_file').files = dt.files;
+        }
+      });
+    }
+  }
+</script>
+{% endblock %}

@@ -11,6 +11,7 @@ import os
 import re
 from datetime import datetime
 from collections import OrderedDict
+import uuid
 
 from report_generator import generate_report_html, generate_report_text
 from pdf_service import save_report_pdf, pdf_to_bytes
@@ -45,7 +46,7 @@ from central_time import format_report_stamp, central_now
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'rootcause2026secretkey')
-app.config['MAX_CONTENT_LENGTH'] = 80 * 1024 * 1024
+app.config['MAX_CONTENT_LENGTH'] = 200 * 1024 * 1024  # allow most full Apple Health zips so clients can upload directly
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 # Use RENDER (auto-set on Render.com), not SITE_URL — SITE_URL=https breaks local HTTP sessions.
@@ -84,6 +85,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = _storage['database_uri']
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+
+
+@app.before_request
+def before_request_analytics():
+    # Log visits for all non-static pages. Runs for every request.
+    _log_page_view()
 
 
 class User(db.Model):
@@ -139,6 +146,37 @@ class ReportScanPdf(db.Model):
     report = db.relationship('Report', backref=db.backref('scan_pdfs', lazy=True))
 
 
+# Simple in-app analytics models
+class PageView(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(120))
+    path = db.Column(db.String(300))
+    method = db.Column(db.String(10))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    ip = db.Column(db.String(50))
+    user_agent = db.Column(db.String(300))
+    referrer = db.Column(db.String(400))
+    anon_id = db.Column(db.String(100))  # for non-logged in tracking
+
+
+class SearchQuery(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(120))
+    query = db.Column(db.String(500))
+    source = db.Column(db.String(50))  # 'grok', 'public', 'contact'
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    result_snippet = db.Column(db.Text)
+
+
+class ExitLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_email = db.Column(db.String(120))
+    path = db.Column(db.String(300))
+    time_spent_seconds = db.Column(db.Integer)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    anon_id = db.Column(db.String(100))
+
+
 def ensure_admin_user():
     admin_email = 'michaelpeatross@gmail.com'
     bootstrap_pw = os.environ.get('ADMIN_PASSWORD', 'admin123')
@@ -157,6 +195,136 @@ def ensure_admin_user():
             user.name = 'Michael Peatross'
         if not check_password_hash(user.password, bootstrap_pw):
             user.password = generate_password_hash(bootstrap_pw)
+
+
+def _log_page_view():
+    """Log a page view for analytics. Skips static, favicon, analytics endpoints, etc."""
+    try:
+        path = request.path or ''
+        if (path.startswith('/static') or
+            path.startswith('/api/analytics') or
+            path in ('/favicon.ico', '/robots.txt')):
+            return
+        user_email = session.get('email')
+        anon_id = session.get('anon_id')
+        if not anon_id:
+            # create a simple anon id for this session
+            anon_id = str(uuid.uuid4())[:12]
+            session['anon_id'] = anon_id
+
+        view = PageView(
+            user_email=user_email,
+            path=path[:300],
+            method=request.method,
+            ip=request.remote_addr,
+            user_agent=(request.headers.get('User-Agent') or '')[:300],
+            referrer=(request.headers.get('Referer') or '')[:400],
+            anon_id=anon_id,
+        )
+        db.session.add(view)
+        db.session.commit()
+    except Exception:
+        # never break the request for analytics
+        db.session.rollback()
+
+
+def _log_search(query: str, source: str = 'grok', snippet: str = ''):
+    """Log keyword searches (mainly from Grok)."""
+    try:
+        if not query or len(query.strip()) < 3:
+            return
+        user_email = session.get('email')
+        sq = SearchQuery(
+            user_email=user_email,
+            query=query.strip()[:500],
+            source=source,
+            result_snippet=snippet[:500] if snippet else '',
+        )
+        db.session.add(sq)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _log_exit(path: str, time_spent: int):
+    """Log when user leaves a page."""
+    try:
+        user_email = session.get('email')
+        anon_id = session.get('anon_id')
+        el = ExitLog(
+            user_email=user_email,
+            path=path[:300],
+            time_spent_seconds=max(0, int(time_spent)),
+            anon_id=anon_id,
+        )
+        db.session.add(el)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
+def _get_analytics_summary(limit=100):
+    """Gather analytics for admin page."""
+    try:
+        from sqlalchemy import func
+        # Site visits
+        total_views = PageView.query.count()
+        unique_visitors = db.session.query(PageView.anon_id).distinct().count() + \
+                          db.session.query(PageView.user_email).filter(PageView.user_email.isnot(None)).distinct().count()
+
+        # Top pages
+        top_pages = db.session.query(
+            PageView.path, func.count(PageView.id).label('views')
+        ).group_by(PageView.path).order_by(func.count(PageView.id).desc()).limit(15).all()
+
+        # Recent visits
+        recent_views = PageView.query.order_by(PageView.timestamp.desc()).limit(20).all()
+
+        # Keyword searches
+        searches = SearchQuery.query.order_by(SearchQuery.timestamp.desc()).limit(30).all()
+        # Popular keywords
+        popular = db.session.query(
+            SearchQuery.query, func.count(SearchQuery.id).label('cnt')
+        ).group_by(SearchQuery.query).order_by(func.count(SearchQuery.id).desc()).limit(15).all()
+
+        # Exits / bounce info
+        exits = ExitLog.query.order_by(ExitLog.timestamp.desc()).limit(20).all()
+        avg_time = db.session.query(func.avg(ExitLog.time_spent_seconds)).scalar() or 0
+
+        # Simple path analysis (last 50 views grouped roughly by anon/time)
+        recent_paths = PageView.query.order_by(PageView.timestamp.desc()).limit(50).all()
+
+        # Generate SEO / searchability suggestions
+        suggestions = []
+        if popular:
+            top_terms = [p[0] for p in popular[:5]]
+            suggestions.append(f"Users frequently ask about: {', '.join(top_terms)}. Consider adding dedicated FAQ pages, blog posts or enhanced Grok prompts covering these topics.")
+        if any('apple' in (p[0] or '').lower() or 'health' in (p[0] or '').lower() for p in popular):
+            suggestions.append("Strong interest in Apple Watch / wearable data. Ensure prominent 'Upload Health Data' section and clear instructions on homepage and dashboard.")
+        suggestions.append("General SEO tips: Add unique title tags and meta descriptions to key pages (/, /buy, /contact, dashboard pages). Submit sitemap to Google Search Console. Use the robots.txt already in place.")
+        suggestions.append("To improve internal searchability: Consider adding a site-wide search bar that logs to /api/analytics/search and surfaces common Grok answers.")
+        if total_views > 50 and avg_time < 30:
+            suggestions.append("Low average time on page detected. Consider clearer calls-to-action and more engaging content above the fold.")
+
+        return {
+            'total_views': total_views,
+            'unique_visitors': unique_visitors,
+            'top_pages': top_pages,
+            'recent_views': recent_views,
+            'searches': searches,
+            'popular_searches': popular,
+            'exits': exits,
+            'avg_time_on_page': round(avg_time, 1) if avg_time else 0,
+            'recent_paths': recent_paths,
+            'suggestions': suggestions,
+        }
+    except Exception as e:
+        print(f"[Analytics] Error building summary: {e}")
+        return {
+            'total_views': 0, 'unique_visitors': 0, 'top_pages': [], 'recent_views': [],
+            'searches': [], 'popular_searches': [], 'exits': [], 'avg_time_on_page': 0,
+            'recent_paths': [], 'suggestions': ['Analytics data is being collected. Visit more pages to see stats.']
+        }
     db.session.commit()
 
 
@@ -936,6 +1104,12 @@ def _approve_and_send_report(report, send_email=False, send_sms=False):
     return messages
 
 
+@app.route('/robots.txt')
+def robots_txt():
+    # Discourage some aggressive crawlers and scanners
+    return "User-agent: *\nDisallow: /admin\nDisallow: /dashboard\nDisallow: /login\n", 200, {'Content-Type': 'text/plain'}
+
+
 @app.route('/')
 def index():
     return render_template(
@@ -1443,45 +1617,45 @@ def dashboard():
                         saved_files, partial_errors = upload_result, []
 
                     upload_dt = central_now()
-                    count = _save_client_documents(
-                        email, saved_files, form_date=request.form.get('health_test_date', '').strip(),
-                        upload_dt=upload_dt,
-                    )
+                    # Light save for health data: just save the raw file. Do NOT parse the (potentially 1GB+) XML here.
+                    # Heavy parsing / recent summary happens later during "Request Updated Grok Analysis" to avoid 502/restarts.
+                    count = 0
+                    for stored, original in saved_files:
+                        doc = ClientDocument(
+                            user_email=email,
+                            stored_filename=stored,
+                            original_name=original,
+                            extracted_text=f"[Wearable Health Data uploaded: {original}. File saved. Recent trends will be summarized on next analysis request.]",
+                            test_date=(request.form.get('health_test_date') or '').strip() or upload_dt.strftime('%Y-%m-%d'),
+                            grok_label='Wearable Health Data (Apple Watch / Fitness Tracker)',
+                            uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
+                        )
+                        db.session.add(doc)
+                        count += 1
                     db.session.commit()
 
-                    # Label them as wearable data for Grok
+                    # Re-fetch and ensure label (in case)
                     recent_docs = ClientDocument.query.filter_by(user_email=email).order_by(ClientDocument.id.desc()).limit(count).all()
                     for doc in recent_docs:
                         if 'health' not in (doc.grok_label or '').lower() and 'wearable' not in (doc.grok_label or '').lower():
                             doc.grok_label = 'Wearable Health Data (Apple Watch / Fitness Tracker)'
                     db.session.commit()
 
-                    # Auto-generate wearable summary with Grok immediately
-                    try:
-                        combined_wearable = combined_document_text(recent_docs)
-                        summary = generate_wearable_summary(combined_wearable, email)
-                        if summary:
-                            summary_doc = ClientDocument(
-                                user_email=email,
-                                stored_filename='',
-                                original_name='Grok Wearable Summary',
-                                extracted_text=summary,
-                                test_date=upload_dt.strftime('%Y-%m-%d'),
-                                grok_label='Wearable Summary (Auto-generated by Grok)',
-                                uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
-                            )
-                            db.session.add(summary_doc)
-                            db.session.commit()
-                            flash('Grok automatically generated a wearable data summary for you.', 'success')
-                    except Exception as sum_exc:
-                        current_app.logger.error(f"Auto wearable summary failed: {sum_exc}")
+                    # NOTE: We no longer call Grok immediately here. Large Apple exports (full history = 1GB+ xml) + Grok call were causing restarts/502s.
+                    # The cheap local summary from extract_text is already stored in the document.
+                    # Detailed Grok wearable trends summary + inclusion in report happens on "Request Updated Grok Analysis".
 
-                    msg = f'Uploaded {count} wearable/health data file(s). Grok will analyze trends (HR, sleep, steps, etc.) in your next updated report.'
+                    msg = f'Uploaded {count} wearable/health data file(s). Raw data saved. Click "Request Updated Grok Analysis" for Grok to summarize trends (HR, sleep, steps, HRV etc.) and include them in your report.'
                     if partial_errors:
                         msg += f' Some skipped: {"; ".join(partial_errors[:3])}'
                     flash(msg, 'success')
             except Exception as exc:
                 flash(f'Upload failed: {exc}', 'error')
+                try:
+                    db.session.rollback()
+                except:
+                    pass
+
         elif action == 'request_analysis':
             report = _client_has_usable_scan_report(email)
             if report:
@@ -1587,6 +1761,7 @@ def grok_ask_api():
         answer, source = grok_explain_term(
             term, report, documents=documents, client_name=client_name,
         )
+        _log_search(term, source='grok_term', snippet=answer[:300] if answer else '')
         return jsonify({'answer': answer, 'source': source, 'term': term})
 
     if not question:
@@ -1595,6 +1770,7 @@ def grok_ask_api():
     answer, source = grok_answer_question(
         question, report, documents=documents, client_name=client_name,
     )
+    _log_search(question, source='grok', snippet=answer[:300] if answer else '')
     return jsonify({'answer': answer, 'source': source, 'question': question})
 
 
@@ -1614,7 +1790,34 @@ def grok_public_api():
         }), 429
 
     answer, source = grok_public_scan_question(question)
+    _log_search(question, source='public', snippet=answer[:300] if answer else '')
     return jsonify({'answer': answer, 'source': source, 'question': question})
+
+
+@app.route('/api/analytics/exit', methods=['POST'])
+def analytics_exit():
+    """Called by JS when user leaves the page. Records time spent and exit."""
+    try:
+        data = request.get_json(silent=True) or {}
+        path = (data.get('path') or request.path)[:300]
+        time_spent = int(data.get('timeSpent') or 0)
+        _log_exit(path, time_spent)
+    except Exception:
+        pass
+    return jsonify({'ok': True})
+
+
+@app.route('/api/analytics/search', methods=['POST'])
+def analytics_search():
+    """Optional explicit search logging."""
+    try:
+        data = request.get_json(silent=True) or {}
+        q = (data.get('query') or '').strip()
+        src = data.get('source', 'manual')
+        _log_search(q, source=src)
+    except Exception:
+        pass
+    return jsonify({'ok': True})
 
 
 @app.route('/reports/<int:report_id>/pdf')
@@ -1671,12 +1874,124 @@ def download_document(doc_id):
     )
 
 
+@app.route('/download/trim-apple-health')
+def download_trim_script():
+    """Let clients easily download the helper tool to trim huge Apple Health exports."""
+    current_user = _get_current_user()
+    if not current_user:
+        return redirect(url_for('login'))
+
+    script_path = os.path.join(basedir, 'trim_apple_health.py')
+    if not os.path.exists(script_path):
+        flash('Trim tool temporarily unavailable. Please contact support.', 'error')
+        return redirect(url_for('dashboard'))
+
+    return send_from_directory(
+        basedir,
+        'trim_apple_health.py',
+        as_attachment=True,
+        download_name='trim_apple_health.py'
+    )
+
+
+@app.route('/health-app')
+def health_app():
+    """Installable mobile-friendly health data uploader (PWA)."""
+    return render_template('health_app.html')
+
+
+@app.route('/download/health-uploader')
+def download_health_uploader():
+    """Public download of the standalone desktop app (no login needed to get the tool)."""
+    script_path = os.path.join(basedir, 'health_uploader.py')
+    if not os.path.exists(script_path):
+        return "Uploader temporarily unavailable", 503
+
+    return send_from_directory(
+        basedir,
+        'health_uploader.py',
+        as_attachment=True,
+        download_name='rootcause_health_uploader.py'
+    )
+
+
+@app.route('/api/client/upload_health', methods=['POST'])
+def api_client_upload_health():
+    """Simple API for the standalone Health Uploader app (and future tools).
+    Accepts email + password + file. Saves lightly so large exports don't cause 502s on upload.
+    """
+    email = (request.form.get('email') or '').strip().lower()
+    password = request.form.get('password') or ''
+    file_storage = request.files.get('file')
+
+    # Support JSON for native iOS apps (HealthKit data)
+    json_data = request.get_json(silent=True) or {}
+    if not email or not password:
+        # Try form
+        email = (request.form.get('email') or json_data.get('email', '')).strip().lower()
+        password = request.form.get('password') or json_data.get('password', '')
+
+    user = User.query.filter(db.func.lower(User.email) == email).first()
+    if not user or not check_password_hash(user.password, password):
+        return jsonify({'error': 'Invalid email or password'}), 401
+
+    upload_dt = central_now()
+
+    if file_storage:
+        try:
+            stored, original = save_upload(file_storage, documents_dir)
+        except ValueError as exc:
+            return jsonify({'error': str(exc)}), 400
+        except Exception as exc:
+            return jsonify({'error': 'Upload failed: ' + str(exc)}), 400
+
+        doc = ClientDocument(
+            user_email=user.email,
+            stored_filename=stored,
+            original_name=original,
+            extracted_text=f"[Wearable Health Data uploaded via app: {original}]",
+            test_date=upload_dt.strftime('%Y-%m-%d'),
+            grok_label='Wearable Health Data (Apple Watch / Fitness Tracker)',
+            uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
+        )
+        db.session.add(doc)
+        db.session.commit()
+
+    elif json_data.get('health_data'):
+        # Native app sending structured data
+        summary = json.dumps(json_data['health_data'])[:8000]
+        doc = ClientDocument(
+            user_email=user.email,
+            stored_filename='',
+            original_name='HealthKit Data (iOS App)',
+            extracted_text=f"[Wearable data from iOS app]\n{summary}",
+            test_date=upload_dt.strftime('%Y-%m-%d'),
+            grok_label='Wearable Health Data (Apple Watch / Fitness Tracker)',
+            uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
+        )
+        db.session.add(doc)
+        db.session.commit()
+    else:
+        return jsonify({'error': 'No file or health_data provided'}), 400
+
+    return jsonify({
+        'success': True,
+        'message': 'Health data uploaded successfully. Go to your dashboard and request an analysis update.'
+    })
+
+
 @app.route('/admin', methods=['GET', 'POST'])
 def admin():
     current_user = _get_current_user()
     if not current_user or not current_user.is_admin:
         flash('Admin access required.', 'error')
         return redirect(url_for('login'))
+
+    # Ensure new analytics tables are created
+    try:
+        db.create_all()
+    except Exception:
+        pass
 
     latest_report = None
 
@@ -1754,9 +2069,9 @@ def admin():
         elif action == 'approve' and report_id:
             report = Report.query.get(report_id)
             if report and report.generated_report:
-                send_email = request.form.get('send_email') == 'on'
-                send_sms = request.form.get('send_sms') == 'on'
-                msgs = _approve_and_send_report(report, send_email, send_sms)
+                email_flag = request.form.get('send_email') == 'on'
+                sms_flag = request.form.get('send_sms') == 'on'
+                msgs = _approve_and_send_report(report, email_flag, sms_flag)
                 db.session.commit()
                 flash(
                     f'Client notified for {report.user_email}. ' + ' '.join(msgs),
@@ -1869,10 +2184,14 @@ def admin():
                             sms_body = custom_message[:1500]
                             if pdf_n:
                                 sms_body += " (see email for attached document; login for full details)"
-                            ok, smsg = send_sms(
-                                user.phone, sms_body, reply_webhook_url=reply_url, from_number=from_num
-                            )
-                            sent_msgs.append(f'SMS: {smsg}')
+                            try:
+                                from notification_service import send_sms as _send_sms
+                                ok, smsg = _send_sms(
+                                    user.phone, sms_body, reply_webhook_url=reply_url, from_number=from_num
+                                )
+                                sent_msgs.append(f'SMS: {smsg}')
+                            except Exception as _sms_err:
+                                sent_msgs.append(f'SMS failed: {_sms_err}')
 
                     if sent_msgs:
                         flash('Sent: ' + ' | '.join(sent_msgs), 'success')
@@ -1967,6 +2286,7 @@ def admin():
     clients = _get_clients_for_admin()
     client_groups = _split_clients_for_admin(clients)
     now = central_now().strftime('%b %d, %Y')
+    analytics = _get_analytics_summary()
     return render_template(
         'admin.html',
         reports=reports,
@@ -1977,6 +2297,7 @@ def admin():
         selected_client=selected_client,
         storage_status=_storage_status,
         now=now,
+        analytics=analytics,
     )
 
 
