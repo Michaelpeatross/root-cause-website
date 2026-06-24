@@ -9,7 +9,21 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Root Cause Health">
+
+    <!-- SEO -->
+    <meta name="description" content="Root Cause Test: Bioenergetic scanning combined with Grok AI analysis of your wearable health data, blood work, and medical records. Personalized reports and recommendations.">
+    <meta name="keywords" content="root cause test, bioenergetic scan, health analysis, wearable data, blood tests, grok ai, apple health, lab results">
+    <meta property="og:title" content="{% block og_title %}Root Cause Test{% endblock %}">
+    <meta property="og:description" content="Upload your Apple Watch, Fitbit, blood work and medical records. Grok analyzes everything for deep health insights.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta name="robots" content="index, follow">
+
     <title>{% block title %}Root Cause{% endblock %}</title>
+
+    {% if request.path in ['/login', '/register', '/admin'] %}
+    <meta name="robots" content="noindex, nofollow">
+    {% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
     {% block extra_head %}{% endblock %}
 </head>

@@ -1107,7 +1107,42 @@ def _approve_and_send_report(report, send_email=False, send_sms=False):
 @app.route('/robots.txt')
 def robots_txt():
     # Discourage some aggressive crawlers and scanners
-    return "User-agent: *\nDisallow: /admin\nDisallow: /dashboard\nDisallow: /login\n", 200, {'Content-Type': 'text/plain'}
+    site = "https://www.root-cause-test.com"
+    return f"""User-agent: *
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /login
+Disallow: /register
+Sitemap: {site}/sitemap.xml
+""", 200, {'Content-Type': 'text/plain'}
+
+
+@app.route('/sitemap.xml')
+def sitemap():
+    """Basic sitemap for better SEO and Google indexing."""
+    pages = [
+        {'loc': url_for('index', _external=True), 'changefreq': 'weekly', 'priority': '1.0'},
+        {'loc': url_for('buy', _external=True), 'changefreq': 'monthly', 'priority': '0.8'},
+        {'loc': url_for('contact', _external=True), 'changefreq': 'monthly', 'priority': '0.7'},
+        {'loc': url_for('register', _external=True), 'changefreq': 'monthly', 'priority': '0.6'},
+        {'loc': url_for('login', _external=True), 'changefreq': 'monthly', 'priority': '0.5'},
+        {'loc': url_for('health_app', _external=True), 'changefreq': 'monthly', 'priority': '0.6'},
+    ]
+    sitemap_xml = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    sitemap_xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    for page in pages:
+        sitemap_xml += f'  <url>\n'
+        sitemap_xml += f'    <loc>{page["loc"]}</loc>\n'
+        sitemap_xml += f'    <changefreq>{page["changefreq"]}</changefreq>\n'
+        sitemap_xml += f'    <priority>{page["priority"]}</priority>\n'
+        sitemap_xml += f'  </url>\n'
+    sitemap_xml += '</urlset>'
+    return sitemap_xml, 200, {'Content-Type': 'application/xml'}
+
+
+@app.errorhandler(404)
+def not_found_error(e):
+    return render_template('404.html'), 404
 
 
 @app.route('/')
@@ -1919,7 +1954,10 @@ def download_health_uploader():
 def api_client_upload_health():
     """Simple API for the standalone Health Uploader app (and future tools).
     Accepts email + password + file. Saves lightly so large exports don't cause 502s on upload.
+    Now also supports logged-in web users (for the PWA health app).
     """
+    current_user = _get_current_user()
+
     email = (request.form.get('email') or '').strip().lower()
     password = request.form.get('password') or ''
     file_storage = request.files.get('file')
@@ -1927,13 +1965,15 @@ def api_client_upload_health():
     # Support JSON for native iOS apps (HealthKit data)
     json_data = request.get_json(silent=True) or {}
     if not email or not password:
-        # Try form
         email = (request.form.get('email') or json_data.get('email', '')).strip().lower()
         password = request.form.get('password') or json_data.get('password', '')
 
-    user = User.query.filter(db.func.lower(User.email) == email).first()
-    if not user or not check_password_hash(user.password, password):
-        return jsonify({'error': 'Invalid email or password'}), 401
+    if current_user:
+        user = current_user
+    else:
+        user = User.query.filter(db.func.lower(User.email) == email).first()
+        if not user or not check_password_hash(user.password, password):
+            return jsonify({'error': 'Invalid email or password'}), 401
 
     upload_dt = central_now()
 
