@@ -149,6 +149,9 @@
                 <label for="documents">Files (select many)</label>
                 <input type="file" id="documents" name="documents" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.heic,.heif,image/*,.zip,.xml,.csv,.json" multiple required>
                 <p style="font-size:0.85rem; color:var(--text-muted); margin:0.35rem 0 0;">PDF, lab reports, photos, screenshots, or health exports (ZIP/XML/CSV/JSON) — up to 25 files, 100 MB each</p>
+                <p style="font-size:0.8rem; margin-top:0.5rem; color:#555;">
+                    <strong>Auto-fetch from labs?</strong> Download the Desktop Tool (see Wearables section below) — it can log into GoodLabs, Quest, LabCorp etc. using your credentials and pull the PDFs for you.
+                </p>
             </div>
             <div class="form-group">
                 <label for="test_date">Test date for all files (optional)</label>
@@ -203,8 +206,8 @@
                 <a href="/health-app" class="btn btn-primary" style="font-size:0.9rem; padding:0.35rem 0.7rem;">
                     📱 Open Web App (install on iPhone)
                 </a>
-                <a href="/download/health-uploader" class="btn btn-outline" style="font-size:0.9rem; padding:0.35rem 0.7rem;">
-                    💻 Download Desktop Tool (best for big zips)
+                <a href="/download/health-uploader" class="btn btn-success" style="font-size:0.9rem; padding:0.35rem 0.7rem;">
+                    💻 Download Desktop Tool — includes automatic lab login (GoodLabs, Quest, etc.)
                 </a>
             </p>
             <p style="font-size: 0.8rem; color: #666;">
@@ -245,31 +248,37 @@
 
         <p style="font-size: 0.85rem; margin-top: 0.75rem; color: var(--text-muted);">
             Upload creates a safe local summary of recent wearable data.<br>
-            Click <strong>"Request Updated Grok Analysis"</strong> to have Grok analyze the trends and put them into your full report.
+            Scroll down to the <strong>"Request Updated Grok Analysis"</strong> card (always visible now) to incorporate it once you have a report.
         </p>
     </div>
 
-    {% if reports %}
     <div class="card">
         <h2>Request Updated Grok Analysis</h2>
-        <p style="color:var(--text-muted);">After uploading new medical documents, Grok will compare them against your original bio scan and refresh your analysis.</p>
-        {% if admin_preview %}
-        <p class="admin-preview-note">Client phone: {{ user.phone or 'not set' }}</p>
-        <p class="admin-preview-note">Request analysis controls hidden in admin preview.</p>
+        {% if reports %}
+            <p style="color:var(--text-muted);">After uploading new medical documents or wearable data, Grok will compare them against your original bio scan and refresh your analysis.</p>
+            {% if admin_preview %}
+            <p class="admin-preview-note">Client phone: {{ user.phone or 'not set' }}</p>
+            <p class="admin-preview-note">Request analysis controls hidden in admin preview.</p>
+            {% else %}
+            <form method="POST" style="margin-top:0.75rem;">
+                <input type="hidden" name="action" value="update_phone">
+                <div class="form-group">
+                    <label for="phone">Mobile number (SMS for report ready + password reset confirmations)</label>
+                    <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" placeholder="225-555-1234">
+                </div>
+                <button type="submit" class="btn btn-outline" style="margin-bottom:0.75rem;">Save Phone</button>
+            </form>
+            <form method="POST">
+                <button type="submit" name="action" value="request_analysis" class="btn btn-primary">Request Updated Grok Analysis</button>
+            </form>
+            {% endif %}
         {% else %}
-        <form method="POST" style="margin-top:0.75rem;">
-            <input type="hidden" name="action" value="update_phone">
-            <div class="form-group">
-                <label for="phone">Mobile number (SMS for report ready + password reset confirmations)</label>
-                <input type="tel" id="phone" name="phone" value="{{ user.phone or '' }}" placeholder="225-555-1234">
-            </div>
-            <button type="submit" class="btn btn-outline" style="margin-bottom:0.75rem;">Save Phone</button>
-        </form>
-        <form method="POST">
-            <button type="submit" name="action" value="request_analysis" class="btn btn-primary">Request Updated Grok Analysis</button>
-        </form>
+            <p style="color:var(--text-muted);">
+                Your wearable data and medical uploads are saved. 
+                Once your practitioner publishes your bio scan report, the <strong>"Request Updated Grok Analysis"</strong> button will appear here so Grok can incorporate everything.
+            </p>
+            <p style="font-size:0.85rem;">You currently have {{ documents|length if documents else 0 }} medical document(s) and wearable data ready for when the report is available.</p>
         {% endif %}
     </div>
-    {% endif %}
 </div>
 {% endblock %}

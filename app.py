@@ -12,6 +12,7 @@ import re
 from datetime import datetime
 from collections import OrderedDict
 import uuid
+import time
 
 from report_generator import generate_report_html, generate_report_text
 from pdf_service import save_report_pdf, pdf_to_bytes
@@ -1440,7 +1441,29 @@ def login():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    # Always provide a fresh timestamp for the form (used for timing check)
+    current_timestamp = int(time.time())
+
     if request.method == 'POST':
+        # Strong honeypot + timing check (multiple fields + minimum time)
+        honeypot_fields = [
+            request.form.get('website', '').strip(),
+            request.form.get('company', '').strip(),
+            request.form.get('address2', '').strip(),
+        ]
+        form_started = request.form.get('form_started', '0')
+        try:
+            started = int(form_started)
+            elapsed = time.time() - started
+        except:
+            elapsed = 999
+
+        if any(h for h in honeypot_fields) or elapsed < 3:
+            # Bot detected (filled hidden field or submitted too fast)
+            # Silently drop - no account, no email, no error message
+            print(f"[Honeypot] Blocked bot registration attempt from IP {request.remote_addr} (elapsed={elapsed}s)")
+            return redirect(url_for('register'))
+
         name = request.form.get('name', '').strip()
         raw_email = request.form.get('email', '').strip()
         email = _normalize_email(raw_email)
@@ -1482,7 +1505,8 @@ def register():
             flash('Account created! Check your email (and phone for SMS) for the welcome message. '
                   'It can take a minute or two to arrive. If nothing shows up, check spam and your server logs.', 'success')
             return redirect(url_for('dashboard'))
-    return render_template('register.html')
+
+    return render_template('register.html', form_started=current_timestamp)
 
 
 @app.route('/contact', methods=['GET', 'POST'])

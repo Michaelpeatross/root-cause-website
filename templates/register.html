@@ -13,6 +13,13 @@
                 <label for="name">Full Name</label>
                 <input type="text" id="name" name="name" required autocomplete="name">
             </div>
+
+            <!-- Strong Honeypot Fields (anti-spam) -->
+            <!-- Humans can't see these. Bots fill everything. Also has timing check. -->
+            <input type="text" name="website" value="" style="position:absolute; left:-9999px; top:-9999px; opacity:0; width:1px; height:1px;" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <input type="text" name="company" value="" style="position:absolute; left:-9999px; top:-9999px; opacity:0; width:1px; height:1px;" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <input type="text" name="address2" value="" style="position:absolute; left:-9999px; top:-9999px; opacity:0; width:1px; height:1px;" tabindex="-1" autocomplete="off" aria-hidden="true">
+            <input type="hidden" name="form_started" value="{{ form_started }}">
             <div class="form-group">
                 <label for="email">Email</label>
                 <input type="text" id="email" name="email" required
@@ -24,7 +31,7 @@
             <div class="form-group">
                 <label for="phone">Mobile Phone Number</label>
                 <input type="tel" id="phone" name="phone" required autocomplete="tel" placeholder="225-555-1234">
-                <p style="font-size:0.8rem; color:var(--text-muted); margin:0.25rem 0 0;">Required — we'll send a welcome text + future report-ready and security alerts via SMS (using your cheap Textbelt setup).</p>
+                <p style="font-size:0.8rem; color:var(--text-muted); margin:0.25rem 0 0;">Required — we'll send a welcome text + future report-ready and security alerts via SMS.</p>
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
