@@ -100,6 +100,93 @@
         </div>
     </div>
     <!-- End Analytics -->
+
+    <!-- SOCIAL MEDIA AUTOMATION -->
+    <div class="card" style="margin-top:1.5rem; background:#f0f9ff; border:2px solid #0ea5e9;">
+        <h2 style="margin-bottom:0.25rem;">📱 Social Media Automation &amp; Analytics</h2>
+        <p style="color:#334155; font-size:0.9rem; margin-bottom:0.75rem;">
+            Grok generates posts for <strong>X @Root_Cause__</strong> and <strong>Facebook @root_cause_test</strong>.<br>
+            Cross-links accounts in every post. Track performance so Grok learns what works (blood tests, supplements, wearables, etc.).
+        </p>
+
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:1rem;">
+            <div style="background:#fff; padding:8px; border-radius:6px;">
+                <div style="font-size:0.7rem; color:#64748b;">Total Social Posts</div>
+                <div style="font-size:1.4rem; font-weight:700;">{{ analytics.social_posts }}</div>
+            </div>
+            <div style="background:#fff; padding:8px; border-radius:6px;">
+                <div style="font-size:0.7rem; color:#64748b;">X Posts</div>
+                <div style="font-size:1.4rem; font-weight:700;">{{ analytics.social_x_posts }}</div>
+            </div>
+            <div style="background:#fff; padding:8px; border-radius:6px;">
+                <div style="font-size:0.7rem; color:#64748b;">Facebook Posts</div>
+                <div style="font-size:1.4rem; font-weight:700;">{{ analytics.social_fb_posts }}</div>
+            </div>
+            <div style="background:#fff; padding:8px; border-radius:6px;">
+                <div style="font-size:0.7rem; color:#64748b;">Total Engagement</div>
+                <div style="font-size:1.4rem; font-weight:700;">{{ analytics.social_total_engagement }}</div>
+            </div>
+        </div>
+
+        <form method="POST" style="margin-bottom:1rem;">
+            <input type="hidden" name="action" value="generate_social">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+                <div>
+                    <label style="font-size:0.8rem;">Focus / Topic (optional)</label><br>
+                    <input type="text" name="social_focus" placeholder="e.g. thyroid, blood sugar, gut, Apple Watch, ranked labs" style="padding:4px 8px; width:280px;">
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;">Platform</label><br>
+                    <select name="social_platform" style="padding:4px 8px;">
+                        <option value="x">X (Twitter)</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="both">Both (generate two versions)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding:6px 14px;">🤖 Generate Post with Grok</button>
+            </div>
+        </form>
+
+        <div style="margin-bottom:0.5rem;">
+            <form method="POST" style="display:inline;">
+                <input type="hidden" name="action" value="analyze_social">
+                <button type="submit" class="btn btn-outline" style="font-size:0.85rem;">📊 Analyze Performance with Grok</button>
+            </form>
+            <span style="font-size:0.75rem; color:#64748b; margin-left:8px;">Grok reviews past posts and tells you what content wins.</span>
+        </div>
+
+        {% if social_posts %}
+        <div style="max-height:320px; overflow:auto; border:1px solid #bae6fd; background:#fff; border-radius:6px; padding:6px; font-size:0.82rem;">
+            <strong>Recent Posts</strong>
+            {% for p in social_posts %}
+            <div style="border-bottom:1px solid #e0f2fe; padding:4px 0; margin-bottom:4px;">
+                <strong>{{ p.platform.upper() }}</strong> — {{ p.generated_at.strftime('%m/%d %H:%M') if p.generated_at else '' }}
+                {% if p.posted_at %} (posted){% endif %}<br>
+                <span style="color:#334155;">{{ (p.content or '')[:160] }}{% if p.content and p.content|length > 160 %}...{% endif %}</span><br>
+                <small>
+                    Likes: {{ p.likes or 0 }} | Comments: {{ p.comments or 0 }} | Shares: {{ p.shares or 0 }} | Impressions: {{ p.impressions or 0 }}
+                    {% if p.link %} | <a href="{{ p.link }}" target="_blank">link</a>{% endif %}
+                </small>
+                {% if p.performance_note %}<br><em style="color:#0e7490;">{{ p.performance_note[:100] }}</em>{% endif %}
+                <form method="POST" style="display:inline; margin-left:8px;">
+                    <input type="hidden" name="action" value="post_social">
+                    <input type="hidden" name="social_post_id" value="{{ p.id }}">
+                    <button type="submit" name="platform" value="x" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to X</button>
+                    <button type="submit" name="platform" value="facebook" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to FB</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <p style="font-size:0.7rem; color:#64748b; margin-top:0.5rem;">
+            To auto-post: Add these to Render Environment:<br>
+            <code>X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET</code><br>
+            <code>FB_PAGE_ID, FB_ACCESS_TOKEN</code> (Page token with publish permission)
+        </p>
+    </div>
+    <!-- END SOCIAL -->
+
     <form method="POST" style="margin-top:0.75rem; display:inline-block;">
         <input type="hidden" name="action" value="test_grok">
         <button type="submit" class="btn btn-outline" style="padding:0.4rem 0.9rem; font-size:0.85rem;">Test Grok API Connection</button>

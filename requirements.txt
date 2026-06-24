@@ -9,3 +9,5 @@ pdfplumber
 python-docx
 stripe
 twilio
+tweepy
+requests

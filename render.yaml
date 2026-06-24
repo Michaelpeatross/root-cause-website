@@ -49,6 +49,21 @@ services:
         sync: false
       - key: TWILIO_FROM_NUMBER
         sync: false
+      # Social automation (optional for now)
+      # X (Twitter) @Root_Cause__
+      - key: X_API_KEY
+        sync: false
+      - key: X_API_SECRET
+        sync: false
+      - key: X_ACCESS_TOKEN
+        sync: false
+      - key: X_ACCESS_TOKEN_SECRET
+        sync: false
+      # Facebook @root_cause_test  (use a Page Access Token with publish_pages)
+      - key: FB_PAGE_ID
+        sync: false
+      - key: FB_ACCESS_TOKEN
+        sync: false
       # Email (also used for report delivery). Any SMTP that supports TLS.
       - key: SMTP_HOST
         sync: false

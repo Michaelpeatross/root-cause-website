@@ -187,6 +187,22 @@ class SMSSent(db.Model):
     message_preview = db.Column(db.String(100))
 
 
+class SocialPost(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    platform = db.Column(db.String(20))  # 'x' or 'facebook'
+    content = db.Column(db.Text)
+    link = db.Column(db.String(300))
+    generated_at = db.Column(db.DateTime, default=datetime.utcnow)
+    posted_at = db.Column(db.DateTime)
+    external_post_id = db.Column(db.String(100))
+    impressions = db.Column(db.Integer, default=0)
+    likes = db.Column(db.Integer, default=0)
+    comments = db.Column(db.Integer, default=0)
+    shares = db.Column(db.Integer, default=0)
+    clicks = db.Column(db.Integer, default=0)
+    performance_note = db.Column(db.Text)  # Grok insights or manual
+
+
 def ensure_admin_user():
     admin_email = 'michaelpeatross@gmail.com'
     bootstrap_pw = os.environ.get('ADMIN_PASSWORD', 'admin123')
@@ -347,6 +363,18 @@ def _get_analytics_summary(limit=100):
             'total_sms_success': total_sms_success,
             'sms_7d': sms_7d,
             'sms_success_7d': sms_success_7d,
+            # Social media analytics
+            'social_posts': SocialPost.query.count(),
+            'social_x_posts': SocialPost.query.filter_by(platform='x').count(),
+            'social_fb_posts': SocialPost.query.filter_by(platform='facebook').count(),
+            'social_total_likes': db.session.query(db.func.coalesce(db.func.sum(SocialPost.likes), 0)).scalar(),
+            'social_total_engagement': (db.session.query(
+                db.func.coalesce(db.func.sum(SocialPost.likes), 0)
+            ).scalar() or 0) + (db.session.query(
+                db.func.coalesce(db.func.sum(SocialPost.comments), 0)
+            ).scalar() or 0) + (db.session.query(
+                db.func.coalesce(db.func.sum(SocialPost.shares), 0)
+            ).scalar() or 0),
         }
     except Exception as e:
         print(f"[Analytics] Error building summary: {e}")
@@ -355,8 +383,155 @@ def _get_analytics_summary(limit=100):
             'searches': [], 'popular_searches': [], 'exits': [], 'avg_time_on_page': 0,
             'recent_paths': [], 'suggestions': ['Analytics data is being collected. Visit more pages to see stats.'],
             'sms_today': 0, 'sms_success_today': 0,
-            'total_sms': 0, 'total_sms_success': 0, 'sms_7d': 0, 'sms_success_7d': 0
+            'total_sms': 0, 'total_sms_success': 0, 'sms_7d': 0, 'sms_success_7d': 0,
+            'social_posts': 0, 'social_x_posts': 0, 'social_fb_posts': 0,
+            'social_total_likes': 0, 'social_total_engagement': 0
         }
+
+
+# ===================== SOCIAL MEDIA AUTOMATION =====================
+
+def _generate_social_post_content(platform="x", focus=None):
+    """Use Grok to generate engaging social post for X or Facebook."""
+    from health_advisor import _grok_chat
+
+    site = "https://www.root-cause-test.com"
+    utm = f"{site}?utm_source={platform}&utm_medium=social&utm_campaign=rootcause"
+    x_handle = "@Root_Cause__"
+    fb_handle = "@root_cause_test"
+
+    focus_text = f"Focus on: {focus}." if focus else "General educational insight from bioenergetic scans, blood tests, or wearable data."
+
+    if platform == "x":
+        char_limit = 250
+        format_note = f"Keep under {char_limit} chars. Use 1-2 relevant hashtags. End with link and cross-promote Facebook."
+    else:
+        char_limit = 800
+        format_note = "Facebook post. Engaging, ask a question, use emojis sparingly. Include link and cross-promote X account."
+
+    prompt = f"""You are the social media manager for Root Cause Bioenergetics.
+Create ONE high-performing social media post for {platform.upper()}.
+
+Key facts about the brand:
+- Bioenergetic Hair & Saliva Analysis that reveals sensitivities, toxins, metabolic issues, nutritional imbalances.
+- Personalized reports + Grok analysis.
+- Recommends specific ranked blood tests (1-10) and supplements.
+- Clients upload Apple Health, lab PDFs (GoodLabs preferred).
+- Goal: educate, drive signups for scans, uploads of health data.
+
+{focus_text}
+
+Rules:
+- {format_note}
+- Make it valuable and curiosity-driven (not salesy).
+- Mention or tie to specific concepts like "Labs to Discuss", thyroid, gut, stress, blood sugar when relevant.
+- Always include the link: {utm}
+- Cross promote the other platform: X {x_handle} and Facebook {fb_handle}
+- Educational + hopeful tone.
+- No medical advice disclaimer needed in short post.
+
+Return ONLY the post text, no quotes or extra explanation."""
+
+    content = _grok_chat(prompt, system="You write concise, high-engagement social copy for health education.", temperature=0.6, timeout=40) or ""
+    content = content.strip()[: (300 if platform=="x" else 1000)]
+
+    # Ensure link is present
+    if utm not in content:
+        content += f"\n\n{utm}"
+
+    return content, utm
+
+
+def post_to_x(content):
+    """Post to X using tweepy. Requires env vars."""
+    try:
+        import tweepy
+        api_key = os.environ.get("X_API_KEY")
+        api_secret = os.environ.get("X_API_SECRET")
+        access_token = os.environ.get("X_ACCESS_TOKEN")
+        access_secret = os.environ.get("X_ACCESS_TOKEN_SECRET")
+
+        if not all([api_key, api_secret, access_token, access_secret]):
+            return False, "Missing X API keys in environment (X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET)"
+
+        client = tweepy.Client(
+            consumer_key=api_key,
+            consumer_secret=api_secret,
+            access_token=access_token,
+            access_token_secret=access_secret
+        )
+
+        # For v2, use create_tweet
+        response = client.create_tweet(text=content)
+        tweet_id = response.data.get('id') if response and response.data else None
+        return True, tweet_id
+    except Exception as exc:
+        return False, str(exc)
+
+
+def post_to_facebook(content, link=None):
+    """Post to Facebook Page using Graph API."""
+    try:
+        import requests
+        page_id = os.environ.get("FB_PAGE_ID")
+        access_token = os.environ.get("FB_ACCESS_TOKEN")
+
+        if not page_id or not access_token:
+            return False, "Missing FB_PAGE_ID or FB_ACCESS_TOKEN in environment"
+
+        url = f"https://graph.facebook.com/v19.0/{page_id}/feed"
+        payload = {
+            "message": content,
+            "access_token": access_token,
+        }
+        if link:
+            payload["link"] = link
+
+        resp = requests.post(url, data=payload, timeout=20)
+        data = resp.json()
+        if "id" in data:
+            return True, data["id"]
+        return False, str(data)
+    except Exception as exc:
+        return False, str(exc)
+
+
+def update_social_analytics(post):
+    """Stub for fetching real metrics. In real use, call platform APIs with external_post_id."""
+    # For now, leave as manual or keep previous values.
+    # Future: use tweepy or FB insights to pull impressions etc.
+    pass
+
+
+def analyze_social_performance():
+    """Use Grok to analyze all social posts and give insights on what works."""
+    from health_advisor import _grok_chat
+
+    posts = SocialPost.query.order_by(SocialPost.generated_at.desc()).limit(20).all()
+    if not posts:
+        return "No social posts yet. Generate and post some content first."
+
+    summary = []
+    for p in posts:
+        eng = (p.likes or 0) + (p.comments or 0) + (p.shares or 0)
+        summary.append(f"Platform:{p.platform} | Likes+Comments+Shares:{eng} | Impressions:{p.impressions or 0} | Content snippet: { (p.content or '')[:120] }")
+
+    data_blob = "\n".join(summary)
+
+    prompt = f"""Analyze this social media performance data for Root Cause Bioenergetics.
+
+Posts data:
+{data_blob}
+
+Provide:
+1. Which topics or styles performed best (e.g. blood tests, supplements, wearable, specific conditions).
+2. X vs Facebook performance difference.
+3. Recommendations for future posts (length, hashtags, CTAs, frequency).
+4. Suggested next 3 content ideas that are likely to perform well.
+Return concise bullet points."""
+
+    insights = _grok_chat(prompt, system="You are a data-driven social media analyst.", temperature=0.3)
+    return insights or "Analysis failed. Try again later."
 
 
 def migrate_schema():
@@ -427,6 +602,9 @@ def migrate_schema():
                 conn.commit()
 
     if 'sms_sent' not in tables:
+        db.create_all()
+
+    if 'social_post' not in tables:
         db.create_all()
 
 
@@ -2123,6 +2301,45 @@ def admin():
             ok, msg = test_grok_connection()
             flash(msg, 'success' if ok else 'error')
 
+        elif action == 'generate_social':
+            platform = request.form.get('social_platform', 'x')
+            focus = (request.form.get('social_focus') or '').strip() or None
+
+            generated = []
+            platforms = ['x', 'facebook'] if platform == 'both' else [platform]
+            for plat in platforms:
+                content, link = _generate_social_post_content(plat, focus)
+                post = SocialPost(platform=plat, content=content, link=link)
+                db.session.add(post)
+                db.session.commit()
+                generated.append(post)
+
+            flash(f'Generated {len(generated)} post(s) with Grok. Review below and click Post buttons.', 'success')
+            selected_client = selected_client  # keep
+
+        elif action == 'analyze_social':
+            insights = analyze_social_performance()
+            flash('Grok Social Analysis: ' + (insights or '').replace('\n', ' | '), 'success')
+
+        elif action == 'post_social':
+            post_id = request.form.get('social_post_id')
+            target_platform = request.form.get('platform', 'x')
+            post = SocialPost.query.get(post_id)
+            if post:
+                if target_platform == 'x':
+                    ok, result = post_to_x(post.content)
+                else:
+                    ok, result = post_to_facebook(post.content, post.link)
+                if ok:
+                    post.posted_at = datetime.utcnow()
+                    post.external_post_id = str(result) if result else None
+                    db.session.commit()
+                    flash(f'Posted to {target_platform.upper()}! (ID: {result})', 'success')
+                else:
+                    flash(f'Post to {target_platform} failed: {result}', 'error')
+            else:
+                flash('Post not found.', 'error')
+
         elif action == 'upload_client_documents':
             doc_email = _normalize_email(request.form.get('doc_client_email', ''))
             if not doc_email:
@@ -2413,6 +2630,7 @@ def admin():
         storage_status=_storage_status,
         now=now,
         analytics=analytics,
+        social_posts=SocialPost.query.order_by(SocialPost.generated_at.desc()).limit(12).all(),
     )
 
 
