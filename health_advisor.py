@@ -616,8 +616,10 @@ CLIENT MEDICAL DOCUMENTS (all uploaded labs, blood work, medical records, AND we
 Cross-reference scan findings with lab values across the client's full uploaded medical history.
 Note trends over time when multiple documents are present.
 For key scan findings, briefly note what the bioenergetic pattern tests for and what the results + labs together suggest.
-For supplements, recommend specific affordable products. For blood tests and labs,
-recommend ordering through GoodLabs only (https://goodlabs.com/book-tests).
+For supplements, recommend specific affordable products with Amazon links where possible.
+For blood tests and labs: NEVER name or suggest any specific test names, panels, or assays (e.g. do not say "Comprehensive Thyroid Panel", "Hormone Panel", "Vitamin D Test", etc.).
+Only say: "Order the appropriate blood tests through GoodLabs (https://goodlabs.com/book-tests) and discuss the exact panels with your practitioner."
+Always use only the general booking link. This ensures the suggestions match what actually exists on the site.
 Do not mention Quest, LabCorp, Any Lab Test Now, Walk-In Lab, Ulta Lab Tests,
 or any other lab provider.
 

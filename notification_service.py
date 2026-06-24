@@ -133,7 +133,9 @@ def deliver_report_to_client(
         results.append(('email', None, 'Email not selected.'))
 
     if send_sms:
-        ok, msg = send_sms(
+        # Use local import or alias to avoid any shadowing with the bool param
+        from notification_service import send_sms as _send_sms
+        ok, msg = _send_sms(
             client_phone,
             f'Root Cause: Your report "{report_title}" is ready. '
             f'Log in to your portal: {site}/login . Reply to this text for help.',

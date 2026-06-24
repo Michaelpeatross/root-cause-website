@@ -163,7 +163,7 @@ class PageView(db.Model):
 class SearchQuery(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_email = db.Column(db.String(120))
-    query = db.Column(db.String(500))
+    query_text = db.Column(db.String(500))  # renamed from 'query' to avoid shadowing SQLAlchemy .query
     source = db.Column(db.String(50))  # 'grok', 'public', 'contact'
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     result_snippet = db.Column(db.Text)
@@ -229,15 +229,15 @@ def _log_page_view():
         db.session.rollback()
 
 
-def _log_search(query: str, source: str = 'grok', snippet: str = ''):
+def _log_search(query_text: str, source: str = 'grok', snippet: str = ''):
     """Log keyword searches (mainly from Grok)."""
     try:
-        if not query or len(query.strip()) < 3:
+        if not query_text or len(query_text.strip()) < 3:
             return
         user_email = session.get('email')
         sq = SearchQuery(
             user_email=user_email,
-            query=query.strip()[:500],
+            query_text=query_text.strip()[:500],
             source=source,
             result_snippet=snippet[:500] if snippet else '',
         )
@@ -285,8 +285,8 @@ def _get_analytics_summary(limit=100):
         searches = SearchQuery.query.order_by(SearchQuery.timestamp.desc()).limit(30).all()
         # Popular keywords
         popular = db.session.query(
-            SearchQuery.query, func.count(SearchQuery.id).label('cnt')
-        ).group_by(SearchQuery.query).order_by(func.count(SearchQuery.id).desc()).limit(15).all()
+            SearchQuery.query_text, func.count(SearchQuery.id).label('cnt')
+        ).group_by(SearchQuery.query_text).order_by(func.count(SearchQuery.id).desc()).limit(15).all()
 
         # Exits / bounce info
         exits = ExitLog.query.order_by(ExitLog.timestamp.desc()).limit(20).all()
@@ -326,7 +326,6 @@ def _get_analytics_summary(limit=100):
             'searches': [], 'popular_searches': [], 'exits': [], 'avg_time_on_page': 0,
             'recent_paths': [], 'suggestions': ['Analytics data is being collected. Visit more pages to see stats.']
         }
-    db.session.commit()
 
 
 def migrate_schema():

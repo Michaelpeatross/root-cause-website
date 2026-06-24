@@ -39,7 +39,7 @@
             <div style="max-height:180px; overflow:auto; font-size:0.85rem;">
                 {% for s in analytics.searches %}
                 <div style="margin-bottom:4px; border-bottom:1px solid #eee; padding-bottom:3px;">
-                    <strong>{{ s.query }}</strong> <span style="color:#64748b;">({{ s.source }})</span><br>
+                    <strong>{{ s.query_text }}</strong> <span style="color:#64748b;">({{ s.source }})</span><br>
                     <small>{{ (s.timestamp.strftime('%Y-%m-%d %H:%M') if s.timestamp else '') }}</small>
                     {% if s.result_snippet %}<br><em style="color:#475569;">{{ s.result_snippet[:120] }}...</em>{% endif %}
                 </div>
