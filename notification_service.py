@@ -76,14 +76,26 @@ def send_sms(to_number, message, reply_webhook_url=None, from_number=None):
             else:
                 err = result.get('error') or result.get('message') or 'Unknown Textbelt error'
                 _log_sms_sent(to_num, False, 'textbelt', message)
-                return False, f'Textbelt error: {err}. Check your key compliance and whitelist at textbelt.com for the replyWebhookUrl (and sender name "Root Cause"). Full response: {result}'
+                # On daily/quota limits, automatically fall back to Twilio if configured.
+                # This prevents total SMS failure when the cheap provider hits its cap.
+                lower = (err or '').lower()
+                is_quota_error = any(k in lower for k in ('limit', 'quota', 'daily', 'rate limit', 'exceeded'))
+                if is_quota_error and _twilio_configured():
+                    # fall through to Twilio below
+                    pass
+                else:
+                    return False, f'Textbelt error: {err}. Check your key compliance and whitelist at textbelt.com for the replyWebhookUrl (and sender name "Root Cause"). Full response: {result}'
         except Exception as exc:
-            return False, f'Textbelt failed: {exc}'
+            _log_sms_sent(to_num, False, 'textbelt', message)
+            if _twilio_configured():
+                pass  # fall through to Twilio
+            else:
+                return False, f'Textbelt failed: {exc}'
 
     if not _twilio_configured():
         return False, 'SMS not configured (set TEXTBELT_API_KEY for cheapest, or TWILIO_* vars).'
 
-    # Twilio fallback (existing implementation)
+    # Twilio (or fallback from Textbelt quota error)
     sid = os.environ['TWILIO_ACCOUNT_SID']
     token = os.environ['TWILIO_AUTH_TOKEN']
     from_num = sms_from or os.environ.get('TWILIO_FROM_NUMBER') or os.environ.get('SMS_FROM_NUMBER', '')

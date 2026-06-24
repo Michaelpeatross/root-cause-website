@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections import OrderedDict
 import uuid
 import time
@@ -301,10 +301,19 @@ def _get_analytics_summary(limit=100):
         exits = ExitLog.query.order_by(ExitLog.timestamp.desc()).limit(20).all()
         avg_time = db.session.query(func.avg(ExitLog.time_spent_seconds)).scalar() or 0
 
-        # SMS usage today
+        # SMS usage (Textbelt is the main provider)
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         sms_today = SMSSent.query.filter(SMSSent.timestamp >= today_start).count()
         sms_success_today = SMSSent.query.filter(SMSSent.timestamp >= today_start, SMSSent.success == True).count()
+
+        # Historical SMS totals (what we have sent from this system)
+        total_sms = SMSSent.query.count()
+        total_sms_success = SMSSent.query.filter_by(success=True).count()
+
+        # Last 7 days
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        sms_7d = SMSSent.query.filter(SMSSent.timestamp >= seven_days_ago).count()
+        sms_success_7d = SMSSent.query.filter(SMSSent.timestamp >= seven_days_ago, SMSSent.success == True).count()
 
         # Simple path analysis (last 50 views grouped roughly by anon/time)
         recent_paths = PageView.query.order_by(PageView.timestamp.desc()).limit(50).all()
@@ -334,6 +343,10 @@ def _get_analytics_summary(limit=100):
             'suggestions': suggestions,
             'sms_today': sms_today,
             'sms_success_today': sms_success_today,
+            'total_sms': total_sms,
+            'total_sms_success': total_sms_success,
+            'sms_7d': sms_7d,
+            'sms_success_7d': sms_success_7d,
         }
     except Exception as e:
         print(f"[Analytics] Error building summary: {e}")
@@ -341,7 +354,8 @@ def _get_analytics_summary(limit=100):
             'total_views': 0, 'unique_visitors': 0, 'top_pages': [], 'recent_views': [],
             'searches': [], 'popular_searches': [], 'exits': [], 'avg_time_on_page': 0,
             'recent_paths': [], 'suggestions': ['Analytics data is being collected. Visit more pages to see stats.'],
-            'sms_today': 0, 'sms_success_today': 0
+            'sms_today': 0, 'sms_success_today': 0,
+            'total_sms': 0, 'total_sms_success': 0, 'sms_7d': 0, 'sms_success_7d': 0
         }
 
 
@@ -2171,9 +2185,12 @@ def admin():
                 sms_flag = request.form.get('send_sms') == 'on'
                 msgs = _approve_and_send_report(report, email_flag, sms_flag)
                 db.session.commit()
+                # Show as warning if SMS had quota/limit issues so it's visible but not green "success"
+                has_sms_failure = any('Textbelt error' in (m or '') or 'daily limit' in (m or '').lower() or 'limit' in (m or '').lower() for m in msgs)
+                category = 'warning' if has_sms_failure else 'success'
                 flash(
                     f'Client notified for {report.user_email}. ' + ' '.join(msgs),
-                    'success',
+                    category,
                 )
             else:
                 flash('Report not found or not yet generated.', 'error')
