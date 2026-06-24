@@ -1945,13 +1945,17 @@ def api_client_upload_health():
         except Exception as exc:
             return jsonify({'error': 'Upload failed: ' + str(exc)}), 400
 
+        # Support custom label and date for blood tests / lab results from the uploader app
+        custom_label = request.form.get('label') or request.form.get('document_type') or 'Wearable Health Data (Apple Watch / Fitness Tracker)'
+        custom_date = request.form.get('test_date') or upload_dt.strftime('%Y-%m-%d')
+
         doc = ClientDocument(
             user_email=user.email,
             stored_filename=stored,
             original_name=original,
-            extracted_text=f"[Wearable Health Data uploaded via app: {original}]",
-            test_date=upload_dt.strftime('%Y-%m-%d'),
-            grok_label='Wearable Health Data (Apple Watch / Fitness Tracker)',
+            extracted_text=f"[Uploaded via app: {original}]",
+            test_date=custom_date,
+            grok_label=custom_label,
             uploaded_at=upload_dt.strftime('%Y-%m-%d %H:%M'),
         )
         db.session.add(doc)
@@ -1976,7 +1980,7 @@ def api_client_upload_health():
 
     return jsonify({
         'success': True,
-        'message': 'Health data uploaded successfully. Go to your dashboard and request an analysis update.'
+        'message': 'File(s) uploaded successfully. Go to your dashboard and request an analysis update so Grok can incorporate the new data.'
     })
 
 
