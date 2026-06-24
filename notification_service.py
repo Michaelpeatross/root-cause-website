@@ -199,6 +199,59 @@ def notify_admin_analysis_request(client_name, client_email, report_title):
         f'New analysis sent to client.',
     )
     return email_ok, email_msg, sms_ok, sms_msg
+def _log_sms_sent(to_number, success, provider, message):
+    """Log SMS send attempt for admin tracking. Robust against import context (gunicorn 'app', __main__, etc)."""
+    try:
+        import sys
+        from sqlalchemy import text
+        app_module = None
+        # Try common ways the Flask app module gets registered
+        for key in ('app', '__main__', 'wsgi', 'application'):
+            if key in sys.modules:
+                mod = sys.modules[key]
+                if hasattr(mod, 'db') and hasattr(mod, 'SMSSent'):
+                    app_module = mod
+                    break
+        if not app_module:
+            # Last resort: try to find any module that has our db
+            for mod in sys.modules.values():
+                if hasattr(mod, 'db') and hasattr(mod, 'SMSSent') and getattr(mod, '__name__', '').endswith('app'):
+                    app_module = mod
+                    break
+
+        if app_module and hasattr(app_module, 'db'):
+            db = app_module.db
+            with db.engine.connect() as conn:
+                conn.execute(text("""
+                    INSERT INTO sms_sent (timestamp, to_number, success, provider, message_preview)
+                    VALUES (datetime('now'), :to, :succ, :prov, :prev)
+                """), {
+                    'to': to_number or '',
+                    'succ': 1 if success else 0,
+                    'prov': provider or 'unknown',
+                    'prev': (message or '')[:100]
+                })
+                conn.commit()
+            return
+        # Fallback: still record via model if possible using current_app (works inside request)
+        try:
+            from flask import current_app
+            if current_app:
+                db = current_app.extensions.get('sqlalchemy').db
+                # direct model insert
+                from app import SMSSent as ModelSMSSent  # may work if in path
+                entry = ModelSMSSent(to_number=to_number or '', success=bool(success), provider=provider or '', message_preview=(message or '')[:100])
+                db.session.add(entry)
+                db.session.commit()
+                return
+        except Exception:
+            pass
+        print(f"[SMS Log] Skipped (no db context) for {to_number}")
+    except Exception as e:
+        # Never let logging break actual SMS send
+        print(f"[SMS Log] Failed to record SMS log: {e}")
+
+
 def send_purchase_thank_you(customer_email, customer_name, customer_phone, product_name, site_url, reply_webhook_url=None):
     """Send automated thank-you email (and SMS if phone provided) for a completed purchase.
     Called after successful Stripe checkout.
@@ -206,24 +259,6 @@ def send_purchase_thank_you(customer_email, customer_name, customer_phone, produ
     if not customer_email:
         return
     name = customer_name or (customer_email.split('@')[0] if customer_email else 'Customer')
-
-
-def _log_sms_sent(to_number, success, provider, message):
-    """Log SMS send attempt for admin tracking."""
-    try:
-        # Lazy import to avoid circular imports
-        from app import db, SMSSent
-        with db.app.app_context():  # ensure context if needed
-            log = SMSSent(
-                to_number=to_number,
-                success=success,
-                provider=provider,
-                message_preview=(message or '')[:100]
-            )
-            db.session.add(log)
-            db.session.commit()
-    except Exception as e:
-        print(f"[SMS Log] Failed to record SMS log: {e}")
 
     # Email
     try:

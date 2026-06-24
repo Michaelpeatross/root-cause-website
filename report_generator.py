@@ -445,11 +445,9 @@ def generate_report_html(
       <p class="rec-note">Amazon affiliate links — compare prices. Discuss with your practitioner before starting any protocol.</p>
       <ul>{supp_html}</ul>
     </section>
-    <section class="report-section rec-box">
-      <h3>🩺 Recommended Blood Tests</h3>
-      <p class="rec-note">Order through <a href="https://goodlabs.com/book-tests" target="_blank" rel="noopener">GoodLabs</a> — online blood tests, no doctor visit required.</p>
-      <ul>{lab_html}</ul>
-    </section>
+    <!-- Legacy blood tests box removed: Grok now provides specific ranked 1-10 Labs list
+         (with GoodLabs links) inside the Personalized Health Options / ai section above.
+         This ensures consistency across report, email, dashboard cards, and history views. -->
   </div>
 
   <footer class="report-footer">

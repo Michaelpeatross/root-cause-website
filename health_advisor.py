@@ -602,36 +602,48 @@ def _grok_recommendations(scan_raw, medical_text, client_name, client_email):
 
     prompt = f"""You are a holistic health advisor for Root Cause Bioenergetics.
 Analyze the client's bioenergetic scan data (may include text pasted by the practitioner
-and/or text extracted from uploaded scan PDFs) plus any client medical documents.
-Provide clear, actionable health options (not diagnoses).
+and/or text extracted from uploaded scan PDFs) plus ANY client medical documents, blood labs, and wearable data.
+Provide clear, actionable, in-depth health guidance (educational only — not diagnoses or prescriptions).
 
 Client: {client_name} ({client_email})
 
-BIOENERGETIC SCAN DATA (paste + PDF extracts):
+BIOENERGETIC SCAN DATA:
 {scan_raw[:12000]}
 
-CLIENT MEDICAL DOCUMENTS (all uploaded labs, blood work, medical records, AND wearable health data from Apple Watch / fitness trackers / health monitors — any date):
+CLIENT MEDICAL DOCUMENTS + LABS + WEARABLES (full history):
 {medical_text[:50000] if medical_text else 'None uploaded yet.'}
 
-Cross-reference scan findings with lab values across the client's full uploaded medical history.
-Note trends over time when multiple documents are present.
-For key scan findings, briefly note what the bioenergetic pattern tests for and what the results + labs together suggest.
-For supplements, recommend specific affordable products with Amazon links where possible.
-For blood tests and labs: Suggest relevant standard blood tests based on the scan findings (e.g. Thyroid panel, Vitamin D, Comprehensive Metabolic Panel, Hormone panel, etc. if the data indicates). Always direct to order them through GoodLabs (https://goodlabs.com/book-tests) and discuss the exact panels with their practitioner. Use the general link.
-Do not mention Quest, LabCorp, Any Lab Test Now, Walk-In Lab, Ulta Lab Tests,
-or any other lab provider.
+Instructions (follow exactly):
+- Cross-reference every key scan finding against actual lab values / wearable trends in the uploaded documents.
+- For Supplements: Recommend 4-10 specific, affordable, commonly available supplements. 
+  RANK THEM explicitly from 1 (MOST helpful/important based on this client's data) to 10 (least).
+  For each: name the supplement precisely, give a 1-sentence reason tied to this client's scan + any lab/wearable data, then include a working Amazon search link.
+  Format as a numbered or ranked list under the heading.
+- For blood tests/labs: Based strictly on the scan findings + uploaded labs/wearables, recommend 4-10 specific standard blood tests the client should discuss with a doctor (e.g. "Full Thyroid Panel (TSH + Free T3 + Free T4 + TPO antibodies)", "Morning Cortisol + DHEA-S", "Ferritin + Iron Panel + B12 + Folate", "HbA1c + Fasting Insulin", "Vitamin D 25-OH", "hs-CRP + Homocysteine", etc.).
+  RANK THEM 1 (MOST concerning / highest priority) to 10 (lower priority).
+  For EACH ranked item give a short reason why it matters for THIS client (reference scan markers or lab deviations if present).
+  ALWAYS append or include the order link: https://goodlabs.com/book-tests for every test suggestion.
+  Never name Quest, LabCorp, or any lab except GoodLabs.
+- Output must use EXACT these subheadings so it renders correctly everywhere:
+  <h4>Priority Focus Areas</h4>
+  <h4>Suggested Supplements</h4>
+  <h4>Lifestyle & Nutrition</h4>
+  <h4>Labs to Discuss With Your Doctor</h4>
+- Inside Suggested Supplements and Labs sections, use <strong>Rank 1 (Most Important):</strong> ... </li> style for clear ranking.
+- Be much more specific and data-driven than generic advice. Use the actual numbers/findings from scan and documents.
+- Keep each list prioritized (most critical first). End with the educational disclaimer.
 
-Respond in HTML only (no markdown). Use this structure:
+Respond ONLY with clean HTML inside this wrapper (no markdown fences, no extra text outside):
 <section class="report-section ai-section">
   <h3>Personalized Health Options</h3>
-  <h4>Priority Focus Areas</h4><ul><li>...</li></ul>
-  <h4>Suggested Supplements</h4><ul><li>...</li></ul>
-  <h4>Lifestyle & Nutrition</h4><ul><li>...</li></ul>
-  <h4>Labs to Discuss With Your Doctor</h4><ul><li>...</li></ul>
+  <h4>Priority Focus Areas</h4><ul>...</ul>
+  <h4>Suggested Supplements</h4><ol>...</ol>
+  <h4>Lifestyle & Nutrition</h4><ul>...</ul>
+  <h4>Labs to Discuss With Your Doctor</h4><ol>...</ol>
   <p class="rec-note">Educational guidance only — not medical advice.</p>
 </section>
 
-Be specific to this client's data. Keep lists concise (3-6 items each). Use <strong> on important test/pattern names."""
+Be extremely specific to the numbers, markers, and values present for this exact client."""
 
     content = _grok_chat(
         prompt,
@@ -696,7 +708,7 @@ Focus on:
 - Any notable patterns, outliers, or correlations
 - How this data might relate to stress, recovery, energy, or bioenergetic findings
 
-Keep it concise (3–6 short paragraphs). Be encouraging but factual. Do not give medical advice or diagnosis.
+Keep it concise (3-6 short paragraphs). Be encouraging but factual. Do not give medical advice or diagnosis.
 
 WEARABLE DATA:
 {excerpt}

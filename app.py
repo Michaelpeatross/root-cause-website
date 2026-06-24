@@ -625,21 +625,23 @@ def _regenerate_report_analysis(report, notify_client=False, notify_admin=False)
     _snapshot_original_report(report)
     prefer_template = _prefer_full_scan_template(report.title, scan_raw)
 
+    # Always compute the full ranked Grok recs (1-10 blood + supps) so they appear
+    # consistently in report / email / dashboard / history.
+    ai_html, _src = get_health_recommendations(
+        scan_raw, medical_text, client_name, email,
+        full_scan_mode=prefer_template,
+    )
+
     recon_result = reconcile_scan_with_blood_tests(
         scan_raw, medical_text, client_name, email,
     ) if medical_text and len(medical_text.strip()) >= 80 else None
 
+    blood_html = None
     if recon_result:
-        ai_html = recon_result['updated_ai_html']
-        blood_html = recon_result['reconciliation_html']
+        blood_html = recon_result.get('reconciliation_html')
         report.blood_reconciliation_html = blood_html
         report.reconciled_at = format_report_stamp()
-    else:
-        ai_html, _ = get_health_recommendations(
-            scan_raw, medical_text, client_name, email,
-            full_scan_mode=prefer_template,
-        )
-        blood_html = None
+        # Keep the full ai_html above; recon is shown as extra comparison block only.
 
     report.ai_recommendations = ai_html
     report.plain_text = generate_report_text(
