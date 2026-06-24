@@ -135,10 +135,14 @@ def deliver_report_to_client(
     if send_sms:
         # Use local import or alias to avoid any shadowing with the bool param
         from notification_service import send_sms as _send_sms
+        # Avoid URLs in SMS for Textbelt (requires verified account for URLs)
+        sms_body = (
+            f'Root Cause: Your report "{report_title}" is ready. '
+            f'Check your email or client portal for details. Reply to this text for help.'
+        )
         ok, msg = _send_sms(
             client_phone,
-            f'Root Cause: Your report "{report_title}" is ready. '
-            f'Log in to your portal: {site}/login . Reply to this text for help.',
+            sms_body,
             reply_webhook_url=reply_webhook_url,
             from_number=from_number,
         )

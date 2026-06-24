@@ -386,6 +386,13 @@ def migrate_schema():
     if 'client_document' not in tables or 'report_scan_pdf' not in tables:
         db.create_all()
 
+    if 'search_query' in tables:
+        sq_cols = {c['name'] for c in inspector.get_columns('search_query')}
+        if 'query' in sq_cols and 'query_text' not in sq_cols:
+            with db.engine.connect() as conn:
+                conn.execute(text('ALTER TABLE search_query RENAME COLUMN query TO query_text'))
+                conn.commit()
+
 
 def _normalize_email(email):
     return (email or '').strip().lower()
