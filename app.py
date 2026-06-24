@@ -178,6 +178,15 @@ class ExitLog(db.Model):
     anon_id = db.Column(db.String(100))
 
 
+class SMSSent(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    to_number = db.Column(db.String(20))
+    success = db.Column(db.Boolean, default=False)
+    provider = db.Column(db.String(20))  # 'textbelt' or 'twilio'
+    message_preview = db.Column(db.String(100))
+
+
 def ensure_admin_user():
     admin_email = 'michaelpeatross@gmail.com'
     bootstrap_pw = os.environ.get('ADMIN_PASSWORD', 'admin123')
@@ -292,6 +301,11 @@ def _get_analytics_summary(limit=100):
         exits = ExitLog.query.order_by(ExitLog.timestamp.desc()).limit(20).all()
         avg_time = db.session.query(func.avg(ExitLog.time_spent_seconds)).scalar() or 0
 
+        # SMS usage today
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        sms_today = SMSSent.query.filter(SMSSent.timestamp >= today_start).count()
+        sms_success_today = SMSSent.query.filter(SMSSent.timestamp >= today_start, SMSSent.success == True).count()
+
         # Simple path analysis (last 50 views grouped roughly by anon/time)
         recent_paths = PageView.query.order_by(PageView.timestamp.desc()).limit(50).all()
 
@@ -318,13 +332,16 @@ def _get_analytics_summary(limit=100):
             'avg_time_on_page': round(avg_time, 1) if avg_time else 0,
             'recent_paths': recent_paths,
             'suggestions': suggestions,
+            'sms_today': sms_today,
+            'sms_success_today': sms_success_today,
         }
     except Exception as e:
         print(f"[Analytics] Error building summary: {e}")
         return {
             'total_views': 0, 'unique_visitors': 0, 'top_pages': [], 'recent_views': [],
             'searches': [], 'popular_searches': [], 'exits': [], 'avg_time_on_page': 0,
-            'recent_paths': [], 'suggestions': ['Analytics data is being collected. Visit more pages to see stats.']
+            'recent_paths': [], 'suggestions': ['Analytics data is being collected. Visit more pages to see stats.'],
+            'sms_today': 0, 'sms_success_today': 0
         }
 
 
@@ -388,10 +405,15 @@ def migrate_schema():
 
     if 'search_query' in tables:
         sq_cols = {c['name'] for c in inspector.get_columns('search_query')}
-        if 'query' in sq_cols and 'query_text' not in sq_cols:
+        if 'query_text' not in sq_cols:
             with db.engine.connect() as conn:
-                conn.execute(text('ALTER TABLE search_query RENAME COLUMN query TO query_text'))
+                conn.execute(text('ALTER TABLE search_query ADD COLUMN query_text VARCHAR(500)'))
+                if 'query' in sq_cols:
+                    conn.execute(text('UPDATE search_query SET query_text = query'))
                 conn.commit()
+
+    if 'sms_sent' not in tables:
+        db.create_all()
 
 
 def _normalize_email(email):

@@ -71,9 +71,11 @@ def send_sms(to_number, message, reply_webhook_url=None, from_number=None):
             with urllib.request.urlopen(req, timeout=15) as resp:
                 result = json.loads(resp.read().decode('utf-8'))
             if result.get('success'):
+                _log_sms_sent(to_num, True, 'textbelt', message)
                 return True, f'SMS sent to {to_num} (Textbelt).'
             else:
                 err = result.get('error') or result.get('message') or 'Unknown Textbelt error'
+                _log_sms_sent(to_num, False, 'textbelt', message)
                 return False, f'Textbelt error: {err}. Check your key compliance and whitelist at textbelt.com for the replyWebhookUrl (and sender name "Root Cause"). Full response: {result}'
         except Exception as exc:
             return False, f'Textbelt failed: {exc}'
@@ -101,8 +103,10 @@ def send_sms(to_number, message, reply_webhook_url=None, from_number=None):
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             resp.read()
+        _log_sms_sent(to_num, True, 'twilio', message)
         return True, f'SMS sent to {to_num}.'
     except Exception as exc:
+        _log_sms_sent(to_num, False, 'twilio', message)
         return False, f'SMS failed: {exc}'
 
 
@@ -202,6 +206,24 @@ def send_purchase_thank_you(customer_email, customer_name, customer_phone, produ
     if not customer_email:
         return
     name = customer_name or (customer_email.split('@')[0] if customer_email else 'Customer')
+
+
+def _log_sms_sent(to_number, success, provider, message):
+    """Log SMS send attempt for admin tracking."""
+    try:
+        # Lazy import to avoid circular imports
+        from app import db, SMSSent
+        with db.app.app_context():  # ensure context if needed
+            log = SMSSent(
+                to_number=to_number,
+                success=success,
+                provider=provider,
+                message_preview=(message or '')[:100]
+            )
+            db.session.add(log)
+            db.session.commit()
+    except Exception as e:
+        print(f"[SMS Log] Failed to record SMS log: {e}")
 
     # Email
     try:
