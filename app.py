@@ -2538,7 +2538,7 @@ def admin():
                 db.session.commit()
                 generated.append(post)
 
-            flash(f'Generated {len(generated)} post(s) with Grok. Review below and click Post buttons.', 'success')
+            flash(f'Generated {len(generated)} post(s) with Grok. Click the History tab to see the draft(s) and (for video) upload your MP4 file + post.', 'success')
             selected_client = selected_client  # keep
 
         elif action == 'analyze_social':
@@ -2609,7 +2609,10 @@ def admin():
                 try:
                     post_text = post.content
                     if media_path and 'CAPTION:' in post.content:
-                        post_text = post.content.split('CAPTION:')[1].split('VIDEO_SCRIPT:')[0].strip()
+                        try:
+                            post_text = post.content.split('CAPTION:')[1].split('FULL_VIDEO_PROMPT:')[0].strip()
+                        except Exception:
+                            post_text = post.content.split('CAPTION:')[1].strip()
                     if target_platform == 'x':
                         ok, result = post_to_x(post_text, media_path=media_path)
                     elif target_platform == 'instagram':

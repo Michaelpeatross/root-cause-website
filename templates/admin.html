@@ -134,14 +134,20 @@
         <script>
         function showSocialTab(tabId) {
             document.querySelectorAll('.social-tab').forEach(el => el.style.display = 'none');
-            document.getElementById(tabId).style.display = 'block';
+            var t = document.getElementById(tabId);
+            if (t) t.style.display = 'block';
         }
-        // default show generate
-        window.onload = function() { if (document.getElementById('generate-tab')) document.getElementById('generate-tab').style.display='block'; }
+        // initial state: only generate visible
+        window.onload = function() {
+            document.querySelectorAll('.social-tab').forEach(el => el.style.display = 'none');
+            var g = document.getElementById('generate-tab');
+            if (g) g.style.display = 'block';
+        }
         </script>
         <p style="color:#334155; font-size:0.9rem; margin-bottom:0.75rem;">
             Grok generates posts for <strong>X @Root_Cause__</strong>, <strong>Facebook @root_cause_test</strong> and <strong>Instagram @Root_Cause_test</strong>.<br>
-            <strong>For video posts:</strong> Check "Video Post" — Grok writes the caption + a complete ready-to-paste prompt. Copy the prompt into Kling AI / Runway / Luma / Pika to generate the video file, download it, then upload the file here when posting the draft. Leave "Include link" unchecked for lowest X cost (~$0.02 per post).
+            Use the tabs: <strong>Generate</strong> (create), <strong>Monthly Schedule</strong> (1st of next month), <strong>X Tracker</strong> (cost), <strong>History</strong> (see all drafts + upload video files to post).<br>
+            <strong>For video posts:</strong> Check "Video Post" — Grok writes the caption + FULL_VIDEO_PROMPT. Generate MP4 externally, then in History tab upload the file and post (no link = ~$0.02 on X).
         </p>
 
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:1rem;">
@@ -200,24 +206,10 @@
             </div>
         </form>
 
-        <!-- Monthly Schedule -->
-        <form method="POST" style="margin:0.5rem 0;">
-            <input type="hidden" name="action" value="schedule_social">
-            <select name="schedule_platform" style="padding:2px;">
-                <option value="x">X</option>
-                <option value="facebook">FB</option>
-            </select>
-            <input type="text" name="schedule_focus" placeholder="Focus" style="width:150px;">
-            <button type="submit" class="btn btn-sm">Generate & Schedule for 1st next month</button>
-            <button type="submit" formaction="?action=run_scheduled" formmethod="post" class="btn btn-sm">Run Due Scheduled</button>
-        </form>
-
-        <!-- Scheduled list -->
-        <div id="schedule-tab" class="social-tab" style="display:none; font-size:0.75rem; margin-top:0.3rem;">
-            <strong>Scheduled:</strong>
-            {% for s in scheduled_posts|default([]) %}
-            {{ s.platform }} on {{ s.scheduled_for }}: {{ (s.content[:50] if s.content else '') }}... {% if s.posted %}(posted){% endif %}<br>
-            {% else %}None{% endfor %}
+        <div style="background:#fefce8; border:1px solid #eab308; padding:8px; border-radius:6px; font-size:0.82rem; margin-bottom:0.75rem;">
+            <strong>Where is my generated post (especially video)?</strong><br>
+            Click the <strong>"History"</strong> tab above to see all generated drafts (including video ones).<br>
+            For video posts: copy the FULL VIDEO PROMPT, generate MP4 in Kling/Runway/etc, then in History find the draft, upload the video file, and click "Post to X + video file".
         </div>
 
         <div style="margin-bottom:0.5rem;">
@@ -226,6 +218,34 @@
                 <button type="submit" class="btn btn-outline" style="font-size:0.85rem;">📊 Analyze Performance with Grok</button>
             </form>
             <span style="font-size:0.75rem; color:#64748b; margin-left:8px;">Grok reviews past posts and tells you what content wins.</span>
+        </div>
+        </div>
+
+        <!-- MONTHLY SCHEDULE TAB (clean separate) -->
+        <div id="schedule-tab" class="social-tab" style="display:none; font-size:0.85rem; margin-top:0.3rem; background:#fff; border:1px solid #bae6fd; border-radius:6px; padding:10px;">
+            <strong>Monthly Scheduler (auto on 1st of next month)</strong>
+            <form method="POST" style="margin:0.5rem 0;">
+                <input type="hidden" name="action" value="schedule_social">
+                <select name="schedule_platform" style="padding:2px;">
+                    <option value="x">X</option>
+                    <option value="facebook">FB</option>
+                </select>
+                <input type="text" name="schedule_focus" placeholder="Focus (e.g. thyroid)" style="width:160px; padding:2px 6px;">
+                <button type="submit" class="btn btn-sm">Generate &amp; Schedule for 1st next month</button>
+            </form>
+
+            <form method="POST" style="margin:0.3rem 0;">
+                <input type="hidden" name="action" value="run_scheduled">
+                <button type="submit" class="btn btn-sm" style="background:#0ea5e9; color:white;">▶ Run Due Scheduled Now (posts any ready)</button>
+                <span style="font-size:0.7rem; color:#64748b;">Checks scheduled_for &lt;= today and posts them to X/FB (no video support in scheduler yet).</span>
+            </form>
+
+            <div style="margin-top:0.5rem;">
+                <strong>Upcoming / Due:</strong><br>
+                {% for s in scheduled_posts|default([]) %}
+                {{ s.platform }} — {{ s.scheduled_for }}: {{ (s.content[:60] if s.content else '') }}... {% if s.posted %}(posted){% else %}(pending){% endif %}<br>
+                {% else %}No scheduled posts yet. Use the form above.{% endfor %}
+            </div>
         </div>
 
         {% if social_posts %}
