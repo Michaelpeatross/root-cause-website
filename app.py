@@ -203,6 +203,16 @@ class SocialPost(db.Model):
     performance_note = db.Column(db.Text)  # Grok insights or manual
 
 
+class RegistrationAttempt(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ip = db.Column(db.String(50))
+    user_agent = db.Column(db.String(300))
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    blocked = db.Column(db.Boolean, default=False)
+    reason = db.Column(db.String(50))  # 'honeypot', 'rate_limit', 'banned'
+    elapsed = db.Column(db.Float, default=0.0)
+
+
 def ensure_admin_user():
     admin_email = 'michaelpeatross@gmail.com'
     bootstrap_pw = os.environ.get('ADMIN_PASSWORD', 'admin123')
@@ -331,6 +341,19 @@ def _get_analytics_summary(limit=100):
         sms_7d = SMSSent.query.filter(SMSSent.timestamp >= seven_days_ago).count()
         sms_success_7d = SMSSent.query.filter(SMSSent.timestamp >= seven_days_ago, SMSSent.success == True).count()
 
+        # 1. Bots blocked counters (from honeypot/rate limit)
+        bots_blocked_today = RegistrationAttempt.query.filter(
+            RegistrationAttempt.timestamp >= today_start,
+            RegistrationAttempt.blocked == True
+        ).count()
+        bots_blocked_7d = RegistrationAttempt.query.filter(
+            RegistrationAttempt.timestamp >= seven_days_ago,
+            RegistrationAttempt.blocked == True
+        ).count()
+        recent_blocked = RegistrationAttempt.query.filter_by(blocked=True).order_by(
+            RegistrationAttempt.timestamp.desc()
+        ).limit(10).all()
+
         # Simple path analysis (last 50 views grouped roughly by anon/time)
         recent_paths = PageView.query.order_by(PageView.timestamp.desc()).limit(50).all()
 
@@ -363,6 +386,11 @@ def _get_analytics_summary(limit=100):
             'total_sms_success': total_sms_success,
             'sms_7d': sms_7d,
             'sms_success_7d': sms_success_7d,
+
+            # 1. Bots blocked counters
+            'bots_blocked_today': bots_blocked_today,
+            'bots_blocked_7d': bots_blocked_7d,
+            'recent_blocked': recent_blocked,
             # Social media analytics
             'social_posts': SocialPost.query.count(),
             'social_x_posts': SocialPost.query.filter_by(platform='x').count(),
@@ -385,32 +413,44 @@ def _get_analytics_summary(limit=100):
             'sms_today': 0, 'sms_success_today': 0,
             'total_sms': 0, 'total_sms_success': 0, 'sms_7d': 0, 'sms_success_7d': 0,
             'social_posts': 0, 'social_x_posts': 0, 'social_fb_posts': 0,
-            'social_total_likes': 0, 'social_total_engagement': 0
+            'social_total_likes': 0, 'social_total_engagement': 0,
+            'bots_blocked_today': 0, 'bots_blocked_7d': 0, 'recent_blocked': []
         }
 
 
 # ===================== SOCIAL MEDIA AUTOMATION =====================
 
-def _generate_social_post_content(platform="x", focus=None):
-    """Use Grok to generate engaging social post for X or Facebook."""
+def _generate_social_post_content(platform="x", focus=None, include_link=True):
+    """Use Grok to generate engaging social post for X, Facebook or Instagram.
+    include_link=False for video posts to avoid the $0.20 URL surcharge on X.
+    """
     from health_advisor import _grok_chat
 
     site = "https://www.root-cause-test.com"
     utm = f"{site}?utm_source={platform}&utm_medium=social&utm_campaign=rootcause"
     x_handle = "@Root_Cause__"
     fb_handle = "@root_cause_test"
+    ig_handle = "@Root_Cause_test"
 
     focus_text = f"Focus on: {focus}." if focus else "General educational insight from bioenergetic scans, blood tests, or wearable data."
 
     if platform == "x":
         char_limit = 250
-        format_note = f"Keep under {char_limit} chars. Use 1-2 relevant hashtags. End with link and cross-promote Facebook."
+        link_note = "End with link. " if include_link else "NO LINK - this is a video post. "
+        format_note = f"Keep under {char_limit} chars. Use 1-2 relevant hashtags. {link_note}Cross-promote Facebook and Instagram."
+    elif platform == "instagram":
+        char_limit = 1500
+        link_note = "Include link. " if include_link else "NO LINK in caption (video post). "
+        format_note = f"Instagram caption (feed or reel). Engaging, use line breaks, emojis, ask question or CTA. {link_note}Cross-promote X and Facebook."
     else:
         char_limit = 800
-        format_note = "Facebook post. Engaging, ask a question, use emojis sparingly. Include link and cross-promote X account."
+        link_note = "Include link and cross-promote X and Instagram." if include_link else "NO LINK - video post. Cross-promote X and Instagram."
+        format_note = f"Facebook post. Engaging, ask a question, use emojis sparingly. {link_note}"
+
+    link_instruction = f"Always include the link: {utm}" if include_link else "DO NOT include any link or URL in the post (video only)."
 
     prompt = f"""You are the social media manager for Root Cause Bioenergetics.
-Create ONE high-performing social media post for {platform.upper()}.
+Create ONE high-performing social media post/caption for {platform.upper()}.
 
 Key facts about the brand:
 - Bioenergetic Hair & Saliva Analysis that reveals sensitivities, toxins, metabolic issues, nutritional imbalances.
@@ -425,27 +465,30 @@ Rules:
 - {format_note}
 - Make it valuable and curiosity-driven (not salesy).
 - Mention or tie to specific concepts like "Labs to Discuss", thyroid, gut, stress, blood sugar when relevant.
-- Always include the link: {utm}
-- Cross promote the other platform: X {x_handle} and Facebook {fb_handle}
+- {link_instruction}
+- Cross promote the accounts: X {x_handle} , Facebook {fb_handle} , Instagram {ig_handle}
 - Educational + hopeful tone.
 - No medical advice disclaimer needed in short post.
 
 Return ONLY the post text, no quotes or extra explanation."""
 
+    max_len = 280 if platform == "x" else 2000
     content = _grok_chat(prompt, system="You write concise, high-engagement social copy for health education.", temperature=0.6, timeout=40) or ""
-    content = content.strip()[: (300 if platform=="x" else 1000)]
+    content = content.strip()[:max_len]
 
-    # Ensure link is present
-    if utm not in content:
+    if include_link and utm not in content:
         content += f"\n\n{utm}"
 
-    return content, utm
+    return content, utm if include_link else ''
 
 
-def post_to_x(content):
-    """Post to X using tweepy. Requires env vars."""
+def post_to_x(content, media_path=None):
+    """Post to X using tweepy. Supports optional video/media.
+    media_path: local path to video file (mp4 etc). Uses chunked upload for videos.
+    """
     try:
         import tweepy
+        import os as os_path
         api_key = os.environ.get("X_API_KEY")
         api_secret = os.environ.get("X_API_SECRET")
         access_token = os.environ.get("X_ACCESS_TOKEN")
@@ -454,6 +497,12 @@ def post_to_x(content):
         if not all([api_key, api_secret, access_token, access_secret]):
             return False, "Missing X API keys in environment (X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET)"
 
+        # Debug log (remove after testing if desired)
+        # print(f"[X Post Debug] ...")
+
+        auth = tweepy.OAuth1UserHandler(api_key, api_secret, access_token, access_secret)
+        api = tweepy.API(auth)
+
         client = tweepy.Client(
             consumer_key=api_key,
             consumer_secret=api_secret,
@@ -461,8 +510,13 @@ def post_to_x(content):
             access_token_secret=access_secret
         )
 
-        # For v2, use create_tweet
-        response = client.create_tweet(text=content)
+        media_ids = []
+        if media_path and os_path.exists(media_path):
+            # chunked=True is required for videos > ~5MB or long
+            media = api.media_upload(media_path, chunked=True)
+            media_ids = [media.media_id]
+
+        response = client.create_tweet(text=content, media_ids=media_ids if media_ids else None)
         tweet_id = response.data.get('id') if response and response.data else None
         return True, tweet_id
     except Exception as exc:
@@ -492,6 +546,52 @@ def post_to_facebook(content, link=None):
         if "id" in data:
             return True, data["id"]
         return False, str(data)
+    except Exception as exc:
+        return False, str(exc)
+
+
+def post_to_instagram(content, link=None):
+    """Post to Instagram using Instagram Graph API (requires IG professional account linked to FB Page)."""
+    try:
+        import requests
+        ig_user_id = os.environ.get("IG_USER_ID")
+        access_token = os.environ.get("FB_ACCESS_TOKEN")  # Same long-lived token works
+
+        if not ig_user_id or not access_token:
+            return False, "Missing IG_USER_ID or FB_ACCESS_TOKEN in environment"
+
+        # Instagram requires media. Use a default public image if none provided.
+        # You can change this default to a branded image URL hosted publicly.
+        image_url = os.environ.get("IG_DEFAULT_IMAGE_URL") or "https://picsum.photos/800/800"  # placeholder. Strongly recommended: set IG_DEFAULT_IMAGE_URL to a real branded image URL you control.
+
+        # Step 1: Create media container
+        create_url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media"
+        create_data = {
+            "caption": content,
+            "image_url": image_url,
+            "access_token": access_token,
+        }
+        create_resp = requests.post(create_url, data=create_data, timeout=30)
+        create_data = create_resp.json()
+
+        if "id" not in create_data:
+            return False, f"Instagram media creation failed: {create_data}"
+
+        creation_id = create_data["id"]
+
+        # Step 2: Publish the container
+        publish_url = f"https://graph.facebook.com/v19.0/{ig_user_id}/media_publish"
+        publish_data = {
+            "creation_id": creation_id,
+            "access_token": access_token,
+        }
+        pub_resp = requests.post(publish_url, data=publish_data, timeout=30)
+        pub_data = pub_resp.json()
+
+        if "id" in pub_data:
+            return True, pub_data["id"]
+        return False, f"Instagram publish failed: {pub_data}"
+
     except Exception as exc:
         return False, str(exc)
 
@@ -605,6 +705,9 @@ def migrate_schema():
         db.create_all()
 
     if 'social_post' not in tables:
+        db.create_all()
+
+    if 'registration_attempt' not in tables:
         db.create_all()
 
 
@@ -1661,12 +1764,57 @@ def login():
     return render_template('login.html', email=request.args.get('email', ''))
 
 
+def log_registration_attempt(ip, ua, blocked, reason, elapsed):
+    """Log registration attempt (for analytics and aggressive banning)."""
+    try:
+        att = RegistrationAttempt(
+            ip=ip,
+            user_agent=ua,
+            blocked=blocked,
+            reason=reason,
+            elapsed=elapsed
+        )
+        db.session.add(att)
+        db.session.commit()
+    except Exception as e:
+        print(f"[RegisterLog] Failed to log attempt: {e}")
+
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     # Always provide a fresh timestamp for the form (used for timing check)
     current_timestamp = int(time.time())
 
     if request.method == 'POST':
+        ip = (request.headers.get('CF-Connecting-IP') or
+              request.headers.get('X-Forwarded-For', '').split(',')[0].strip() or
+              request.remote_addr or 'unknown')
+        ua = (request.headers.get('User-Agent') or '')[:300]
+
+        # Record every registration attempt (for accurate rate limiting stats)
+        log_registration_attempt(ip, ua, False, 'attempt', 0)
+
+        # 4. Extra aggressive mode: temp ban IPs that have hit honeypot/rate limit 3+ times recently
+        recent_blocks = RegistrationAttempt.query.filter(
+            RegistrationAttempt.ip == ip,
+            RegistrationAttempt.blocked == True,
+            RegistrationAttempt.timestamp >= datetime.utcnow() - timedelta(hours=1)
+        ).count()
+        if recent_blocks >= 3:
+            log_registration_attempt(ip, ua, True, 'banned', 0)
+            print(f"[Ban] Banned IP {ip} (too many previous blocks)")
+            return redirect(url_for('register'))
+
+        # 2. Harder rate limiting: max 3 attempts per IP per 10 minutes (even clean ones)
+        recent_attempts = RegistrationAttempt.query.filter(
+            RegistrationAttempt.ip == ip,
+            RegistrationAttempt.timestamp >= datetime.utcnow() - timedelta(minutes=10)
+        ).count()
+        if recent_attempts >= 3:
+            log_registration_attempt(ip, ua, True, 'rate_limit', 0)
+            print(f"[RateLimit] IP {ip} hit 3+ attempts in 10min")
+            return redirect(url_for('register'))
+
         # Strong honeypot + timing check (multiple fields + minimum time)
         honeypot_fields = [
             request.form.get('website', '').strip(),
@@ -1681,9 +1829,9 @@ def register():
             elapsed = 999
 
         if any(h for h in honeypot_fields) or elapsed < 3:
-            # Bot detected (filled hidden field or submitted too fast)
-            # Silently drop - no account, no email, no error message
-            print(f"[Honeypot] Blocked bot registration attempt from IP {request.remote_addr} (elapsed={elapsed}s)")
+            # 3. Log the blocked attempt
+            log_registration_attempt(ip, ua, True, 'honeypot', elapsed)
+            print(f"[Honeypot] Blocked bot registration attempt from IP {ip} (elapsed={elapsed}s)")
             return redirect(url_for('register'))
 
         name = request.form.get('name', '').strip()
@@ -2304,12 +2452,18 @@ def admin():
         elif action == 'generate_social':
             platform = request.form.get('social_platform', 'x')
             focus = (request.form.get('social_focus') or '').strip() or None
+            include_link = request.form.get('include_link') == 'on'
 
             generated = []
-            platforms = ['x', 'facebook'] if platform == 'both' else [platform]
+            if platform == 'all':
+                platforms = ['x', 'facebook', 'instagram']
+            elif platform == 'both':
+                platforms = ['x', 'facebook']
+            else:
+                platforms = [platform]
             for plat in platforms:
-                content, link = _generate_social_post_content(plat, focus)
-                post = SocialPost(platform=plat, content=content, link=link)
+                content, link = _generate_social_post_content(plat, focus, include_link=include_link)
+                post = SocialPost(platform=plat, content=content, link=link if include_link else '')
                 db.session.add(post)
                 db.session.commit()
                 generated.append(post)
@@ -2326,17 +2480,36 @@ def admin():
             target_platform = request.form.get('platform', 'x')
             post = SocialPost.query.get(post_id)
             if post:
-                if target_platform == 'x':
-                    ok, result = post_to_x(post.content)
-                else:
-                    ok, result = post_to_facebook(post.content, post.link)
-                if ok:
-                    post.posted_at = datetime.utcnow()
-                    post.external_post_id = str(result) if result else None
-                    db.session.commit()
-                    flash(f'Posted to {target_platform.upper()}! (ID: {result})', 'success')
-                else:
-                    flash(f'Post to {target_platform} failed: {result}', 'error')
+                media_path = None
+                video_file = request.files.get('video')
+                if video_file and video_file.filename:
+                    # Save temp file for upload
+                    import tempfile, os as os_path
+                    suffix = os_path.splitext(video_file.filename)[1] or '.mp4'
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        video_file.save(tmp.name)
+                        media_path = tmp.name
+
+                try:
+                    if target_platform == 'x':
+                        ok, result = post_to_x(post.content, media_path=media_path)
+                    elif target_platform == 'instagram':
+                        ok, result = post_to_instagram(post.content, post.link)
+                    else:
+                        ok, result = post_to_facebook(post.content, post.link)
+                    if ok:
+                        post.posted_at = datetime.utcnow()
+                        post.external_post_id = str(result) if result else None
+                        db.session.commit()
+                        flash(f'Posted to {target_platform.upper()}! (ID: {result})', 'success')
+                    else:
+                        flash(f'Post to {target_platform} failed: {result}', 'error')
+                finally:
+                    if media_path and os_path.exists(media_path):
+                        try:
+                            os_path.unlink(media_path)
+                        except:
+                            pass
             else:
                 flash('Post not found.', 'error')
 

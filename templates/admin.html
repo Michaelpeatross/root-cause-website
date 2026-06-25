@@ -36,6 +36,12 @@
                     <strong>Email support@textbelt.com</strong> to raise limits.
                 </div>
             </div>
+
+            <div style="background:#fff; padding:10px 12px; border-radius:8px; border:1px solid #e2e8f0;">
+                <div style="font-size:0.75rem; color:#64748b;">Bots Blocked (Honeypot / Rate Limit)</div>
+                <div style="font-size:1.6rem; font-weight:700; color:#0f172a;">{{ analytics.bots_blocked_today }} today / {{ analytics.bots_blocked_7d }} (7d)</div>
+                <div style="font-size:0.68rem; color:#64748b;">Includes rate-limit + honeypot + auto-bans. See details below.</div>
+            </div>
         </div>
 
         <details style="margin-bottom:1rem;">
@@ -87,6 +93,19 @@
             </div>
         </details>
 
+        <details style="margin-top:0.5rem;">
+            <summary style="cursor:pointer; font-weight:600;">🚫 Recent Blocked Bot Attempts ({{ analytics.bots_blocked_today }} today)</summary>
+            <div style="font-size:0.75rem; max-height:200px; overflow:auto; margin-top:4px;">
+                {% for b in analytics.recent_blocked %}
+                <div style="border-bottom:1px solid #eee; padding:2px 0;">
+                    {{ b.timestamp.strftime('%m/%d %H:%M') if b.timestamp else '' }} — <strong>{{ b.ip }}</strong>
+                    [{{ b.reason or 'honeypot' }}] elapsed={{ '%.1f'|format(b.elapsed or 0) }}s
+                    <br><small>{{ (b.user_agent or '')[:80] }}</small>
+                </div>
+                {% else %}<div>No blocked bots logged yet.</div>{% endfor %}
+            </div>
+        </details>
+
         <div>
             <h3 style="margin:0.25rem 0; font-size:1rem;">💡 Suggestions to Improve Searchability &amp; SEO</h3>
             <ul style="margin:0.25rem 0; padding-left:1.2rem; font-size:0.88rem; color:#334155;">
@@ -105,8 +124,8 @@
     <div class="card" style="margin-top:1.5rem; background:#f0f9ff; border:2px solid #0ea5e9;">
         <h2 style="margin-bottom:0.25rem;">📱 Social Media Automation &amp; Analytics</h2>
         <p style="color:#334155; font-size:0.9rem; margin-bottom:0.75rem;">
-            Grok generates posts for <strong>X @Root_Cause__</strong> and <strong>Facebook @root_cause_test</strong>.<br>
-            Cross-links accounts in every post. Track performance so Grok learns what works (blood tests, supplements, wearables, etc.).
+            Grok generates posts for <strong>X @Root_Cause__</strong>, <strong>Facebook @root_cause_test</strong> and <strong>Instagram @Root_Cause_test</strong>.<br>
+            Cross-links all accounts in every post. Track performance so Grok learns what works (blood tests, supplements, wearables, etc.).
         </p>
 
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:1rem;">
@@ -140,8 +159,12 @@
                     <select name="social_platform" style="padding:4px 8px;">
                         <option value="x">X (Twitter)</option>
                         <option value="facebook">Facebook</option>
-                        <option value="both">Both (generate two versions)</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="all">All three platforms</option>
                     </select>
+                </div>
+                <div>
+                    <label><input type="checkbox" name="include_link"> Include link (leave unchecked for video posts to save ~$0.20/post on X)</label>
                 </div>
                 <button type="submit" class="btn btn-primary" style="padding:6px 14px;">🤖 Generate Post with Grok</button>
             </div>
@@ -168,21 +191,36 @@
                     {% if p.link %} | <a href="{{ p.link }}" target="_blank">link</a>{% endif %}
                 </small>
                 {% if p.performance_note %}<br><em style="color:#0e7490;">{{ p.performance_note[:100] }}</em>{% endif %}
-                <form method="POST" style="display:inline; margin-left:8px;">
-                    <input type="hidden" name="action" value="post_social">
-                    <input type="hidden" name="social_post_id" value="{{ p.id }}">
-                    <button type="submit" name="platform" value="x" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to X</button>
-                    <button type="submit" name="platform" value="facebook" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to FB</button>
-                </form>
+                {% if not p.posted_at %}
+                  {% if p.platform == 'x' %}
+                  <form method="POST" enctype="multipart/form-data" style="margin-top:4px;">
+                      <input type="hidden" name="action" value="post_social">
+                      <input type="hidden" name="social_post_id" value="{{ p.id }}">
+                      <input type="hidden" name="platform" value="x">
+                      <input type="file" name="video" accept="video/*" style="font-size:0.7rem;">
+                      <button type="submit" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to X (with video, no link = ~$0.02)</button>
+                  </form>
+                  {% else %}
+                  <form method="POST" style="display:inline; margin-left:8px;">
+                      <input type="hidden" name="action" value="post_social">
+                      <input type="hidden" name="social_post_id" value="{{ p.id }}">
+                      <button type="submit" name="platform" value="x" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to X</button>
+                      <button type="submit" name="platform" value="facebook" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to FB</button>
+                      <button type="submit" name="platform" value="instagram" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to IG</button>
+                  </form>
+                  {% endif %}
+                {% endif %}
             </div>
             {% endfor %}
         </div>
         {% endif %}
 
         <p style="font-size:0.7rem; color:#64748b; margin-top:0.5rem;">
-            To auto-post: Add these to Render Environment:<br>
+            To auto-post: Add these to Render Environment (see exact steps in chat):<br>
             <code>X_API_KEY, X_API_SECRET, X_ACCESS_TOKEN, X_ACCESS_TOKEN_SECRET</code><br>
-            <code>FB_PAGE_ID, FB_ACCESS_TOKEN</code> (Page token with publish permission)
+            <code>FB_PAGE_ID, FB_ACCESS_TOKEN</code><br>
+            <code>IG_USER_ID</code> (use same FB_ACCESS_TOKEN)<br>
+            (X app must have "Read and write" + generate new Access Token while logged in as @Root_Cause__)
         </p>
     </div>
     <!-- END SOCIAL -->
