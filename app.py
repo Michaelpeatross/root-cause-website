@@ -203,6 +203,25 @@ class SocialPost(db.Model):
     performance_note = db.Column(db.Text)  # Grok insights or manual
 
 
+class XAPILog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    platform = db.Column(db.String(20))  # 'x'
+    posts_made = db.Column(db.Integer, default=1)
+    cost = db.Column(db.Float, default=0.02)
+    note = db.Column(db.String(200))
+
+
+class ScheduledSocialPost(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    platform = db.Column(db.String(20))
+    content = db.Column(db.Text)
+    link = db.Column(db.String(300))
+    scheduled_for = db.Column(db.Date)
+    posted = db.Column(db.Boolean, default=False)
+    generated_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class RegistrationAttempt(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ip = db.Column(db.String(50))
@@ -354,6 +373,15 @@ def _get_analytics_summary(limit=100):
             RegistrationAttempt.timestamp.desc()
         ).limit(10).all()
 
+        # X API cost tracker (based on posted X posts @ $0.02 without link)
+        x_posts_month = SocialPost.query.filter(
+            SocialPost.platform == 'x',
+            SocialPost.posted_at >= today_start
+        ).count()
+        x_spent = round(x_posts_month * 0.02, 2)
+        x_purchased = db.session.query(db.func.coalesce(db.func.sum(XAPILog.cost), 0)).scalar() or 0
+        x_balance = round(x_purchased - x_spent, 2)
+
         # Simple path analysis (last 50 views grouped roughly by anon/time)
         recent_paths = PageView.query.order_by(PageView.timestamp.desc()).limit(50).all()
 
@@ -391,6 +419,12 @@ def _get_analytics_summary(limit=100):
             'bots_blocked_today': bots_blocked_today,
             'bots_blocked_7d': bots_blocked_7d,
             'recent_blocked': recent_blocked,
+
+            # X API tracker
+            'x_posts_this_month': x_posts_month,
+            'x_api_spent': x_spent,
+            'x_api_balance': x_balance,
+            'x_api_purchased': x_purchased,
             # Social media analytics
             'social_posts': SocialPost.query.count(),
             'social_x_posts': SocialPost.query.filter_by(platform='x').count(),
@@ -414,15 +448,17 @@ def _get_analytics_summary(limit=100):
             'total_sms': 0, 'total_sms_success': 0, 'sms_7d': 0, 'sms_success_7d': 0,
             'social_posts': 0, 'social_x_posts': 0, 'social_fb_posts': 0,
             'social_total_likes': 0, 'social_total_engagement': 0,
-            'bots_blocked_today': 0, 'bots_blocked_7d': 0, 'recent_blocked': []
+            'bots_blocked_today': 0, 'bots_blocked_7d': 0, 'recent_blocked': [],
+            'x_posts_this_month': 0, 'x_api_spent': 0, 'x_api_balance': 0, 'x_api_purchased': 0
         }
 
 
 # ===================== SOCIAL MEDIA AUTOMATION =====================
 
-def _generate_social_post_content(platform="x", focus=None, include_link=True):
+def _generate_social_post_content(platform="x", focus=None, include_link=True, is_video=False):
     """Use Grok to generate engaging social post for X, Facebook or Instagram.
-    include_link=False for video posts to avoid the $0.20 URL surcharge on X.
+    If is_video=True, output CAPTION + VIDEO SCRIPT so user can create the video.
+    include_link=False recommended for video to avoid $0.20 URL cost on X.
     """
     from health_advisor import _grok_chat
 
@@ -449,6 +485,36 @@ def _generate_social_post_content(platform="x", focus=None, include_link=True):
 
     link_instruction = f"Always include the link: {utm}" if include_link else "DO NOT include any link or URL in the post (video only)."
 
+    if is_video:
+        output_format = """Output EXACTLY in this format (no extra text):
+
+CAPTION:
+[short engaging caption, max 250 chars for X, no links or URLs. This is what will be posted with the video.]
+
+FULL_VIDEO_PROMPT:
+[Self-contained, ready-to-paste prompt for AI video tools (best results with Kling AI, Runway Gen-3, Luma Dream Machine, or Pika):
+"Create a professional 45-60 second vertical 9:16 video in realistic cinematic style with warm natural lighting and subtle smooth camera movements.
+
+Voiceover (clear, calm, professional male or female voice, 40-55 seconds long): '[exact voiceover script here, warm and hopeful, based on the caption and educational content]'
+
+Scene-by-scene (with exact timing):
+0-8 seconds: [detailed opening visual scene description]
+8-18 seconds: [next scene]
+...
+On-screen text (large, clean, sans-serif font, appears with voiceover):
+- 0-8s: '[text]'
+- ...
+End screen (last 5 seconds): text overlay 'Root Cause Bioenergetics • root-cause-test.com' + subtle logo if possible.
+
+Style notes: realistic, high detail, cinematic color grade, no fast cuts, educational and inspiring mood.
+Background music: soft ambient inspiring track, low volume.
+Do not add any extra text, watermarks, or logos beyond the specified on-screen text."
+
+Replace all placeholders with specific, detailed content derived from the focus and brand. Make the prompt complete so it can be copied and pasted directly to generate a finished video.]
+"""
+    else:
+        output_format = "Return ONLY the post text, no quotes or extra explanation."
+
     prompt = f"""You are the social media manager for Root Cause Bioenergetics.
 Create ONE high-performing social media post/caption for {platform.upper()}.
 
@@ -470,13 +536,13 @@ Rules:
 - Educational + hopeful tone.
 - No medical advice disclaimer needed in short post.
 
-Return ONLY the post text, no quotes or extra explanation."""
+{output_format}"""
 
     max_len = 280 if platform == "x" else 2000
-    content = _grok_chat(prompt, system="You write concise, high-engagement social copy for health education.", temperature=0.6, timeout=40) or ""
+    content = _grok_chat(prompt, system="You write concise, high-engagement social copy and detailed video scripts for health education. Follow the exact output format when requested.", temperature=0.6, timeout=50) or ""
     content = content.strip()[:max_len]
 
-    if include_link and utm not in content:
+    if include_link and utm not in content and not is_video:
         content += f"\n\n{utm}"
 
     return content, utm if include_link else ''
@@ -708,6 +774,9 @@ def migrate_schema():
         db.create_all()
 
     if 'registration_attempt' not in tables:
+        db.create_all()
+
+    if 'xapi_log' not in tables or 'scheduled_social_post' not in tables:
         db.create_all()
 
 
@@ -2452,7 +2521,8 @@ def admin():
         elif action == 'generate_social':
             platform = request.form.get('social_platform', 'x')
             focus = (request.form.get('social_focus') or '').strip() or None
-            include_link = request.form.get('include_link') == 'on'
+            is_video = request.form.get('is_video') == 'on'
+            include_link = (request.form.get('include_link') == 'on') and not is_video
 
             generated = []
             if platform == 'all':
@@ -2462,7 +2532,7 @@ def admin():
             else:
                 platforms = [platform]
             for plat in platforms:
-                content, link = _generate_social_post_content(plat, focus, include_link=include_link)
+                content, link = _generate_social_post_content(plat, focus, include_link=include_link, is_video=is_video)
                 post = SocialPost(platform=plat, content=content, link=link if include_link else '')
                 db.session.add(post)
                 db.session.commit()
@@ -2474,6 +2544,52 @@ def admin():
         elif action == 'analyze_social':
             insights = analyze_social_performance()
             flash('Grok Social Analysis: ' + (insights or '').replace('\n', ' | '), 'success')
+
+        elif action == 'log_x_credit':
+            try:
+                amt = float(request.form.get('credit_amount', 0))
+                note = request.form.get('credit_note', '')
+                if amt > 0:
+                    log = XAPILog(platform='x', posts_made=0, cost=amt, note=note or 'Credit purchase')
+                    db.session.add(log)
+                    db.session.commit()
+                    flash(f'Logged ${amt} X credit purchase.', 'success')
+                else:
+                    flash('Enter positive amount.', 'error')
+            except:
+                flash('Invalid credit amount.', 'error')
+
+        elif action == 'schedule_social':
+            platform = request.form.get('schedule_platform', 'x')
+            focus = (request.form.get('schedule_focus') or '').strip() or None
+            from datetime import datetime as dt, timedelta
+            next_month = (dt.utcnow().replace(day=1) + timedelta(days=32)).replace(day=1).date()
+            include_link = False  # default no link for low cost
+            content, link = _generate_social_post_content(platform, focus, include_link=include_link)
+            sched = ScheduledSocialPost(platform=platform, content=content, link=link, scheduled_for=next_month)
+            db.session.add(sched)
+            db.session.commit()
+            flash(f'Scheduled {platform} post for {next_month}', 'success')
+
+        elif action == 'run_scheduled':
+            today = datetime.utcnow().date()
+            due = ScheduledSocialPost.query.filter(
+                ScheduledSocialPost.scheduled_for <= today,
+                ScheduledSocialPost.posted == False
+            ).all()
+            count = 0
+            for s in due:
+                if s.platform == 'x':
+                    ok, res = post_to_x(s.content)
+                elif s.platform == 'instagram':
+                    ok, res = post_to_instagram(s.content, s.link)
+                else:
+                    ok, res = post_to_facebook(s.content, s.link)
+                if ok:
+                    s.posted = True
+                    count += 1
+            db.session.commit()
+            flash(f'Posted {count} scheduled posts.', 'success')
 
         elif action == 'post_social':
             post_id = request.form.get('social_post_id')
@@ -2491,16 +2607,27 @@ def admin():
                         media_path = tmp.name
 
                 try:
+                    post_text = post.content
+                    if media_path and 'CAPTION:' in post.content:
+                        post_text = post.content.split('CAPTION:')[1].split('VIDEO_SCRIPT:')[0].strip()
                     if target_platform == 'x':
-                        ok, result = post_to_x(post.content, media_path=media_path)
+                        ok, result = post_to_x(post_text, media_path=media_path)
                     elif target_platform == 'instagram':
-                        ok, result = post_to_instagram(post.content, post.link)
+                        ok, result = post_to_instagram(post_text, post.link)
                     else:
-                        ok, result = post_to_facebook(post.content, post.link)
+                        ok, result = post_to_facebook(post_text, post.link)
                     if ok:
                         post.posted_at = datetime.utcnow()
                         post.external_post_id = str(result) if result else None
                         db.session.commit()
+                        if target_platform == 'x':
+                            try:
+                                cost = 0.02
+                                log = XAPILog(platform='x', posts_made=1, cost=cost, note='video no link')
+                                db.session.add(log)
+                                db.session.commit()
+                            except:
+                                pass
                         flash(f'Posted to {target_platform.upper()}! (ID: {result})', 'success')
                     else:
                         flash(f'Post to {target_platform} failed: {result}', 'error')
@@ -2792,6 +2919,7 @@ def admin():
     client_groups = _split_clients_for_admin(clients)
     now = central_now().strftime('%b %d, %Y')
     analytics = _get_analytics_summary()
+    scheduled_posts = ScheduledSocialPost.query.filter_by(posted=False).order_by(ScheduledSocialPost.scheduled_for).limit(5).all()
     return render_template(
         'admin.html',
         reports=reports,
@@ -2803,6 +2931,7 @@ def admin():
         storage_status=_storage_status,
         now=now,
         analytics=analytics,
+        scheduled_posts=scheduled_posts,
         social_posts=SocialPost.query.order_by(SocialPost.generated_at.desc()).limit(12).all(),
     )
 

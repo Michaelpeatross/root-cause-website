@@ -123,9 +123,25 @@
     <!-- SOCIAL MEDIA AUTOMATION -->
     <div class="card" style="margin-top:1.5rem; background:#f0f9ff; border:2px solid #0ea5e9;">
         <h2 style="margin-bottom:0.25rem;">📱 Social Media Automation &amp; Analytics</h2>
+
+        <!-- Tabs -->
+        <div style="margin-bottom:0.5rem;">
+            <button onclick="showSocialTab('generate-tab')" class="btn btn-sm" style="margin-right:4px;">Generate</button>
+            <button onclick="showSocialTab('schedule-tab')" class="btn btn-sm" style="margin-right:4px;">Monthly Schedule</button>
+            <button onclick="showSocialTab('tracker-tab')" class="btn btn-sm" style="margin-right:4px;">X Tracker</button>
+            <button onclick="showSocialTab('history-tab')" class="btn btn-sm">History</button>
+        </div>
+        <script>
+        function showSocialTab(tabId) {
+            document.querySelectorAll('.social-tab').forEach(el => el.style.display = 'none');
+            document.getElementById(tabId).style.display = 'block';
+        }
+        // default show generate
+        window.onload = function() { if (document.getElementById('generate-tab')) document.getElementById('generate-tab').style.display='block'; }
+        </script>
         <p style="color:#334155; font-size:0.9rem; margin-bottom:0.75rem;">
             Grok generates posts for <strong>X @Root_Cause__</strong>, <strong>Facebook @root_cause_test</strong> and <strong>Instagram @Root_Cause_test</strong>.<br>
-            Cross-links all accounts in every post. Track performance so Grok learns what works (blood tests, supplements, wearables, etc.).
+            <strong>For video posts:</strong> Check "Video Post" — Grok writes the caption + a complete ready-to-paste prompt. Copy the prompt into Kling AI / Runway / Luma / Pika to generate the video file, download it, then upload the file here when posting the draft. Leave "Include link" unchecked for lowest X cost (~$0.02 per post).
         </p>
 
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:1rem;">
@@ -147,6 +163,17 @@
             </div>
         </div>
 
+        <!-- X API Tracker -->
+        <div id="tracker-tab" class="social-tab" style="display:none;">
+        <div style="background:#fff; border:1px solid #0ea5e9; padding:8px; border-radius:6px; margin-bottom:1rem;">
+            <strong>📊 X API Cost Tracker (Pay-per-use)</strong><br>
+            Spent this month: <strong>${{ analytics.x_api_spent }}</strong> ({{ analytics.x_posts_this_month }} posts @ $0.02 no-link/video)<br>
+            Credits logged: ${{ analytics.x_api_purchased }} | Est. balance: ${{ analytics.x_api_balance }}<br>
+            <small>Log purchases below or in X console. $0.20 if link included.</small>
+        </div>
+        </div>
+
+        <div id="generate-tab" class="social-tab" style="display:block;">
         <form method="POST" style="margin-bottom:1rem;">
             <input type="hidden" name="action" value="generate_social">
             <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
@@ -166,9 +193,32 @@
                 <div>
                     <label><input type="checkbox" name="include_link"> Include link (leave unchecked for video posts to save ~$0.20/post on X)</label>
                 </div>
+                <div>
+                    <label><input type="checkbox" name="is_video"> Video Post — Grok creates the full caption + ready-to-paste prompt for you to generate the video</label>
+                </div>
                 <button type="submit" class="btn btn-primary" style="padding:6px 14px;">🤖 Generate Post with Grok</button>
             </div>
         </form>
+
+        <!-- Monthly Schedule -->
+        <form method="POST" style="margin:0.5rem 0;">
+            <input type="hidden" name="action" value="schedule_social">
+            <select name="schedule_platform" style="padding:2px;">
+                <option value="x">X</option>
+                <option value="facebook">FB</option>
+            </select>
+            <input type="text" name="schedule_focus" placeholder="Focus" style="width:150px;">
+            <button type="submit" class="btn btn-sm">Generate & Schedule for 1st next month</button>
+            <button type="submit" formaction="?action=run_scheduled" formmethod="post" class="btn btn-sm">Run Due Scheduled</button>
+        </form>
+
+        <!-- Scheduled list -->
+        <div id="schedule-tab" class="social-tab" style="display:none; font-size:0.75rem; margin-top:0.3rem;">
+            <strong>Scheduled:</strong>
+            {% for s in scheduled_posts|default([]) %}
+            {{ s.platform }} on {{ s.scheduled_for }}: {{ (s.content[:50] if s.content else '') }}... {% if s.posted %}(posted){% endif %}<br>
+            {% else %}None{% endfor %}
+        </div>
 
         <div style="margin-bottom:0.5rem;">
             <form method="POST" style="display:inline;">
@@ -179,13 +229,24 @@
         </div>
 
         {% if social_posts %}
-        <div style="max-height:320px; overflow:auto; border:1px solid #bae6fd; background:#fff; border-radius:6px; padding:6px; font-size:0.82rem;">
+        <div id="history-tab" class="social-tab" style="display:none; max-height:320px; overflow:auto; border:1px solid #bae6fd; background:#fff; border-radius:6px; padding:6px; font-size:0.82rem;">
             <strong>Recent Posts</strong>
             {% for p in social_posts %}
             <div style="border-bottom:1px solid #e0f2fe; padding:4px 0; margin-bottom:4px;">
                 <strong>{{ p.platform.upper() }}</strong> — {{ p.generated_at.strftime('%m/%d %H:%M') if p.generated_at else '' }}
                 {% if p.posted_at %} (posted){% endif %}<br>
-                <span style="color:#334155;">{{ (p.content or '')[:160] }}{% if p.content and p.content|length > 160 %}...{% endif %}</span><br>
+                {% if 'CAPTION:' in (p.content or '') %}
+                    {% set parts = (p.content or '').split('FULL_VIDEO_PROMPT:') %}
+                    <strong>CAPTION:</strong> {{ parts[0].replace('CAPTION:', '').strip()[:180] }}{% if parts[0]|length > 180 %}...{% endif %}<br>
+                    {% if parts|length > 1 %}
+                    <strong>FULL VIDEO PROMPT (Grok created this for you):</strong><br>
+                    <button onclick="navigator.clipboard.writeText(`{{ parts[1].strip() }}`); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy Full Video Prompt',1500)" class="btn btn-sm" style="font-size:0.65rem; padding:2px 6px; margin-bottom:4px;">Copy Full Video Prompt</button>
+                    <pre style="font-size:0.6rem; white-space:pre-wrap; max-height:140px; overflow:auto; background:#f1f3f5; padding:6px; border-radius:4px; border:1px solid #dee2e6;">{{ parts[1].strip() }}</pre>
+                    <em style="font-size:0.65rem;">1. Copy the prompt above → 2. Paste into Kling AI / Runway / Luma / Pika to generate the video → 3. Download the MP4 → 4. Upload it below and post (no link = low cost)</em>
+                    {% endif %}
+                {% else %}
+                    <span style="color:#334155;">{{ (p.content or '')[:160] }}{% if p.content and p.content|length > 160 %}...{% endif %}</span><br>
+                {% endif %}
                 <small>
                     Likes: {{ p.likes or 0 }} | Comments: {{ p.comments or 0 }} | Shares: {{ p.shares or 0 }} | Impressions: {{ p.impressions or 0 }}
                     {% if p.link %} | <a href="{{ p.link }}" target="_blank">link</a>{% endif %}
@@ -198,7 +259,7 @@
                       <input type="hidden" name="social_post_id" value="{{ p.id }}">
                       <input type="hidden" name="platform" value="x">
                       <input type="file" name="video" accept="video/*" style="font-size:0.7rem;">
-                      <button type="submit" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to X (with video, no link = ~$0.02)</button>
+                      <button type="submit" class="btn btn-sm" style="font-size:0.7rem; padding:1px 6px;">Post to X + video file (generate video using the prompt above first)</button>
                   </form>
                   {% else %}
                   <form method="POST" style="display:inline; margin-left:8px;">
@@ -222,6 +283,14 @@
             <code>IG_USER_ID</code> (use same FB_ACCESS_TOKEN)<br>
             (X app must have "Read and write" + generate new Access Token while logged in as @Root_Cause__)
         </p>
+
+        <!-- Log X Credit Purchase for balance -->
+        <form method="POST" style="margin-top:0.5rem; font-size:0.8rem;">
+            <input type="hidden" name="action" value="log_x_credit">
+            <input type="number" step="0.01" name="credit_amount" placeholder="Credits purchased e.g. 5.00" style="width:120px;">
+            <input type="text" name="credit_note" placeholder="Note (e.g. bought 5 credits)" style="width:200px;">
+            <button type="submit" class="btn btn-sm">Log X Credit Purchase</button>
+        </form>
     </div>
     <!-- END SOCIAL -->
 

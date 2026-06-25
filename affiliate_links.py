@@ -206,10 +206,6 @@ def enrich_html_with_affiliate_links(html_content):
         html_content,
         flags=re.DOTALL | re.IGNORECASE,
     )
-    html = re.sub(
-        r'<h4[^>]*>.*?Lab.*?</h4>\s*<ul>.*?</ul>',
-        replace_lab_section,
-        html,
-        flags=re.DOTALL | re.IGNORECASE,
-    )
+    # Removed lab replace to allow Grok to suggest specific tests; prompt ensures GoodLabs links
+    # html = re.sub( ... replace_lab_section ...
     return html

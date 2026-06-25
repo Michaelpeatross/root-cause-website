@@ -64,6 +64,12 @@ services:
         sync: false
       - key: FB_ACCESS_TOKEN
         sync: false
+      # Instagram @Root_Cause_test (must be Professional account linked to the FB Page above)
+      - key: IG_USER_ID
+        sync: false
+      # Optional: override default image used for IG posts
+      - key: IG_DEFAULT_IMAGE_URL
+        sync: false
       # Email (also used for report delivery). Any SMTP that supports TLS.
       - key: SMTP_HOST
         sync: false
