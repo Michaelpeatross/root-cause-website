@@ -457,7 +457,7 @@ def _get_analytics_summary(limit=100):
 
 def _generate_social_post_content(platform="x", focus=None, include_link=True, is_video=False):
     """Use Grok to generate engaging social post for X, Facebook or Instagram.
-    If is_video=True, output CAPTION + VIDEO SCRIPT so user can create the video.
+    If is_video=True, output CAPTION + FULL_VIDEO_PROMPT (optimized for 5-10s short clips).
     include_link=False recommended for video to avoid $0.20 URL cost on X.
     """
     from health_advisor import _grok_chat
@@ -492,25 +492,29 @@ CAPTION:
 [short engaging caption, max 250 chars for X, no links or URLs. This is what will be posted with the video.]
 
 FULL_VIDEO_PROMPT:
-[Self-contained, ready-to-paste prompt for AI video tools (best results with Kling AI, Runway Gen-3, Luma Dream Machine, or Pika):
-"Create a professional 45-60 second vertical 9:16 video in realistic cinematic style with warm natural lighting and subtle smooth camera movements.
+[Self-contained, ready-to-paste prompt. User will copy this to an external AI video tool (Kling.ai, RunwayML, Luma Dream Machine, or Pika.art) to create the MP4:
 
-Voiceover (clear, calm, professional male or female voice, 40-55 seconds long): '[exact voiceover script here, warm and hopeful, based on the caption and educational content]'
+"Create a professional 5-10 second vertical 9:16 video in realistic cinematic style with warm natural lighting and subtle smooth camera movements.
+
+Voiceover (clear, calm, professional male or female voice, 4-8 seconds long): '[exact voiceover script here, warm and hopeful, based on the caption and educational content]'
 
 Scene-by-scene (with exact timing):
-0-8 seconds: [detailed opening visual scene description]
-8-18 seconds: [next scene]
-...
+0-3 seconds: [detailed opening visual scene description]
+3-7 seconds: [main visual / key point]
+7-10 seconds: [closing visual or call-to-action moment]
+
 On-screen text (large, clean, sans-serif font, appears with voiceover):
-- 0-8s: '[text]'
-- ...
-End screen (last 5 seconds): text overlay 'Root Cause Bioenergetics • root-cause-test.com' + subtle logo if possible.
+- 0-3s: '[text]'
+- 3-7s: '[text]'
+- 7-10s: '[text]'
+
+End screen (last 2 seconds): text overlay 'Root Cause Bioenergetics • root-cause-test.com' + subtle logo if possible.
 
 Style notes: realistic, high detail, cinematic color grade, no fast cuts, educational and inspiring mood.
 Background music: soft ambient inspiring track, low volume.
 Do not add any extra text, watermarks, or logos beyond the specified on-screen text."
 
-Replace all placeholders with specific, detailed content derived from the focus and brand. Make the prompt complete so it can be copied and pasted directly to generate a finished video.]
+Make the prompt complete and optimized for 5-10 second short-form social video (Reels / X / Stories). Replace all placeholders with specific content.]
 """
     else:
         output_format = "Return ONLY the post text, no quotes or extra explanation."

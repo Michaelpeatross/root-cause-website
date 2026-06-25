@@ -146,8 +146,7 @@
         </script>
         <p style="color:#334155; font-size:0.9rem; margin-bottom:0.75rem;">
             Grok generates posts for <strong>X @Root_Cause__</strong>, <strong>Facebook @root_cause_test</strong> and <strong>Instagram @Root_Cause_test</strong>.<br>
-            Use the tabs: <strong>Generate</strong> (create), <strong>Monthly Schedule</strong> (1st of next month), <strong>X Tracker</strong> (cost), <strong>History</strong> (see all drafts + upload video files to post).<br>
-            <strong>For video posts:</strong> Check "Video Post" — Grok writes the caption + FULL_VIDEO_PROMPT. Generate MP4 externally, then in History tab upload the file and post (no link = ~$0.02 on X).
+            <strong>Video posts = 5-10 second short clips</strong> (much cheaper + higher completion rates). Grok writes the prompt → you paste it into Kling.ai, Runway, Luma or Pika to make the MP4 → upload the file in the <strong>History</strong> tab to post for ~$0.02 on X.
         </p>
 
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:1rem;">
@@ -200,16 +199,19 @@
                     <label><input type="checkbox" name="include_link"> Include link (leave unchecked for video posts to save ~$0.20/post on X)</label>
                 </div>
                 <div>
-                    <label><input type="checkbox" name="is_video"> Video Post — Grok creates the full caption + ready-to-paste prompt for you to generate the video</label>
+                    <label><input type="checkbox" name="is_video"> Video Post — 5-10s short clip (Grok writes caption + prompt for Kling/Runway/Luma/Pika)</label>
                 </div>
                 <button type="submit" class="btn btn-primary" style="padding:6px 14px;">🤖 Generate Post with Grok</button>
             </div>
         </form>
 
         <div style="background:#fefce8; border:1px solid #eab308; padding:8px; border-radius:6px; font-size:0.82rem; margin-bottom:0.75rem;">
-            <strong>Where is my generated post (especially video)?</strong><br>
-            Click the <strong>"History"</strong> tab above to see all generated drafts (including video ones).<br>
-            For video posts: copy the FULL VIDEO PROMPT, generate MP4 in Kling/Runway/etc, then in History find the draft, upload the video file, and click "Post to X + video file".
+            <strong>Video posts are now 5-10 second short clips</strong> (cheaper + better for social).<br>
+            1. After generating, click the <strong>"History"</strong> tab.<br>
+            2. Copy the <strong>FULL VIDEO PROMPT</strong>.<br>
+            3. Paste into Kling.ai, RunwayML, Luma.ai, or Pika.art.<br>
+            4. Generate &amp; download the short MP4.<br>
+            5. Back in History → upload the file → "Post to X + video file".
         </div>
 
         <div style="margin-bottom:0.5rem;">
@@ -262,7 +264,7 @@
                     <strong>FULL VIDEO PROMPT (Grok created this for you):</strong><br>
                     <button onclick="navigator.clipboard.writeText(`{{ parts[1].strip() }}`); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy Full Video Prompt',1500)" class="btn btn-sm" style="font-size:0.65rem; padding:2px 6px; margin-bottom:4px;">Copy Full Video Prompt</button>
                     <pre style="font-size:0.6rem; white-space:pre-wrap; max-height:140px; overflow:auto; background:#f1f3f5; padding:6px; border-radius:4px; border:1px solid #dee2e6;">{{ parts[1].strip() }}</pre>
-                    <em style="font-size:0.65rem;">1. Copy the prompt above → 2. Paste into Kling AI / Runway / Luma / Pika to generate the video → 3. Download the MP4 → 4. Upload it below and post (no link = low cost)</em>
+                    <em style="font-size:0.65rem;">1. Copy FULL VIDEO PROMPT → 2. Paste into Kling/Runway/Luma/Pika → 3. Make 5-10s MP4 → 4. Upload here &amp; Post (cheap no-link)</em>
                     {% endif %}
                 {% else %}
                     <span style="color:#334155;">{{ (p.content or '')[:160] }}{% if p.content and p.content|length > 160 %}...{% endif %}</span><br>
