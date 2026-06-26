@@ -544,7 +544,10 @@ Rules:
 
     max_len = 280 if platform == "x" else 2000
     content = _grok_chat(prompt, system="You write concise, high-engagement social copy and detailed video scripts for health education. Follow the exact output format when requested.", temperature=0.6, timeout=50) or ""
-    content = content.strip()[:max_len]
+    content = content.strip()
+
+    if not is_video:
+        content = content[:max_len]
 
     if include_link and utm not in content and not is_video:
         content += f"\n\n{utm}"

@@ -138,34 +138,37 @@
             if (t) t.style.display = 'block';
         }
         function copyVideoPrompt(btn) {
-            // Robust search for the prompt text element (pre or textarea)
             const container = btn.parentElement;
-            let el = container.querySelector('pre') || container.querySelector('textarea');
+            let el = container.querySelector('textarea') || container.querySelector('pre');
             if (!el) {
-                // Fallback: walk siblings
                 let sib = btn.nextElementSibling;
-                while (sib && sib.tagName !== 'PRE' && sib.tagName !== 'TEXTAREA') {
+                while (sib && sib.tagName !== 'TEXTAREA' && sib.tagName !== 'PRE') {
                     sib = sib.nextElementSibling;
                 }
                 el = sib;
             }
-            if (el) {
-                const text = (el.tagName === 'TEXTAREA' ? el.value : (el.innerText || el.textContent || '')).trim();
-                navigator.clipboard.writeText(text).then(function() {
-                    const orig = btn.innerText;
-                    btn.innerText = 'Copied!';
-                    setTimeout(function() { btn.innerText = orig; }, 1600);
-                }).catch(function() {
-                    // Fallback help
-                    try {
-                        el.focus();
-                        el.select && el.select();
-                    } catch(e) {}
-                    alert('Clipboard blocked by browser. Click in the box below, press Ctrl+A then Ctrl+C manually.');
-                });
-            } else {
-                alert('Could not locate the prompt text. Try clicking inside the gray box and using Ctrl+A / Ctrl+C.');
+            if (!el) {
+                alert('Could not find the prompt text box.');
+                return;
             }
+
+            // Always try to visually select the content first (helps user + fallback)
+            try {
+                el.focus();
+                if (el.select) el.select();
+                else if (el.setSelectionRange) el.setSelectionRange(0, el.value.length);
+            } catch (e) {}
+
+            const text = (el.tagName === 'TEXTAREA' ? el.value : (el.innerText || el.textContent || '')).trim();
+
+            navigator.clipboard.writeText(text).then(function() {
+                const orig = btn.innerText;
+                btn.innerText = 'Copied!';
+                setTimeout(function() { btn.innerText = orig; }, 1500);
+            }).catch(function() {
+                // Clipboard API blocked (common in some setups) — user can still Ctrl+C now that it's selected
+                // Do nothing extra, the selection is already active
+            });
         }
         // initial state: only generate visible
         window.onload = function() {
@@ -293,7 +296,7 @@
                     {% if parts|length > 1 %}
                     <strong>FULL VIDEO PROMPT (Grok created this for you):</strong><br>
                     <button onclick="copyVideoPrompt(this)" class="btn btn-sm" style="font-size:0.65rem; padding:2px 6px; margin-bottom:4px;">Copy Full Video Prompt</button>
-                    <small style="color:#64748b;">Click in the box below → it will auto-select. Or Ctrl+A then Ctrl+C.</small>
+                    <small style="color:#64748b;">Click the Copy button or click in the box (auto-selects) then Ctrl+C.</small>
                     <textarea readonly style="font-size:0.6rem; white-space:pre-wrap; max-height:160px; overflow:auto; background:#f1f3f5; padding:6px; border-radius:4px; border:1px solid #dee2e6; width:100%; font-family: monospace; resize: vertical; display:block;" onclick="this.focus(); this.select && this.select();" title="Click here to auto-select all. Ctrl+C to copy.">{{ parts[1].strip() }}</textarea>
                     <em style="font-size:0.65rem;">1. Copy FULL VIDEO PROMPT → 2. Paste into Kling/Runway/Luma/Pika → 3. Make 5-10s MP4 → 4. Upload here &amp; Post (cheap no-link)</em>
                     {% endif %}
