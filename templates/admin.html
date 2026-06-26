@@ -137,6 +137,21 @@
             var t = document.getElementById(tabId);
             if (t) t.style.display = 'block';
         }
+        function copyVideoPrompt(btn) {
+            // Safely copy from the following <pre> element
+            const pre = btn.nextElementSibling;
+            if (pre && pre.tagName === 'PRE') {
+                const text = pre.innerText || pre.textContent;
+                navigator.clipboard.writeText(text).then(function() {
+                    const orig = btn.innerText;
+                    btn.innerText = 'Copied!';
+                    setTimeout(function() { btn.innerText = orig; }, 1600);
+                }).catch(function() {
+                    // Fallback: tell user to manually select
+                    alert('Copy blocked. Please click inside the gray box below, press Ctrl+A then Ctrl+C.');
+                });
+            }
+        }
         // initial state: only generate visible
         window.onload = function() {
             document.querySelectorAll('.social-tab').forEach(el => el.style.display = 'none');
@@ -262,8 +277,9 @@
                     <strong>CAPTION:</strong> {{ parts[0].replace('CAPTION:', '').strip()[:180] }}{% if parts[0]|length > 180 %}...{% endif %}<br>
                     {% if parts|length > 1 %}
                     <strong>FULL VIDEO PROMPT (Grok created this for you):</strong><br>
-                    <button onclick="navigator.clipboard.writeText(`{{ parts[1].strip() }}`); this.innerText='Copied!'; setTimeout(()=>this.innerText='Copy Full Video Prompt',1500)" class="btn btn-sm" style="font-size:0.65rem; padding:2px 6px; margin-bottom:4px;">Copy Full Video Prompt</button>
-                    <pre style="font-size:0.6rem; white-space:pre-wrap; max-height:140px; overflow:auto; background:#f1f3f5; padding:6px; border-radius:4px; border:1px solid #dee2e6;">{{ parts[1].strip() }}</pre>
+                    <button onclick="copyVideoPrompt(this)" class="btn btn-sm" style="font-size:0.65rem; padding:2px 6px; margin-bottom:4px;">Copy Full Video Prompt</button>
+                    <small style="color:#64748b;">(or click the gray box below → Ctrl+A → Ctrl+C)</small>
+                    <pre style="font-size:0.6rem; white-space:pre-wrap; max-height:140px; overflow:auto; background:#f1f3f5; padding:6px; border-radius:4px; border:1px solid #dee2e6;" title="Click here, then press Ctrl+A to select everything, then Ctrl+C"> {{ parts[1].strip() }}</pre>
                     <em style="font-size:0.65rem;">1. Copy FULL VIDEO PROMPT → 2. Paste into Kling/Runway/Luma/Pika → 3. Make 5-10s MP4 → 4. Upload here &amp; Post (cheap no-link)</em>
                     {% endif %}
                 {% else %}
