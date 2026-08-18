@@ -282,6 +282,10 @@ def send_purchase_thank_you(customer_email, customer_name, customer_phone, produ
             f"Next steps:\n"
             f"- Log in or create your free account using {customer_email} at {site_url}/login\n"
             f"- Review collection instructions: {site_url}/instructions\n"
+            f"- Mail your hair + saliva samples to:\n"
+            f"  743 Rue Bourdeaux\n"
+            f"  Covington, LA 70433\n"
+            f"  (Write your full name and birthday on the bag)\n"
             f"- Your practitioner will prepare and publish your personalized bioenergetic report.\n\n"
             f"If you have any questions, just reply to this email.\n\n"
             f"- Root Cause Bioenergetics\n{site_url}"
@@ -295,8 +299,8 @@ def send_purchase_thank_you(customer_email, customer_name, customer_phone, produ
         try:
             sms_msg = (
                 f"Root Cause: Thank you for your {product_name} purchase! "
-                f"Check email at {customer_email} for details. "
-                f"Login at {site_url}/login to proceed with your scan collection. Reply to this text for help."
+                f"Mail samples to: 743 Rue Bourdeaux, Covington LA 70433. "
+                f"Check email & login at {site_url}/login. Reply for help."
             )
             send_sms(customer_phone, sms_msg, reply_webhook_url=reply_webhook_url)
         except Exception as exc:
@@ -323,6 +327,10 @@ def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, si
             f"Next steps:\n"
             f"- If you haven't purchased yet, visit {site_url}/buy to get started.\n"
             f"- Read the easy collection instructions: {site_url}/instructions\n"
+            f"- Mail your hair + saliva samples to:\n"
+            f"  743 Rue Bourdeaux\n"
+            f"  Covington, LA 70433\n"
+            f"  (Write your full name and birthday on the bag)\n"
             f"- Create or log into your portal at {site_url}/login\n"
             f"- Once your sample is processed, your personalized report will appear here.\n\n"
             f"Questions? Just reply to this email — we're here to help.\n\n"
@@ -342,7 +350,8 @@ def send_welcome_to_root_cause(customer_email, customer_name, customer_phone, si
         try:
             sms_msg = (
                 f"Welcome to Root Cause, {name}! Your account is ready. "
-                f"Check your email for next steps. We're excited to help uncover your root causes. Reply to this text for assistance."
+                f"Mail samples to 743 Rue Bourdeaux, Covington LA 70433. "
+                f"Check email for details. Reply for help."
             )
             sms_ok, sms_msg = send_sms(customer_phone, sms_msg, reply_webhook_url=reply_webhook_url, from_number=from_number)
             if sms_ok:
