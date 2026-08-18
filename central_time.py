@@ -1,4 +1,4 @@
-"""Central Time for Root Cause reports (Baton Rouge area, 70809)."""
+"""Central Time for Root Cause reports (Covington / Baton Rouge area, LA)."""
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
