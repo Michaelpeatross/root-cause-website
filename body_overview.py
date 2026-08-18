@@ -230,12 +230,34 @@ TOXIN_CATEGORIES = [
 
 
 def score_to_stress_level(marker_count):
-    """Map imbalance count to a readable stress label (no raw % shown)."""
+    """Map imbalance count to a readable stress label and numeric Health Score (higher = better)."""
     score = max(MIN_SCORE, BASE_SCORE - marker_count * DEDUCTION_PER_MARKER)
     for threshold, label, css in STRESS_LEVELS:
         if score >= threshold:
             return label, css, score
     return 'Chronic Weakness', 'stress-severe', score
+
+
+def overall_health_score(overview):
+    """Average Health Score across systems that have markers; fall back to 100 if none."""
+    active = [s for s in (overview or []) if s.get('markers')]
+    if not active:
+        return 100
+    total = sum(s.get('score', BASE_SCORE) for s in active)
+    return max(MIN_SCORE, min(100, int(round(total / len(active)))))
+
+
+def score_color_css(score):
+    """Return a CSS color class or inline-friendly gradient stop for the score bar."""
+    if score >= 91:
+        return 'health-excellent'
+    if score >= 71:
+        return 'health-good'
+    if score >= 51:
+        return 'health-fair'
+    if score >= 31:
+        return 'health-low'
+    return 'health-critical'
 
 
 def classify_marker(marker):
@@ -333,28 +355,115 @@ def filter_nonempty_groups(groups):
     return {cat: items for cat, items in (groups or {}).items() if items}
 
 
-def render_body_overview_html(overview):
-    """Render the Body Overview section with expandable system details."""
+def render_body_overview_html(overview, previous_scores=None):
+    """Render a user-friendly Body Overview with overall + per-system Health Scores,
+    color charts, and optional previous-scan comparison for progress tracking.
+
+    previous_scores: optional dict like {'overall': 78, 'digestive': 65, ...}
+    """
+    previous_scores = previous_scores or {}
     active = [s for s in (overview or []) if s.get('markers')]
-    if not active:
+    systems_to_show = overview or []
+    if not systems_to_show:
         return ''
 
+    overall = overall_health_score(overview)
+    overall_css = score_color_css(overall)
+    prev_overall = previous_scores.get('overall')
+    progress_html = ''
+    if prev_overall is not None:
+        try:
+            prev_overall = int(prev_overall)
+            delta = overall - prev_overall
+            if delta > 0:
+                progress_html = (
+                    f'<span class="health-progress up">Previous {prev_overall} → '
+                    f'<strong>{overall}</strong> (+{delta})</span>'
+                )
+            elif delta < 0:
+                progress_html = (
+                    f'<span class="health-progress down">Previous {prev_overall} → '
+                    f'<strong>{overall}</strong> ({delta})</span>'
+                )
+            else:
+                progress_html = (
+                    f'<span class="health-progress same">Previous {prev_overall} → '
+                    f'<strong>{overall}</strong> (no change)</span>'
+                )
+        except (TypeError, ValueError):
+            progress_html = ''
+
+    overall_block = (
+        '<div class="health-overall-card">'
+        '<div class="health-overall-header">'
+        '<h3>Your Overall Health Score</h3>'
+        f'<div class="health-score-number {overall_css}">{overall}</div>'
+        '</div>'
+        f'{progress_html}'
+        '<p class="health-overall-note">This evaluated score (0–100) combines findings from your '
+        'bioenergetic scan and any medical information on file. Higher is better. '
+        'It reflects how balanced the main body systems appear on this evaluation.</p>'
+        f'<div class="health-score-bar"><div class="health-score-fill {overall_css}" '
+        f'style="width:{overall}%"></div></div>'
+        '<div class="health-score-scale"><span>Needs support</span><span>Balanced</span></div>'
+        '</div>'
+    )
+
     cards = []
-    for system in active:
-        marker_items = ''.join(
-            f'<li>{escape(m["name"])}</li>' for m in system['markers']
+    for system in systems_to_show:
+        has_markers = bool(system.get('markers'))
+        score = system.get('score', BASE_SCORE) if has_markers else BASE_SCORE
+        css = system.get('stress_css', 'stress-minor') if has_markers else 'stress-minor'
+        color_css = score_color_css(score) if has_markers else 'health-excellent'
+        label = system.get('stress_label', 'Minor Stress') if has_markers else 'No major markers'
+        marker_count = len(system.get('markers') or [])
+        prev_sys = previous_scores.get(system['id'])
+        sys_progress = ''
+        if prev_sys is not None and has_markers:
+            try:
+                prev_sys = int(prev_sys)
+                d = score - prev_sys
+                if d > 0:
+                    sys_progress = f'<span class="sys-progress up">Prev {prev_sys} → {score} (+{d})</span>'
+                elif d < 0:
+                    sys_progress = f'<span class="sys-progress down">Prev {prev_sys} → {score} ({d})</span>'
+                else:
+                    sys_progress = f'<span class="sys-progress same">Prev {prev_sys} → {score}</span>'
+            except (TypeError, ValueError):
+                pass
+
+        marker_summary = (
+            f'<p class="marker-summary">{marker_count} stress marker'
+            f'{"s" if marker_count != 1 else ""} found</p>'
+            if has_markers else
+            '<p class="marker-summary muted">No significant stress markers in this system</p>'
         )
+        marker_items = ''
+        if has_markers:
+            marker_items = (
+                '<ul class="body-marker-list">'
+                + ''.join(f'<li>{escape(m["name"])}</li>' for m in system['markers'])
+                + '</ul>'
+            )
+
         cards.append(
             f'<details class="body-system-card" id="body-system-{escape(system["id"])}">'
             f'<summary class="body-system-summary">'
+            f'<div class="sys-summary-left">'
             f'<span class="body-system-name">{escape(system["name"])}</span>'
-            f'<span class="stress-badge {system["stress_css"]}">'
-            f'{escape(system["stress_label"])}</span>'
+            f'{sys_progress}'
+            f'</div>'
+            f'<div class="sys-summary-right">'
+            f'<span class="health-score-pill {color_css}">{score}</span>'
+            f'<span class="stress-badge {css}">{escape(label)}</span>'
+            f'</div>'
             f'</summary>'
             f'<div class="body-system-detail">'
+            f'<div class="health-score-bar compact"><div class="health-score-fill {color_css}" '
+            f'style="width:{score}%"></div></div>'
             f'<p class="body-system-def">{escape(system["definition"])}</p>'
-            f'<h4>Stress markers in your scan</h4>'
-            f'<ul class="body-marker-list">{marker_items}</ul>'
+            f'{marker_summary}'
+            f'{marker_items}'
             f'</div>'
             f'</details>'
         )
@@ -364,18 +473,60 @@ def render_body_overview_html(overview):
         for _threshold, label, css in STRESS_LEVELS
     )
 
+    styles = """
+<style>
+.health-overall-card{background:linear-gradient(135deg,#f0f9f6,#e8f5f1);border:1px solid #b8d9cf;border-radius:14px;padding:1.35rem 1.5rem;margin:1.25rem 0 1.5rem;box-shadow:0 2px 8px rgba(13,92,77,.06)}
+.health-overall-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.health-overall-header h3{margin:0;font-size:1.15rem;color:#0d5c4d}
+.health-score-number{font-size:2.4rem;font-weight:800;line-height:1;min-width:3.2rem;text-align:center}
+.health-score-number.health-excellent,.health-score-pill.health-excellent{color:#0d7a4f}
+.health-score-number.health-good,.health-score-pill.health-good{color:#2d8a4e}
+.health-score-number.health-fair,.health-score-pill.health-fair{color:#b8860b}
+.health-score-number.health-low,.health-score-pill.health-low{color:#c45c26}
+.health-score-number.health-critical,.health-score-pill.health-critical{color:#b33a3a}
+.health-overall-note{font-size:.92rem;color:#3d5c55;margin:.65rem 0 .9rem;line-height:1.45}
+.health-score-bar{height:12px;background:#dceae5;border-radius:999px;overflow:hidden;margin:.35rem 0}
+.health-score-bar.compact{height:8px;margin:.5rem 0 .75rem}
+.health-score-fill{height:100%;border-radius:999px;transition:width .4s ease}
+.health-score-fill.health-excellent{background:linear-gradient(90deg,#34d399,#059669)}
+.health-score-fill.health-good{background:linear-gradient(90deg,#6ee7b7,#10b981)}
+.health-score-fill.health-fair{background:linear-gradient(90deg,#fcd34d,#d97706)}
+.health-score-fill.health-low{background:linear-gradient(90deg,#fdba74,#ea580c)}
+.health-score-fill.health-critical{background:linear-gradient(90deg,#fca5a5,#dc2626)}
+.health-score-scale{display:flex;justify-content:space-between;font-size:.75rem;color:#6b857e;margin-top:.25rem}
+.health-progress{display:inline-block;margin-top:.4rem;font-size:.9rem;padding:.25rem .65rem;border-radius:6px;background:#fff;border:1px solid #c5ddd5}
+.health-progress.up{color:#0d7a4f;border-color:#86efac}
+.health-progress.down{color:#b33a3a;border-color:#fca5a5}
+.health-progress.same{color:#5a6f6a}
+.health-score-pill{display:inline-flex;align-items:center;justify-content:center;min-width:2.4rem;padding:.2rem .5rem;border-radius:999px;font-weight:700;font-size:.95rem;background:#f0f9f6;border:1px solid #c5ddd5}
+.sys-summary-left{display:flex;flex-direction:column;gap:.2rem}
+.sys-summary-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+.sys-progress{font-size:.78rem;color:#5a6f6a}
+.sys-progress.up{color:#0d7a4f}
+.sys-progress.down{color:#b33a3a}
+.marker-summary{font-size:.9rem;margin:.4rem 0;color:#3d5c55}
+.marker-summary.muted{color:#8a9e98}
+.health-disclaimer-note{font-size:.82rem;color:#6b857e;margin-top:1.25rem;line-height:1.4}
+.body-system-summary{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+</style>
+"""
     return (
         '<section class="scan-section page-break" id="body-overview">'
-        '<h2>Body Overview</h2>'
-        '<p class="scan-lead">Your scan tested multiple areas of the body. '
-        'Each system below shows your overall stress level based on markers found '
-        f'(3% deduction per item tested with imbalance). Click a system to see its '
-        'definition and your stress markers.</p>'
+        f'{styles}'
+        '<h2>Body Systems & Health Scores</h2>'
+        '<p class="scan-lead">Your scan evaluates key body systems. Each system receives a '
+        '<strong>Health Score</strong> (0–100, higher is better) based on the number and type of '
+        'imbalance markers found. An overall score summarizes your current evaluation. '
+        'When a previous scan is available, you will also see your progress.</p>'
+        f'{overall_block}'
         '<div class="scan-legend body-overview-legend">'
         '<span class="legend-title">Stress scale:</span>'
         f'{legend}'
         '</div>'
-        f'<div class="body-overview-grid">{"".join(cards)}</div>'
+        f'<div class="body-overview-grid">{{"".join(cards)}</div>'
+        '<p class="health-disclaimer-note">Health Scores are an educational evaluation derived from '
+        'your bioenergetic scan and available medical context. They are not a medical diagnosis '
+        'or biological age measurement.</p>'
         '</section>'
     )
 
