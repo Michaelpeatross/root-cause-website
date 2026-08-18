@@ -356,13 +356,8 @@ def filter_nonempty_groups(groups):
 
 
 def render_body_overview_html(overview, previous_scores=None):
-    """Render a user-friendly Body Overview with overall + per-system Health Scores,
-    color charts, and optional previous-scan comparison for progress tracking.
-
-    previous_scores: optional dict like {'overall': 78, 'digestive': 65, ...}
-    """
+    """Render Body Overview with overall + per-system Health Scores and color charts."""
     previous_scores = previous_scores or {}
-    active = [s for s in (overview or []) if s.get('markers')]
     systems_to_show = overview or []
     if not systems_to_show:
         return ''
@@ -473,61 +468,67 @@ def render_body_overview_html(overview, previous_scores=None):
         for _threshold, label, css in STRESS_LEVELS
     )
 
-    styles = """
-<style>
-.health-overall-card{background:linear-gradient(135deg,#f0f9f6,#e8f5f1);border:1px solid #b8d9cf;border-radius:14px;padding:1.35rem 1.5rem;margin:1.25rem 0 1.5rem;box-shadow:0 2px 8px rgba(13,92,77,.06)}
-.health-overall-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
-.health-overall-header h3{margin:0;font-size:1.15rem;color:#0d5c4d}
-.health-score-number{font-size:2.4rem;font-weight:800;line-height:1;min-width:3.2rem;text-align:center}
-.health-score-number.health-excellent,.health-score-pill.health-excellent{color:#0d7a4f}
-.health-score-number.health-good,.health-score-pill.health-good{color:#2d8a4e}
-.health-score-number.health-fair,.health-score-pill.health-fair{color:#b8860b}
-.health-score-number.health-low,.health-score-pill.health-low{color:#c45c26}
-.health-score-number.health-critical,.health-score-pill.health-critical{color:#b33a3a}
-.health-overall-note{font-size:.92rem;color:#3d5c55;margin:.65rem 0 .9rem;line-height:1.45}
-.health-score-bar{height:12px;background:#dceae5;border-radius:999px;overflow:hidden;margin:.35rem 0}
-.health-score-bar.compact{height:8px;margin:.5rem 0 .75rem}
-.health-score-fill{height:100%;border-radius:999px;transition:width .4s ease}
-.health-score-fill.health-excellent{background:linear-gradient(90deg,#34d399,#059669)}
-.health-score-fill.health-good{background:linear-gradient(90deg,#6ee7b7,#10b981)}
-.health-score-fill.health-fair{background:linear-gradient(90deg,#fcd34d,#d97706)}
-.health-score-fill.health-low{background:linear-gradient(90deg,#fdba74,#ea580c)}
-.health-score-fill.health-critical{background:linear-gradient(90deg,#fca5a5,#dc2626)}
-.health-score-scale{display:flex;justify-content:space-between;font-size:.75rem;color:#6b857e;margin-top:.25rem}
-.health-progress{display:inline-block;margin-top:.4rem;font-size:.9rem;padding:.25rem .65rem;border-radius:6px;background:#fff;border:1px solid #c5ddd5}
-.health-progress.up{color:#0d7a4f;border-color:#86efac}
-.health-progress.down{color:#b33a3a;border-color:#fca5a5}
-.health-progress.same{color:#5a6f6a}
-.health-score-pill{display:inline-flex;align-items:center;justify-content:center;min-width:2.4rem;padding:.2rem .5rem;border-radius:999px;font-weight:700;font-size:.95rem;background:#f0f9f6;border:1px solid #c5ddd5}
-.sys-summary-left{display:flex;flex-direction:column;gap:.2rem}
-.sys-summary-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0}
-.sys-progress{font-size:.78rem;color:#5a6f6a}
-.sys-progress.up{color:#0d7a4f}
-.sys-progress.down{color:#b33a3a}
-.marker-summary{font-size:.9rem;margin:.4rem 0;color:#3d5c55}
-.marker-summary.muted{color:#8a9e98}
-.health-disclaimer-note{font-size:.82rem;color:#6b857e;margin-top:1.25rem;line-height:1.4}
-.body-system-summary{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
-</style>
-"""
+    styles = (
+        '<style>'
+        '.health-overall-card{background:linear-gradient(135deg,#f0f9f6,#e8f5f1);border:1px solid #b8d9cf;'
+        'border-radius:14px;padding:1.35rem 1.5rem;margin:1.25rem 0 1.5rem;box-shadow:0 2px 8px rgba(13,92,77,.06)}'
+        '.health-overall-header{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}'
+        '.health-overall-header h3{margin:0;font-size:1.15rem;color:#0d5c4d}'
+        '.health-score-number{font-size:2.4rem;font-weight:800;line-height:1;min-width:3.2rem;text-align:center}'
+        '.health-score-number.health-excellent,.health-score-pill.health-excellent{color:#0d7a4f}'
+        '.health-score-number.health-good,.health-score-pill.health-good{color:#2d8a4e}'
+        '.health-score-number.health-fair,.health-score-pill.health-fair{color:#b8860b}'
+        '.health-score-number.health-low,.health-score-pill.health-low{color:#c45c26}'
+        '.health-score-number.health-critical,.health-score-pill.health-critical{color:#b33a3a}'
+        '.health-overall-note{font-size:.92rem;color:#3d5c55;margin:.65rem 0 .9rem;line-height:1.45}'
+        '.health-score-bar{height:12px;background:#dceae5;border-radius:999px;overflow:hidden;margin:.35rem 0}'
+        '.health-score-bar.compact{height:8px;margin:.5rem 0 .75rem}'
+        '.health-score-fill{height:100%;border-radius:999px;transition:width .4s ease}'
+        '.health-score-fill.health-excellent{background:linear-gradient(90deg,#34d399,#059669)}'
+        '.health-score-fill.health-good{background:linear-gradient(90deg,#6ee7b7,#10b981)}'
+        '.health-score-fill.health-fair{background:linear-gradient(90deg,#fcd34d,#d97706)}'
+        '.health-score-fill.health-low{background:linear-gradient(90deg,#fdba74,#ea580c)}'
+        '.health-score-fill.health-critical{background:linear-gradient(90deg,#fca5a5,#dc2626)}'
+        '.health-score-scale{display:flex;justify-content:space-between;font-size:.75rem;color:#6b857e;margin-top:.25rem}'
+        '.health-progress{display:inline-block;margin-top:.4rem;font-size:.9rem;padding:.25rem .65rem;border-radius:6px;'
+        'background:#fff;border:1px solid #c5ddd5}'
+        '.health-progress.up{color:#0d7a4f;border-color:#86efac}'
+        '.health-progress.down{color:#b33a3a;border-color:#fca5a5}'
+        '.health-progress.same{color:#5a6f6a}'
+        '.health-score-pill{display:inline-flex;align-items:center;justify-content:center;min-width:2.4rem;'
+        'padding:.2rem .5rem;border-radius:999px;font-weight:700;font-size:.95rem;background:#f0f9f6;border:1px solid #c5ddd5}'
+        '.sys-summary-left{display:flex;flex-direction:column;gap:.2rem}'
+        '.sys-summary-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0}'
+        '.sys-progress{font-size:.78rem;color:#5a6f6a}'
+        '.sys-progress.up{color:#0d7a4f}'
+        '.sys-progress.down{color:#b33a3a}'
+        '.marker-summary{font-size:.9rem;margin:.4rem 0;color:#3d5c55}'
+        '.marker-summary.muted{color:#8a9e98}'
+        '.health-disclaimer-note{font-size:.82rem;color:#6b857e;margin-top:1.25rem;line-height:1.4}'
+        '.body-system-summary{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}'
+        '</style>'
+    )
+
+    grid_html = '<div class="body-overview-grid">' + ''.join(cards) + '</div>'
+
     return (
         '<section class="scan-section page-break" id="body-overview">'
-        f'{styles}'
-        '<h2>Body Systems & Health Scores</h2>'
-        '<p class="scan-lead">Your scan evaluates key body systems. Each system receives a '
-        '<strong>Health Score</strong> (0–100, higher is better) based on the number and type of '
-        'imbalance markers found. An overall score summarizes your current evaluation. '
-        'When a previous scan is available, you will also see your progress.</p>'
-        f'{overall_block}'
-        '<div class="scan-legend body-overview-legend">'
-        '<span class="legend-title">Stress scale:</span>'
-        f'{legend}'
-        '</div>'
-        f'<div class="body-overview-grid">{{"".join(cards)}</div>'
-        '<p class="health-disclaimer-note">Health Scores are an educational evaluation derived from '
-        'your bioenergetic scan and available medical context. They are not a medical diagnosis '
-        'or biological age measurement.</p>'
-        '</section>'
+        + styles
+        + '<h2>Body Systems & Health Scores</h2>'
+        + '<p class="scan-lead">Your scan evaluates key body systems. Each system receives a '
+        + '<strong>Health Score</strong> (0–100, higher is better) based on the number and type of '
+        + 'imbalance markers found. An overall score summarizes your current evaluation. '
+        + 'When a previous scan is available, you will also see your progress.</p>'
+        + overall_block
+        + '<div class="scan-legend body-overview-legend">'
+        + '<span class="legend-title">Stress scale:</span>'
+        + legend
+        + '</div>'
+        + grid_html
+        + '<p class="health-disclaimer-note">Health Scores are an educational evaluation derived from '
+        + 'your bioenergetic scan and available medical context. They are not a medical diagnosis '
+        + 'or biological age measurement.</p>'
+        + '</section>'
     )
 
 
@@ -547,7 +548,6 @@ def _normalize_category_label(line):
 
 
 def _is_category_header_line(line):
-    """True when the line is only a sensitivity category label."""
     if not line:
         return False
     stripped = line.strip()
@@ -560,7 +560,6 @@ def _is_category_header_line(line):
 
 
 def parse_sensitivity_groups(text):
-    """Parse all sensitivity categories; always return every group."""
     groups = {cat: [] for cat in SENSITIVITY_CATEGORIES}
     current = None
     for line in (text or '').split('\n'):
@@ -593,7 +592,6 @@ def parse_sensitivity_groups(text):
 
 
 def parse_toxin_groups(text):
-    """Parse toxin categories into short, readable marker labels."""
     groups = {cat: [] for cat in TOXIN_CATEGORIES}
     aliases = {
         'bacteria': 'Bacteria',
@@ -648,7 +646,6 @@ def parse_toxin_groups(text):
 
 
 def parse_nutrient_item_lists(text):
-    """Parse nutrients into categorized item lists."""
     groups = {cat: [] for cat in NUTRIENT_CATEGORIES}
     aliases = {
         'vitamins': 'Vitamins',
@@ -705,7 +702,6 @@ def parse_nutrient_item_lists(text):
 
 
 def render_category_section_html(title, lead, groups, show_empty=False):
-    """Render grouped columns; only categories with detected markers."""
     groups = filter_nonempty_groups(groups)
     if not groups:
         return ''
