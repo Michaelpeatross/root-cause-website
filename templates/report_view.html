@@ -14,7 +14,7 @@
                 <br><small style="color:var(--green);">Grok updated {{ report.analysis_updated }}</small>
                 {% endif %}
             </div>
-            {% if report.pdf_filename %}
+            {% if report.generated_report or report.original_generated_report %}
             <a href="{{ url_for('download_report_pdf', report_id=report.id) }}" class="btn btn-primary">Download PDF</a>
             {% endif %}
         </div>
@@ -55,7 +55,7 @@
                 </div>
             {% else %}
                 <div class="grok-analysis-content">
-                {{ (report.original_generated_report or report.generated_report)|safe }}
+                {{ (report.generated_report or report.original_generated_report)|safe }}
                 </div>
             {% endif %}
         </div>
