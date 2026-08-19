@@ -40,9 +40,9 @@ def apply_report_upgrades(app, db, Report, reports_dir):
     _prefer_full_scan_template = helpers['_prefer_full_scan_template']
 
     def _rebuild_html_with_scores(report):
-        """Rebuild report HTML so Health Scores appear; persist on the report."""
+        """Rebuild report HTML so Health Age + scores appear; persist on the report."""
         html = report.generated_report or report.original_generated_report or ''
-        needs = 'health-overall-card' not in html
+        needs = ('health-overall-card' not in html) or ('Your Health Age' not in html)
         if not needs:
             return html
         if not (report.raw_data or '').strip():
@@ -61,7 +61,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             )
             if rebuilt and len(rebuilt) > 200:
                 report.generated_report = rebuilt
-                if not report.original_generated_report or 'health-overall-card' not in (report.original_generated_report or ''):
+                if not report.original_generated_report or 'Your Health Age' not in (report.original_generated_report or ''):
                     report.original_generated_report = rebuilt
                 try:
                     db.session.commit()
@@ -133,7 +133,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         pdf_name = report.pdf_filename or f'report_{report.id}.pdf'
         pdf_path = os.path.join(reports_dir, pdf_name)
 
-        # Always regenerate PDF so Health Scores are included
+        # Always regenerate PDF so Health Age is included
         if not save_report_pdf(html, pdf_path):
             flash(
                 'Could not generate PDF for this report. Please try again in a moment.',
