@@ -48,52 +48,32 @@ ul { margin: 6px 0; padding-left: 18px; }
 .body-overview-grid { margin-top: 10px; }
 .body-system-card { border: 1px solid #dceee8; margin-bottom: 8px; page-break-inside: avoid; padding: 8px 10px; }
 .body-system-summary { padding: 4px 0; font-weight: bold; }
-.body-system-detail { padding: 4px 0 6px; font-size: 9pt; }
-.stress-badge { padding: 2px 8px; border-radius: 10px; font-size: 8pt; font-weight: bold; }
-.stress-minor { background: #d4edda; color: #155724; }
-.stress-moderate { background: #e8f5e1; color: #3d6b2e; }
-.stress-chronic { background: #fff3cd; color: #856404; }
-.stress-weakness { background: #ffe8cc; color: #a05a00; }
-.stress-severe { background: #f8d7da; color: #721c24; }
+.body-system-name { color: #0b3d2a; }
+.body-system-def { font-size: 9pt; color: #555; }
+.body-marker-list { margin: 4px 0; padding-left: 16px; font-size: 9pt; }
 
-.health-overall-card { background: #e8f5f1; border: 1px solid #b8d9cf; padding: 12px 14px; margin: 12px 0 14px; }
-.health-overall-header h3 { margin: 0 0 6px; font-size: 12pt; color: #0d5c4d; }
+.health-overall-card, .health-age-hero { background: #e8f5f1; border: 1px solid #b8d9cf; padding: 14px; margin: 12px 0 16px; }
 .health-score-number { font-size: 22pt; font-weight: bold; color: #0d7a4f; }
-.health-score-number.health-excellent, .health-score-pill.health-excellent { color: #0d7a4f; }
-.health-score-number.health-good, .health-score-pill.health-good { color: #2d8a4e; }
-.health-score-number.health-fair, .health-score-pill.health-fair { color: #b8860b; }
-.health-score-number.health-low, .health-score-pill.health-low { color: #c45c26; }
-.health-score-number.health-critical, .health-score-pill.health-critical { color: #b33a3a; }
-.health-overall-note { font-size: 9pt; color: #3d5c55; margin: 6px 0; }
-.health-score-bar { height: 10px; background: #dceae5; margin: 4px 0; }
-.health-score-fill { height: 10px; background: #059669; }
-.health-score-fill.health-excellent { background: #059669; }
-.health-score-fill.health-good { background: #10b981; }
-.health-score-fill.health-fair { background: #d97706; }
-.health-score-fill.health-low { background: #ea580c; }
-.health-score-fill.health-critical { background: #dc2626; }
-.health-score-scale { font-size: 7pt; color: #6b857e; }
-.health-progress { font-size: 9pt; color: #0d7a4f; }
-.health-score-pill { font-weight: bold; font-size: 10pt; padding: 2px 6px; background: #f0f9f6; }
-.sys-progress { font-size: 8pt; color: #5a6f6a; }
-.marker-summary { font-size: 9pt; margin: 4px 0; color: #3d5c55; }
-.health-disclaimer-note { font-size: 8pt; color: #6b857e; margin-top: 10px; }
+.health-score-bar { height: 10px; background: #dceae5; margin: 6px 0; }
+.health-score-fill { height: 100%; background: #10b981; }
+.health-score-scale { font-size: 8pt; color: #666; }
+.health-overall-note { font-size: 9pt; color: #3d5c55; }
+.health-score-pill { font-weight: bold; }
 
-.scan-columns { display: block; margin-top: 8px; }
-.scan-col { display: inline-block; width: 23%; vertical-align: top; padding: 0 1% 12px 0; }
-.scan-list { margin: 0; padding-left: 14px; font-size: 9pt; }
-.scan-muted { color: #888; font-size: 9pt; font-style: italic; }
+.stress-badge { font-size: 8pt; padding: 2px 6px; }
+.stress-minor { background: #d4edda; color: #155724; }
+.stress-moderate { background: #fff3cd; color: #856404; }
+.stress-chronic { background: #ffe0e0; color: #c0392b; }
+.stress-weakness { background: #f8d7da; color: #721c24; }
+.stress-severe { background: #f5c6cb; color: #721c24; }
 
-.marker-card { background: #fafcfb; border: 1px solid #dceee8; padding: 10px 12px; margin: 10px 0; page-break-inside: avoid; }
-.marker-title { color: #0b3d2a; font-size: 10pt; margin: 0 0 4px; }
-
-.scan-summary p { margin: 0 0 10px; font-size: 10.5pt; line-height: 1.65; }
-.scan-steps { margin: 8px 0 0; padding-left: 20px; }
-.scan-remedy-category { color: #0b3d2a; font-size: 12pt; margin: 14px 0 6px; border-bottom: 1px solid #dceee8; }
-.scan-remedy-card { border: 1px solid #e0e0e0; padding: 10px; margin: 8px 0; page-break-inside: avoid; }
-.scan-price { font-weight: bold; color: #1a8c7a; }
-
-.scan-disclaimer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #ccc; font-size: 8pt; color: #666; }
+.scan-columns { margin: 8px 0; }
+.scan-col { margin-bottom: 10px; }
+.scan-list { margin: 4px 0; padding-left: 16px; }
+.scan-remedy-card { border: 1px solid #eee; padding: 8px; margin: 6px 0; }
+.scan-price { font-weight: bold; color: #0b3d2a; }
+.scan-steps { margin: 6px 0; padding-left: 18px; }
+.scan-disclaimer { font-size: 8pt; color: #666; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 8px; }
 .page-break { page-break-before: auto; }
 """
 
@@ -102,14 +82,12 @@ def _sanitize_html_for_pdf(html):
     """Strip tags/styles that break xhtml2pdf while keeping content readable."""
     if not html:
         return ''
-    # Remove inline <style> blocks (Health Scores injects CSS; we use PDF_STYLES)
     html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.I | re.S)
-    # Convert <details>/<summary> to plain divs
     html = re.sub(r'<details([^>]*)>', r'<div class="body-system-card"\1>', html, flags=re.I)
     html = re.sub(r'</details>', '</div>', html, flags=re.I)
     html = re.sub(r'<summary([^>]*)>', r'<div class="body-system-summary"\1>', html, flags=re.I)
     html = re.sub(r'</summary>', '</div>', html, flags=re.I)
-    # Keep only simple width styles for score bars
+
     def _clean_style(m):
         style = m.group(1) or ''
         widths = re.findall(r'width\s*:\s*[\d.]+%', style, flags=re.I)
@@ -133,31 +111,54 @@ def wrap_for_pdf(report_html):
 </html>"""
 
 
+def _cap_large_html(html, max_chars=450000):
+    """Prevent xhtml2pdf from choking on extremely large marker dumps."""
+    if not html or len(html) <= max_chars:
+        return html
+    head = html[:max_chars]
+    cut = head.rfind('</div>')
+    if cut > max_chars // 2:
+        head = head[:cut + 6]
+    return (
+        head
+        + '<p style="color:#666;font-size:9pt;margin-top:12px;">'
+        + '[Additional detailed markers omitted from PDF for size. '
+        + 'View the full report online for complete findings.]</p>'
+    )
+
+
 def save_report_pdf(report_html, output_path):
     """Convert report HTML to PDF and save to disk. Returns True on success."""
     try:
-        os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
-        full_html = wrap_for_pdf(report_html)
+        parent = os.path.dirname(output_path) or '.'
+        os.makedirs(parent, exist_ok=True)
+        full_html = wrap_for_pdf(_cap_large_html(report_html or ''))
         with open(output_path, 'wb') as pdf_file:
-            result = pisa.CreatePDF(full_html, dest=pdf_file, encoding='utf-8')
-        if result.err:
-            print(f'[Root Cause] PDF create reported errors for {output_path}')
+            result = pisa.CreatePDF(src=full_html, dest=pdf_file, encoding='utf-8')
+        if not os.path.isfile(output_path) or os.path.getsize(output_path) < 100:
+            print(f'[Root Cause] PDF file missing or too small: {output_path}')
             return False
+        if getattr(result, 'err', 0):
+            print(f'[Root Cause] PDF create reported errors for {output_path} (file kept)')
         return True
     except Exception as exc:
         print(f'[Root Cause] PDF save failed: {exc}')
+        import traceback
+        traceback.print_exc()
         return False
 
 
 def pdf_to_bytes(report_html):
     """Return PDF as bytes (for email attachment)."""
     try:
-        full_html = wrap_for_pdf(report_html)
+        full_html = wrap_for_pdf(_cap_large_html(report_html or ''))
         buffer = BytesIO()
-        result = pisa.CreatePDF(full_html, dest=buffer, encoding='utf-8')
-        if result.err:
-            print('[Root Cause] pdf_to_bytes reported errors')
+        result = pisa.CreatePDF(src=full_html, dest=buffer, encoding='utf-8')
+        if not buffer.getvalue() or len(buffer.getvalue()) < 100:
+            print('[Root Cause] pdf_to_bytes produced empty output')
             return None
+        if getattr(result, 'err', 0):
+            print('[Root Cause] pdf_to_bytes reported errors (bytes kept)')
         return buffer.getvalue()
     except Exception as exc:
         print(f'[Root Cause] pdf_to_bytes failed: {exc}')
