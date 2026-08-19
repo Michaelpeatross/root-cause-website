@@ -1,5 +1,77 @@
-"""Live upgrades: Health Scores on view + on-demand PDF for existing reports."""
+"""Live upgrades: Health Age at top, Grok analysis near top, on-demand PDF."""
 import os
+import re
+
+
+def _brand_health_age_and_move_grok(html, ai_html=None):
+    """Rename overall score to Health Age and move Grok analysis under it."""
+    if not html:
+        return html or ''
+
+    # Brand overall card as Health Age
+    html = html.replace('Your Overall Health Score', 'Your Health Age')
+    html = html.replace('>Overall Health Score<', '>Your Health Age<')
+    html = re.sub(
+        r'(Previous\s+)(\d+\s*→)',
+        r'\1Health Age \2',
+        html,
+        count=3,
+    )
+
+    # Prefer injected AI HTML; otherwise try to extract an existing AI block from the page
+    ai = (ai_html or '').strip()
+    if not ai:
+        m = re.search(
+            r'(<section[^>]*>\s*<h[23][^>]*>\s*(?:🧠\s*)?(?:Personalized Health Options|Grok Analysis)[\s\S]*?</section>)',
+            html,
+            re.I,
+        )
+        if m:
+            ai = m.group(1)
+            html = html.replace(m.group(1), '', 1)
+
+    if ai and 'id="grok-analysis"' not in html and 'Your Health Age' in html:
+        grok_wrap = (
+            '<section class="scan-section grok-top-section" id="grok-analysis">'
+            + (ai if re.search(r'<h[23]', ai, re.I) else
+               '<h2>Grok Analysis</h2><p class="scan-lead">Personalized interpretation of your scan results.</p>' + ai)
+            + '</section>'
+        )
+        card_end = re.search(
+            r'(<div class="health-overall-card[\s\S]*?</div>\s*</div>\s*<div class="health-score-scale">[\s\S]*?</div>\s*</div>)',
+            html,
+        )
+        if not card_end:
+            card_end = re.search(
+                r'(class="health-overall-card[\s\S]*?health-score-scale[\s\S]*?</div>\s*</div>)',
+                html,
+            )
+        if card_end:
+            pos = card_end.end()
+            html = html[:pos] + grok_wrap + html[pos:]
+        else:
+            idx = html.find('Your Health Age')
+            if idx >= 0:
+                bar = html.find('health-score-scale', idx)
+                if bar > 0:
+                    close = html.find('</div>', html.find('</div>', bar) + 1)
+                    if close > 0:
+                        html = html[:close + 6] + grok_wrap + html[close + 6:]
+                    else:
+                        html = html[:idx] + grok_wrap + html[idx:]
+                else:
+                    html = grok_wrap + html
+            else:
+                html = grok_wrap + html
+
+    if 'health-age-hero' not in html and 'health-overall-card' in html:
+        html = html.replace(
+            'class="health-overall-card"',
+            'class="health-age-hero health-overall-card"',
+            1,
+        )
+
+    return html
 
 
 def apply_report_upgrades(app, db, Report, reports_dir):
@@ -42,36 +114,49 @@ def apply_report_upgrades(app, db, Report, reports_dir):
     def _rebuild_html_with_scores(report):
         """Rebuild report HTML so Health Age + scores appear; persist on the report."""
         html = report.generated_report or report.original_generated_report or ''
-        needs = ('health-overall-card' not in html) or ('Your Health Age' not in html)
-        if not needs:
-            return html
+        needs = (
+            'health-overall-card' not in html
+            or 'Your Health Age' not in html
+        )
         if not (report.raw_data or '').strip():
-            return html
-        try:
-            client_name = _client_display_name(report.user_email)
-            prefer_template = True  # force Full Scan layout so Body Overview always runs
-            rebuilt = generate_report_html(
-                report.user_email,
-                report.title or 'Full Scan',
-                report.raw_data,
-                ai_recommendations_html=report.ai_recommendations,
-                client_name=client_name,
-                prefer_template=prefer_template,
-                blood_reconciliation_html=report.blood_reconciliation_html,
-            )
-            if rebuilt and len(rebuilt) > 200:
-                report.generated_report = rebuilt
-                if not report.original_generated_report or 'Your Health Age' not in (report.original_generated_report or ''):
-                    report.original_generated_report = rebuilt
+            branded = _brand_health_age_and_move_grok(html, report.ai_recommendations)
+            if branded != html:
+                report.generated_report = branded
                 try:
                     db.session.commit()
                 except Exception:
                     db.session.rollback()
-                return rebuilt
-        except Exception as exc:
-            print(f'[Root Cause] Health Score rebuild failed for report {report.id}: {exc}')
-            import traceback
-            traceback.print_exc()
+                return branded
+            return html
+
+        if needs:
+            try:
+                client_name = _client_display_name(report.user_email)
+                rebuilt = generate_report_html(
+                    report.user_email,
+                    report.title or 'Full Scan',
+                    report.raw_data,
+                    ai_recommendations_html=report.ai_recommendations,
+                    client_name=client_name,
+                    prefer_template=True,
+                    blood_reconciliation_html=report.blood_reconciliation_html,
+                )
+                if rebuilt and len(rebuilt) > 200:
+                    html = rebuilt
+            except Exception as exc:
+                print(f'[Root Cause] Health Age rebuild failed for report {report.id}: {exc}')
+                import traceback
+                traceback.print_exc()
+
+        html = _brand_health_age_and_move_grok(html, report.ai_recommendations)
+        if html and len(html) > 200:
+            report.generated_report = html
+            if not report.original_generated_report or 'Your Health Age' not in (report.original_generated_report or ''):
+                report.original_generated_report = html
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
         return html
 
     for endpoint in ('view_report', 'download_report_pdf'):
@@ -133,7 +218,6 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         pdf_name = report.pdf_filename or f'report_{report.id}.pdf'
         pdf_path = os.path.join(reports_dir, pdf_name)
 
-        # Always regenerate PDF so Health Age is included
         if not save_report_pdf(html, pdf_path):
             flash(
                 'Could not generate PDF for this report. Please try again in a moment.',
@@ -158,7 +242,8 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         pdf_name = f'report_{report.id}.pdf'
         pdf_path = os.path.join(reports_dir, pdf_name)
         try:
-            if save_report_pdf(html_report, pdf_path):
+            branded = _brand_health_age_and_move_grok(html_report, getattr(report, 'ai_recommendations', None))
+            if save_report_pdf(branded or html_report, pdf_path):
                 report.pdf_filename = pdf_name
                 return True
             print(f'[Root Cause] PDF create returned errors for report {report.id}')
@@ -170,4 +255,4 @@ def apply_report_upgrades(app, db, Report, reports_dir):
     if mod is not None:
         setattr(mod, '_save_pdf_for_report', _save_pdf_for_report)
 
-    print('[Root Cause] Applied Health Score + PDF live upgrades')
+    print('[Root Cause] Applied Health Age + Grok top + PDF live upgrades')
