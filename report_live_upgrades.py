@@ -1,4 +1,4 @@
-"""Live upgrades: Health Age at top, Grok analysis near top, resilient PDF download."""
+"""Live upgrades: Health Age + resilient PDF (fixed ownership check)."""
 import os
 import re
 import traceback
@@ -99,8 +99,27 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         raise RuntimeError('Could not locate app helpers for live upgrades')
 
     _get_current_user = helpers['_get_current_user']
-    _user_owns_report = helpers['_user_owns_report']
     _client_display_name = helpers['_client_display_name']
+    _normalize_email = helpers.get('_normalize_email')
+    if _normalize_email is None:
+        def _normalize_email(email):
+            return (email or '').strip().lower()
+
+    def _owns(report, user):
+        """Safe ownership check — never relies on a global current_user."""
+        if not user:
+            return False
+        if getattr(user, 'is_admin', False):
+            return True
+        return _normalize_email(user.email) == _normalize_email(report.user_email)
+
+    def _user_owns_report_fixed(report):
+        user = _get_current_user()
+        return _owns(report, user)
+
+    helpers['_user_owns_report'] = _user_owns_report_fixed
+    if mod is not None:
+        setattr(mod, '_user_owns_report', _user_owns_report_fixed)
 
     def _rebuild_html_with_scores(report):
         """Rebuild report HTML so Health Age appears; never raise."""
@@ -139,17 +158,15 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                 pass
         return html
 
-    for endpoint in ('view_report', 'download_report_pdf'):
-        app.view_functions.pop(endpoint, None)
-
-    @app.route('/reports/<int:report_id>')
     def view_report(report_id):
         try:
             current_user = _get_current_user()
             if not current_user:
                 return redirect(url_for('login'))
             report = Report.query.get_or_404(report_id)
-            if not _user_owns_report(report) or not (report.generated_report or report.original_generated_report):
+            if not _owns(report, current_user):
+                abort(403)
+            if not (report.generated_report or report.original_generated_report):
                 abort(403)
             if not current_user.is_admin and not report.approved:
                 abort(403)
@@ -172,15 +189,14 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             flash('Could not open this report. Please try again.', 'error')
             return redirect(url_for('dashboard'))
 
-    @app.route('/reports/<int:report_id>/pdf')
     def download_report_pdf(report_id):
-        """Always try to generate/serve PDF; never return a raw 500 to the client."""
+        """Generate/serve PDF; never return a raw 500."""
         try:
             current_user = _get_current_user()
             if not current_user:
                 return redirect(url_for('login'))
             report = Report.query.get_or_404(report_id)
-            if not _user_owns_report(report):
+            if not _owns(report, current_user):
                 abort(403)
             if not current_user.is_admin and not report.approved:
                 abort(403)
@@ -191,21 +207,20 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                     'This report has no scan findings yet — PDF download is not available.',
                     'error',
                 )
-                return redirect(url_for('dashboard') if not current_user.is_admin else url_for('admin'))
+                return redirect(url_for('admin') if current_user.is_admin else url_for('dashboard'))
 
             try:
                 html = _rebuild_html_with_scores(report) or html
             except Exception:
                 pass
 
-            pdf_name = report.pdf_filename or f'report_{report.id}.pdf'
+            pdf_name = f'report_{report.id}.pdf'
             base_dir = reports_dir
-            if not os.path.isdir(base_dir):
-                try:
-                    os.makedirs(base_dir, exist_ok=True)
-                except Exception:
-                    base_dir = '/tmp'
-                    os.makedirs(base_dir, exist_ok=True)
+            try:
+                os.makedirs(base_dir, exist_ok=True)
+            except Exception:
+                base_dir = '/tmp'
+                os.makedirs(base_dir, exist_ok=True)
             pdf_path = os.path.join(base_dir, pdf_name)
 
             ok = False
@@ -215,25 +230,24 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                 print(f'[Root Cause] save_report_pdf exception: {exc}')
                 traceback.print_exc()
 
-            if not ok or not os.path.isfile(pdf_path):
+            if not ok or not os.path.isfile(pdf_path) or os.path.getsize(pdf_path) < 100:
                 flash(
-                    'Could not generate the PDF for this report. Try again in a moment, or contact support.',
+                    'Could not generate the PDF for this report. Try again in a moment.',
                     'error',
                 )
-                return redirect(url_for('dashboard') if not current_user.is_admin else url_for('admin'))
+                return redirect(url_for('admin') if current_user.is_admin else url_for('dashboard'))
 
-            if report.pdf_filename != pdf_name:
-                report.pdf_filename = pdf_name
-                try:
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
+            report.pdf_filename = pdf_name
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
             safe_title = re.sub(r'[^\w\s\-]+', '', (report.title or 'report')).strip() or 'report'
-            safe_title = safe_title.replace(' ', '-')[:80]
+            safe_title = re.sub(r'\s+', '-', safe_title)[:80]
             return send_from_directory(
                 base_dir,
-                os.path.basename(pdf_path),
+                pdf_name,
                 as_attachment=True,
                 download_name=f'{safe_title}.pdf',
             )
@@ -242,8 +256,8 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             traceback.print_exc()
             flash('PDF download failed. Please try again.', 'error')
             try:
-                current_user = _get_current_user()
-                if current_user and current_user.is_admin:
+                u = _get_current_user()
+                if u and u.is_admin:
                     return redirect(url_for('admin'))
             except Exception:
                 pass
@@ -272,4 +286,4 @@ def apply_report_upgrades(app, db, Report, reports_dir):
     app.view_functions['view_report'] = view_report
     app.view_functions['download_report_pdf'] = download_report_pdf
 
-    print('[Root Cause] Applied Health Age + resilient PDF live upgrades')
+    print('[Root Cause] Applied ownership fix + Health Age + resilient PDF upgrades')
