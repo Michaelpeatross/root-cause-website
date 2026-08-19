@@ -89,7 +89,6 @@ LAB_MAP = {
 
 def _extract_value(line):
     """Pull numeric stress/resonance value from a line if present."""
-    # Bio-imaging scanner distress coefficient (D=0.398 → 40%)
     distress = re.search(r'[DE]\s*=\s*(\d+(?:\.\d+)?)', line, re.I)
     if distress:
         coef = float(distress.group(1))
@@ -321,10 +320,23 @@ def generate_report_html(
 ):
     """Build a complete professional HTML report from raw scan paste."""
     from document_service import is_generated_report_export, is_imaging_scan_format
+    # Prefer Full Scan template (Body Overview + Health Scores) whenever possible.
+    # Only skip for website-exported cover pages or imaging-only formats.
+    title_looks_full = bool(
+        title and (
+            'full scan' in title.lower()
+            or 'bio' in title.lower()
+            or 'energetic' in title.lower()
+        )
+    )
     use_template = (
         not is_generated_report_export(raw_data or '')
         and not is_imaging_scan_format(raw_data or '')
-        and (prefer_template or uses_template_format(raw_data or '', title=title))
+        and (
+            prefer_template
+            or title_looks_full
+            or uses_template_format(raw_data or '', title=title)
+        )
     )
     if use_template:
         return generate_template_report_html(
@@ -446,9 +458,6 @@ def generate_report_html(
       <p class="rec-note">Amazon affiliate links — compare prices. Discuss with your practitioner before starting any protocol.</p>
       <ul>{supp_html}</ul>
     </section>
-    <!-- Legacy blood tests box removed: Grok now provides specific ranked 1-10 Labs list
-         (with GoodLabs links) inside the Personalized Health Options / ai section above.
-         This ensures consistency across report, email, dashboard cards, and history views. -->
   </div>
 
   <footer class="report-footer">
