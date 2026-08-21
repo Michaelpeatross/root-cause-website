@@ -106,7 +106,6 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             return (email or '').strip().lower()
 
     def _owns(report, user):
-        """Safe ownership check — never relies on a global current_user."""
         if not user:
             return False
         if getattr(user, 'is_admin', False):
@@ -122,7 +121,6 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         setattr(mod, '_user_owns_report', _user_owns_report_fixed)
 
     def _rebuild_html_with_scores(report):
-        """Rebuild report HTML so Health Age appears; never raise."""
         html = report.generated_report or report.original_generated_report or ''
         try:
             needs = (
@@ -190,7 +188,6 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             return redirect(url_for('dashboard'))
 
     def download_report_pdf(report_id):
-        """Generate/serve PDF; never return a raw 500."""
         try:
             current_user = _get_current_user()
             if not current_user:
@@ -286,4 +283,25 @@ def apply_report_upgrades(app, db, Report, reports_dir):
     app.view_functions['view_report'] = view_report
     app.view_functions['download_report_pdf'] = download_report_pdf
 
-    print('[Root Cause] Applied ownership fix + Health Age + resilient PDF upgrades')
+    # Wrap admin so large scan uploads never return a raw 500 page
+    _orig_admin = app.view_functions.get('admin')
+    if _orig_admin is not None:
+        def admin_safe(*args, **kwargs):
+            try:
+                return _orig_admin(*args, **kwargs)
+            except Exception as exc:
+                print(f'[Root Cause] admin fatal: {exc}')
+                traceback.print_exc()
+                flash(
+                    f'Report generation failed: {type(exc).__name__}: {exc}. '
+                    f'If you uploaded large imaging PDFs (hundreds of pages), try uploading '
+                    f'one file at a time, or use the smaller text-based Full Scan PDFs.',
+                    'error',
+                )
+                try:
+                    return redirect(url_for('admin'))
+                except Exception:
+                    raise
+        app.view_functions['admin'] = admin_safe
+
+    print('[Root Cause] Applied ownership fix + Health Age + resilient PDF + admin safety')
