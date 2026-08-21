@@ -1,4 +1,4 @@
-"""Bootstrap: inject good body_overview into memory, load known-good app, apply upgrades."""
+"""Bootstrap: inject good body_overview, harden scan PDF uploads, load app, apply upgrades."""
 import os
 import sys
 import types
@@ -19,7 +19,6 @@ def _ensure_body_overview():
     existing = sys.modules.get("body_overview")
     if existing is not None and hasattr(existing, "render_body_overview_html"):
         return
-    # Local file might be truncated from a bad push — ignore if incomplete
     local = os.path.join(_HERE, "body_overview.py")
     src = None
     if os.path.isfile(local):
@@ -41,6 +40,129 @@ def _ensure_body_overview():
     sys.modules["body_overview"] = mod
 
 
+def _patch_scan_pdf_uploads():
+    """Replace process_scan_pdf_uploads with a crash-safe version for large imaging PDFs."""
+    try:
+        import document_service as ds
+    except Exception as exc:
+        print(f"[Root Cause] document_service import failed: {exc}")
+        return
+
+    SCAN_PDF_MAX_BYTES = 40 * 1024 * 1024
+
+    def process_scan_pdf_uploads(file_list, upload_dir):
+        import os
+        import uuid
+        import traceback
+        from werkzeug.utils import secure_filename
+
+        if not file_list:
+            return [], []
+
+        results = []
+        errors = []
+        for file_storage in file_list:
+            if not file_storage or not file_storage.filename:
+                continue
+            original = secure_filename(file_storage.filename) or "scan.pdf"
+            path = None
+            try:
+                if os.path.splitext(original)[1].lower() != ".pdf":
+                    raise ValueError(
+                        f'"{original}" is not a PDF. Only PDF scan files are supported here.'
+                    )
+
+                file_storage.seek(0, os.SEEK_END)
+                size = file_storage.tell()
+                file_storage.seek(0)
+                if size <= 0:
+                    raise ValueError(f'"{original}" is empty.')
+                if size > SCAN_PDF_MAX_BYTES:
+                    raise ValueError(
+                        f'"{original}" is {size / (1024 * 1024):.1f} MB — max 40 MB per scan PDF. '
+                        "Upload one smaller file at a time, or use text-based Full Scan PDFs."
+                    )
+
+                os.makedirs(upload_dir, exist_ok=True)
+                stored = f"{uuid.uuid4().hex}.pdf"
+                path = os.path.join(upload_dir, stored)
+                file_storage.save(path)
+                ds._validate_pdf_file(path, original)
+
+                max_pages, max_chars, allow_vision = 30, 50000, True
+                if size > 8 * 1024 * 1024:
+                    max_pages, max_chars, allow_vision = 20, 40000, False
+                if size > 20 * 1024 * 1024:
+                    max_pages, max_chars = 12, 30000
+
+                text = ds.extract_text(
+                    path,
+                    original,
+                    max_pages=max_pages,
+                    max_chars=max_chars,
+                    allow_grok_vision=allow_vision,
+                )
+                if ds.is_generated_report_export(text):
+                    from report_generator import _parse_lines
+                    if len(_parse_lines(text)) < 15:
+                        try:
+                            os.remove(path)
+                        except OSError:
+                            pass
+                        path = None
+                        raise ValueError(
+                            f'"{original}" looks like a portal download from this website — '
+                            "upload the original scanner PDFs instead."
+                        )
+                if size < 4096 and not ds.scan_text_has_content(text):
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
+                    path = None
+                    raise ValueError(
+                        f'"{original}" is only {size:,} bytes with no scan data.'
+                    )
+
+                extraction_ok = not ds._pdf_extraction_failed(text)
+                results.append(
+                    {
+                        "stored_filename": stored,
+                        "original_name": original,
+                        "extracted_text": text,
+                        "extraction_ok": extraction_ok,
+                        "file_size": os.path.getsize(path) if path else size,
+                    }
+                )
+                print(
+                    f"[Root Cause] Scan PDF OK: {original} ({size:,} bytes, "
+                    f"{len(text.strip()):,} chars, imaging={ds.is_imaging_scan_format(text)})"
+                )
+            except ValueError as exc:
+                errors.append(str(exc))
+                print(f"[Root Cause] Scan PDF rejected: {exc}")
+            except Exception as exc:
+                msg = (
+                    f'Could not process "{original}": {type(exc).__name__}: {exc}. '
+                    "Try one file at a time, or a smaller scanner export."
+                )
+                errors.append(msg)
+                print(f"[Root Cause] Scan PDF failed: {msg}")
+                traceback.print_exc()
+                if path:
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
+
+        if not results and errors:
+            raise ValueError(" ".join(errors))
+        return results, errors
+
+    ds.process_scan_pdf_uploads = process_scan_pdf_uploads
+    print("[Root Cause] Patched process_scan_pdf_uploads for large imaging PDFs")
+
+
 _ensure_body_overview()
 
 # Load last known-good full app.py
@@ -51,10 +173,15 @@ try:
     with open(_path, "w", encoding="utf-8") as _f:
         _f.write(_src)
 except Exception:
-    # Read-only filesystem — exec from memory
     _path = "<app_restored>"
 
 exec(compile(_src, _path, "exec"), globals())
+
+# Patch scan uploads after document_service is importable
+try:
+    _patch_scan_pdf_uploads()
+except Exception as _patch_err:
+    print(f"[Root Cause] Scan PDF patch failed: {_patch_err}")
 
 # Apply Health Age + PDF live upgrades
 try:
