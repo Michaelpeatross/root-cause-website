@@ -114,12 +114,20 @@ def bot_context(profile, documents, report=None):
     if procedures:
         lines.append('Client-entered procedures:')
         for item in procedures[-20:]:
-            lines.append(f"- {item.get('date') or 'undated'}: {item.get('title')}")
+            lines.append(f\"- {item.get('date') or 'undated'}: {item.get('title')}\")
     uploads = timeline_from_documents(documents)
     if uploads:
         lines.append('Uploaded records:')
         for item in uploads[:25]:
-            lines.append(f"- {item.get('date')}: {item.get('title')}")
+            lines.append(f\"- {item.get('date')}: {item.get('title')}\")
+    try:
+        from client_log import bot_log_context
+        extra = bot_log_context(profile.get('email'))
+        if extra:
+            lines.append('Food and medication photo log:')
+            lines.append(extra)
+    except Exception:
+        pass
     if report is not None:
         title = getattr(report, 'title', '') or ''
         lines.append(f'Latest scan title: {title}')
@@ -137,9 +145,10 @@ def answer_with_bot(question, profile, documents, report, client_name='Client'):
 
     first = (client_name or profile.get('name') or 'Client').split()[0]
     context = bot_context(profile, documents, report)
-    prompt = f"""You are {first}'s personal Root Cause medical-needs bot.
-You only know what is in the context below. Do not invent procedures, dates, or lab values.
-If something is missing, say so and ask them to upload the PDF or add it to their timeline.
+    prompt = f\"\"\"You are {first}'s personal Root Cause medical-needs bot.
+You only know what is in the context below. Do not invent procedures, dates, meals, or lab values.
+Use the food photo log and medication photo log when they ask what they eat or take.
+If something is missing, say so and ask them to snap a meal, bottle, or PDF.
 
 Answer in 2-5 short plain-text paragraphs.
 Educational only — not a diagnosis and not a medication change.
@@ -152,7 +161,7 @@ CLIENT QUESTION:
 
 CLIENT RECORD:
 {context}
-"""
+\"\"\"
     content = _grok_chat(
         prompt,
         system='You are a private per-client wellness records bot. Never invent medical history.',
@@ -176,17 +185,17 @@ def timeline_html(profile, documents):
     rows = []
     for item in (profile.get('procedures') or []):
         rows.append(
-            f'<li><strong>{escape(item.get("date") or "undated")}</strong> — '
-            f'{escape(item.get("title") or "Procedure")}'
-            + (f' <span class="affiliate-note">{escape(item.get("notes") or "")}</span>' if item.get('notes') else '')
+            f'<li><strong>{escape(item.get(\"date\") or \"undated\")}</strong> — '
+            f'{escape(item.get(\"title\") or \"Procedure\")}'
+            + (f' <span class=\"affiliate-note\">{escape(item.get(\"notes\") or \"\")}</span>' if item.get('notes') else '')
             + '</li>'
         )
     for item in timeline_from_documents(documents)[:20]:
         rows.append(
-            f'<li><strong>{escape(item.get("date") or "undated")}</strong> — '
-            f'{escape(item.get("title") or "Record")} '
-            f'<span class="affiliate-note">uploaded</span></li>'
+            f'<li><strong>{escape(item.get(\"date\") or \"undated\")}</strong> — '
+            f'{escape(item.get(\"title\") or \"Record\")} '
+            f'<span class=\"affiliate-note\">uploaded</span></li>'
         )
     if not rows:
         return '<p>No procedures or lab files yet. Upload PDFs or add a past procedure below.</p>'
-    return f'<ul class="bot-timeline">{{"".join(rows)}</ul>'
+    return '<ul class=\"bot-timeline\">' + ''.join(rows) + '</ul>'
