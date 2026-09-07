@@ -102,24 +102,24 @@ def timeline_from_documents(documents):
 
 def bot_context(profile, documents, report=None):
     lines = [
-        f"Client: {profile.get('name') or profile.get('email')}",
-        f"Insurance: {profile.get('insurance_carrier') or 'not given'}",
-        f"Preferred draw lab: {profile.get('preferred_lab') or 'not given'}",
-        f"Birth year: {profile.get('birth_year') or 'not given'}",
-        f"Allergies: {', '.join(profile.get('allergies') or []) or 'none listed'}",
-        f"Medications: {', '.join(profile.get('medications') or []) or 'none listed'}",
-        f"Goals: {profile.get('goals') or 'not given'}",
+        'Client: ' + str(profile.get('name') or profile.get('email')),
+        'Insurance: ' + str(profile.get('insurance_carrier') or 'not given'),
+        'Preferred draw lab: ' + str(profile.get('preferred_lab') or 'not given'),
+        'Birth year: ' + str(profile.get('birth_year') or 'not given'),
+        'Allergies: ' + (', '.join(profile.get('allergies') or []) or 'none listed'),
+        'Medications: ' + (', '.join(profile.get('medications') or []) or 'none listed'),
+        'Goals: ' + str(profile.get('goals') or 'not given'),
     ]
     procedures = profile.get('procedures') or []
     if procedures:
         lines.append('Client-entered procedures:')
         for item in procedures[-20:]:
-            lines.append(f\"- {item.get('date') or 'undated'}: {item.get('title')}\")
+            lines.append('- ' + str(item.get('date') or 'undated') + ': ' + str(item.get('title')))
     uploads = timeline_from_documents(documents)
     if uploads:
         lines.append('Uploaded records:')
         for item in uploads[:25]:
-            lines.append(f\"- {item.get('date')}: {item.get('title')}\")
+            lines.append('- ' + str(item.get('date')) + ': ' + str(item.get('title')))
     try:
         from client_log import bot_log_context
         extra = bot_log_context(profile.get('email'))
@@ -130,7 +130,7 @@ def bot_context(profile, documents, report=None):
         pass
     if report is not None:
         title = getattr(report, 'title', '') or ''
-        lines.append(f'Latest scan title: {title}')
+        lines.append('Latest scan title: ' + title)
         ai = getattr(report, 'ai_recommendations', None) or getattr(report, 'original_ai_recommendations', '') or ''
         plain = re.sub(r'<[^>]+>', ' ', ai)
         plain = re.sub(r'\s+', ' ', plain).strip()[:1800]
@@ -145,23 +145,18 @@ def answer_with_bot(question, profile, documents, report, client_name='Client'):
 
     first = (client_name or profile.get('name') or 'Client').split()[0]
     context = bot_context(profile, documents, report)
-    prompt = f\"\"\"You are {first}'s personal Root Cause medical-needs bot.
-You only know what is in the context below. Do not invent procedures, dates, meals, or lab values.
-Use the food photo log and medication photo log when they ask what they eat or take.
-If something is missing, say so and ask them to snap a meal, bottle, or PDF.
-
-Answer in 2-5 short plain-text paragraphs.
-Educational only — not a diagnosis and not a medication change.
-If they ask where to test, give BOTH paths:
-1) insurance / One Medical / in-network Quest or Labcorp when the deductible is met
-2) cheapest cash-pay: compare LabRecon, then order Ulta Lab Tests, GoodLabs, or Walk-In Lab. Never hospital rack rates.
-
-CLIENT QUESTION:
-{question}
-
-CLIENT RECORD:
-{context}
-\"\"\"
+    prompt = (
+        'You are ' + first + "'s personal Root Cause medical-needs bot.\n"
+        'You only know what is in the context below. Do not invent procedures, dates, meals, or lab values.\n'
+        'Use the food photo log and medication photo log when they ask what they eat or take.\n'
+        'If something is missing, say so and ask them to snap a meal, bottle, or PDF.\n\n'
+        'Answer in 2-5 short plain-text paragraphs.\n'
+        'Educational only — not a diagnosis and not a medication change.\n'
+        'If they ask where to test, give BOTH paths:\n'
+        '1) insurance / One Medical / in-network Quest or Labcorp when the deductible is met\n'
+        '2) cheapest cash-pay: compare LabRecon, then order Ulta Lab Tests, GoodLabs, or Walk-In Lab. Never hospital rack rates.\n\n'
+        'CLIENT QUESTION:\n' + question + '\n\nCLIENT RECORD:\n' + context + '\n'
+    )
     content = _grok_chat(
         prompt,
         system='You are a private per-client wellness records bot. Never invent medical history.',
@@ -173,29 +168,29 @@ CLIENT RECORD:
         return content.strip(), 'grok'
     err = get_last_grok_error()
     fallback = (
-        f'{first}, your bot can see the records already in your portal. '
+        first + ', your bot can see the records already in your portal. '
         'Ask about a specific test or add a past procedure in the form on this page.'
     )
     if err:
-        fallback += f'\n\n{err}'
+        fallback += '\n\n' + err
     return fallback, 'local'
 
 
 def timeline_html(profile, documents):
     rows = []
     for item in (profile.get('procedures') or []):
+        note = item.get('notes') or ''
+        extra = ' <span class="affiliate-note">' + escape(note) + '</span>' if note else ''
         rows.append(
-            f'<li><strong>{escape(item.get(\"date\") or \"undated\")}</strong> — '
-            f'{escape(item.get(\"title\") or \"Procedure\")}'
-            + (f' <span class=\"affiliate-note\">{escape(item.get(\"notes\") or \"\")}</span>' if item.get('notes') else '')
-            + '</li>'
+            '<li><strong>' + escape(item.get('date') or 'undated') + '</strong> — '
+            + escape(item.get('title') or 'Procedure') + extra + '</li>'
         )
     for item in timeline_from_documents(documents)[:20]:
         rows.append(
-            f'<li><strong>{escape(item.get(\"date\") or \"undated\")}</strong> — '
-            f'{escape(item.get(\"title\") or \"Record\")} '
-            f'<span class=\"affiliate-note\">uploaded</span></li>'
+            '<li><strong>' + escape(item.get('date') or 'undated') + '</strong> — '
+            + escape(item.get('title') or 'Record')
+            + ' <span class="affiliate-note">uploaded</span></li>'
         )
     if not rows:
         return '<p>No procedures or lab files yet. Upload PDFs or add a past procedure below.</p>'
-    return '<ul class=\"bot-timeline\">' + ''.join(rows) + '</ul>'
+    return '<ul class="bot-timeline">' + ''.join(rows) + '</ul>'
