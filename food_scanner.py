@@ -1,14 +1,12 @@
 """Yuka-style food scanner: barcode, label photo, score 1-100."""
-import json, re, urllib.error, urllib.parse, urllib.request
+import json, re, urllib.parse, urllib.request
 try:
     from report_generator import _parse_lines
 except Exception:
     def _parse_lines(raw):
         return []
 
-OFF_UA = 'RootCauseBioenergetics/1.0'
-OFF_PRODUCT = 'https://world.openfoodfacts.org/api/v2/product/{code}.json'
-OFF_SEARCH = 'https://world.openfoodfacts.org/cgi/search.pl'
+OFF_UA = 'RootCauseBioenergetics/1.0 (https://www.root-cause-test.com)'
 ADDITIVE_PENALTY = {'e621':12,'e627':10,'e631':10,'e102':10,'e110':10,'e129':10,'e211':8,'e320':12,'e321':12,'e951':10,'e950':8,'e955':8,'e250':12,'e251':12,'e150d':6}
 PERSONAL_TRIGGERS = {
     'candida': {'keywords':('candida','yeast','fung','sugar','thrush'),'penalize':('sugar','glucose','fructose','sucrose','corn syrup','dextrose','maltodextrin','yeast','soda','juice'),'reason':'Sugar and yeast-heavy foods clash with a candida pattern.'},
@@ -18,23 +16,45 @@ PERSONAL_TRIGGERS = {
     'liver': {'keywords':('liver','detox','alcohol','hepat'),'penalize':('alcohol','beer','wine','high fructose'),'reason':'Alcohol and heavy additives add detox load.'},
 }
 
-def _http_get_json(url, timeout=12):
-    req = urllib.request.Request(url, headers={'User-Agent': OFF_UA})
+def _http_get_json(url, timeout=10):
+    req = urllib.request.Request(url, headers={'User-Agent': OFF_UA, 'Accept': 'application/json'})
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode('utf-8'))
 
-def lookup_barcode(code):
+def _code_variants(code):
     code = re.sub(r'\D+', '', code or '')
-    if len(code) < 8:
-        return None
-    url = OFF_PRODUCT.format(code=code) + '?fields=code,product_name,brands,image_front_small_url,image_url,ingredients_text,ingredients_text_en,additives_tags,additives_n,nova_group,nutriscore_grade,nutrition_grades,labels_tags,allergens_tags,nutriments,quantity,categories'
-    try:
-        data = _http_get_json(url)
-    except Exception:
-        return None
-    if not data or data.get('status') != 1 or not data.get('product'):
-        return None
-    return normalize_off_product(data['product'], data.get('code') or code)
+    out = []
+    for c in (code, code.lstrip('0') or code):
+        if c and c not in out:
+            out.append(c)
+    if code.isdigit() and len(code) == 12:
+        padded = '0' + code
+        if padded not in out:
+            out.append(padded)
+    if code.isdigit() and len(code) == 11:
+        for extra in ('0' + code, '00' + code):
+            if extra not in out:
+                out.append(extra)
+    return [c for c in out if 8 <= len(c) <= 14]
+
+def lookup_barcode(code):
+    variants = _code_variants(code)
+    hosts = (
+        'https://world.openfoodfacts.org/api/v2/product/{}.json',
+        'https://world.openfoodfacts.org/api/v0/product/{}.json',
+        'https://us.openfoodfacts.org/api/v2/product/{}.json',
+        'https://us.openfoodfacts.org/api/v0/product/{}.json',
+    )
+    for variant in variants:
+        for tmpl in hosts:
+            try:
+                data = _http_get_json(tmpl.format(variant))
+            except Exception:
+                continue
+            product = (data or {}).get('product')
+            if data and data.get('status') == 1 and product:
+                return normalize_off_product(product, variant)
+    return None
 
 def search_product_name(query):
     query = (query or '').strip()
@@ -42,7 +62,7 @@ def search_product_name(query):
         return []
     params = urllib.parse.urlencode({'search_terms': query, 'search_simple': 1, 'action': 'process', 'json': 1, 'page_size': 8})
     try:
-        data = _http_get_json(OFF_SEARCH + '?' + params)
+        data = _http_get_json('https://world.openfoodfacts.org/cgi/search.pl?' + params)
     except Exception:
         return []
     out = []
@@ -112,11 +132,11 @@ def score_product(product, personal_flags=None):
     additive_score = 80
     additive_hits = []
     for tag in additives:
-        code = tag.replace('en:', '')
-        penalty = ADDITIVE_PENALTY.get(code, 3)
+        c = tag.replace('en:', '')
+        penalty = ADDITIVE_PENALTY.get(c, 3)
         additive_score -= penalty
         if penalty >= 8:
-            additive_hits.append(code.upper())
+            additive_hits.append(c.upper())
     nova = product.get('nova')
     if nova == 4: additive_score -= 18
     elif nova == 3: additive_score -= 8
@@ -124,10 +144,11 @@ def score_product(product, personal_flags=None):
     organic_bonus = 8 if ('organic' in labels or 'en:organic' in labels) else 0
     personal = 80
     personal_notes = []
-    haystack = f"{ingredients} {product.get('name','')} {product.get('categories','')}".lower()
+    haystack = ('%s %s %s' % (ingredients, product.get('name',''), product.get('categories',''))).lower()
     for flag in personal_flags:
         spec = PERSONAL_TRIGGERS.get(flag)
-        if not spec: continue
+        if not spec:
+            continue
         hits = [word for word in spec['penalize'] if word in haystack]
         if hits:
             personal -= min(28, 8 * len(hits))
@@ -146,7 +167,7 @@ def extract_label_from_image(image_b64, mime='image/jpeg'):
     except Exception:
         return None
     prompt = 'Extract grocery label JSON only: {"barcode":"digits or null","name":"","brand":"","ingredients":"","sugars_100g":null,"salt_100g":null,"sat_fat_100g":null,"fiber_100g":null,"protein_100g":null,"additives":[],"organic":false}'
-    raw = _grok_vision_chat([{'type':'text','text':prompt},{'type':'image_url','image_url':{'url':f'data:{mime};base64,{image_b64}','detail':'high'}}], system='Return valid JSON only.', temperature=0.1, timeout=50)
+    raw = _grok_vision_chat([{'type':'text','text':prompt},{'type':'image_url','image_url':{'url':'data:%s;base64,%s' % (mime, image_b64),'detail':'high'}}], system='Return valid JSON only.', temperature=0.1, timeout=50)
     if not raw:
         return None
     raw = re.sub(r'^```json\s*', '', raw.strip())
@@ -174,16 +195,17 @@ def product_from_label_extract(extracted):
     return {'source':'label-photo','code': re.sub(r'\D+','', str(extracted.get('barcode') or '')),'name': (extracted.get('name') or 'Label photo').strip(),'brands': extracted.get('brand') or '','image':'','ingredients': extracted.get('ingredients') or '','additives': additives,'additives_n': len(additives),'nova': 4 if additives else None,'nutriscore':'','labels': ['en:organic'] if extracted.get('organic') else [],'allergens':[],'categories':'','quantity':'','nutrients': nutrients}
 
 def scan_barcode_for_client(code, scan_raw=''):
-    product = lookup_barcode(code)
+    digits = re.sub(r'\D+', '', code or '')
+    product = lookup_barcode(digits)
     if not product:
-        return {'ok': False, 'error': 'No product found for that barcode. Try a label photo.'}
+        return {'ok': False, 'error': 'No product in the grocery database for barcode %s. Use Label photo or Search name (store brands are often missing).' % (digits or 'blank')}
     flags = client_flags_from_scan(scan_raw)
     return {'ok': True, 'product': product, 'rating': score_product(product, flags)}
 
 def scan_photo_for_client(image_b64, mime='image/jpeg', scan_raw=''):
     extracted = extract_label_from_image(image_b64, mime)
     if not extracted:
-        return {'ok': False, 'error': 'Could not read that label. Try a sharper photo or type the barcode.'}
+        return {'ok': False, 'error': 'Could not read that label. Try a sharper photo of ingredients + Nutrition Facts, or type the barcode.'}
     barcode = re.sub(r'\D+', '', str(extracted.get('barcode') or ''))
     product = lookup_barcode(barcode) if len(barcode) >= 8 else None
     if product is None:
@@ -192,10 +214,3 @@ def scan_photo_for_client(image_b64, mime='image/jpeg', scan_raw=''):
         return {'ok': False, 'error': 'Label was readable but not enough data to score.'}
     flags = client_flags_from_scan(scan_raw)
     return {'ok': True, 'product': product, 'rating': score_product(product, flags)}
-
-def latest_scan_raw(reports):
-    for report in reports or []:
-        raw = getattr(report, 'raw_data', None) or ''
-        if raw.strip():
-            return raw
-    return ''
