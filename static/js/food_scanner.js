@@ -12,12 +12,10 @@
   });
   var resultEl = document.getElementById('result');
   var camStatus = document.getElementById('cam-status');
-  var video = document.getElementById('video');
-  var stream = null;
-  var scanning = false;
   var lastCode = '';
+  var html5Scanner = null;
   function escapeHtml(text) {
-    return String(text || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(text || '').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
   }
   function showError(msg) {
     resultEl.hidden = false;
@@ -90,38 +88,32 @@
     }).catch(function () { box.innerHTML = '<p>Search failed. Try a barcode.</p>'; });
   });
   function stopCam() {
-    scanning = false;
-    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    if (html5Scanner) {
+      html5Scanner.stop().then(function () { html5Scanner.clear(); html5Scanner = null; }).catch(function () { html5Scanner = null; });
+    }
     if (camStatus) camStatus.textContent = 'Camera off.';
   }
-  function detectLoop() {
-    if (!scanning || !video) return;
-    if ('BarcodeDetector' in window) {
-      var detector = new window.BarcodeDetector({ formats: ['ean_13','ean_8','upc_a','upc_e','code_128'] });
-      detector.detect(video).then(function (codes) {
-        if (codes && codes[0] && codes[0].rawValue && codes[0].rawValue !== lastCode) {
-          lastCode = codes[0].rawValue;
-          if (camStatus) camStatus.textContent = 'Found ' + lastCode;
-          scoreBarcode(lastCode);
-        }
-      }).catch(function () {});
-    }
-    if (scanning) setTimeout(detectLoop, 700);
-  }
   document.getElementById('start-cam').addEventListener('click', function () {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      if (camStatus) camStatus.textContent = 'This browser cannot open the camera. Type the barcode or use a photo.';
+    if (typeof Html5Qrcode === 'undefined') {
+      if (camStatus) camStatus.textContent = 'Camera decoder did not load. Use Type barcode and enter 041192100253 for this Corn Pops box.';
       return;
     }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }).then(function (media) {
-      stream = media;
-      video.srcObject = media;
-      video.play();
-      scanning = true;
-      if (camStatus) camStatus.textContent = ('BarcodeDetector' in window) ? 'Point at the barcode…' : 'Live barcode reading is limited here. Use Type barcode or a photo.';
-      detectLoop();
+    if (html5Scanner) return;
+    html5Scanner = new Html5Qrcode('reader');
+    html5Scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 260, height: 140 } },
+      function (decoded) {
+        var digits = String(decoded || '').replace(/\D+/g, '');
+        if (!digits || digits === lastCode) return;
+        lastCode = digits;
+        if (camStatus) camStatus.textContent = 'Found ' + digits;
+        scoreBarcode(digits);
+      }
+    ).then(function () {
+      if (camStatus) camStatus.textContent = 'Point at the barcode…';
     }).catch(function () {
-      if (camStatus) camStatus.textContent = 'Camera permission denied. Type the barcode or upload a photo.';
+      if (camStatus) camStatus.textContent = 'Camera permission denied. Type the numbers under the bars instead.';
     });
   });
   document.getElementById('stop-cam').addEventListener('click', stopCam);
