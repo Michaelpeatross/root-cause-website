@@ -36,7 +36,9 @@
     resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
   function postJSON(url, body) {
-    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (res) { return res.json(); });
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (res) {
+      return res.json().catch(function () { return { ok: false, error: 'Server did not return a score. Try Type barcode.' }; });
+    });
   }
   function scoreBarcode(code) {
     if (!code) return;
@@ -65,9 +67,7 @@
     reader.onload = function () {
       var raw = String(reader.result || '');
       var parts = raw.split(',');
-      var b64 = parts[1] || '';
-      var mime = (parts[0].match(/data:(.*?);/) || [])[1] || file.type || 'image/jpeg';
-      postJSON('/api/food-scan/photo', { image_b64: b64, mime: mime }).then(renderResult).catch(function () { showError('Could not read that photo.'); });
+      postJSON('/api/food-scan/photo', { image_b64: parts[1] || '', mime: (parts[0].match(/data:(.*?);/) || [])[1] || file.type || 'image/jpeg' }).then(renderResult).catch(function () { showError('Could not read that photo.'); });
     };
     reader.readAsDataURL(file);
   });
@@ -78,7 +78,7 @@
     box.innerHTML = '<p>Searching…</p>';
     postJSON('/api/food-scan/search', { q: q }).then(function (data) {
       var items = (data && data.results) || [];
-      if (!items.length) { box.innerHTML = '<p>No matches. Try the barcode or a label photo.</p>'; return; }
+      if (!items.length) { box.innerHTML = '<p>No matches. Try Type barcode.</p>'; return; }
       box.innerHTML = items.map(function (item) {
         return '<div class="search-hit" data-code="' + escapeHtml(item.code) + '"><div><strong>' + escapeHtml(item.name) + '</strong><div style="color:var(--text-muted);font-size:.85rem;">' + escapeHtml(item.brands || item.code) + '</div></div></div>';
       }).join('');
@@ -95,25 +95,28 @@
   }
   document.getElementById('start-cam').addEventListener('click', function () {
     if (typeof Html5Qrcode === 'undefined') {
-      if (camStatus) camStatus.textContent = 'Camera decoder did not load. Use Type barcode and enter 041192100253 for this Corn Pops box.';
+      if (camStatus) camStatus.textContent = 'Decoder missing. Type the numbers under the bars.';
       return;
     }
     if (html5Scanner) return;
+    var formats = [];
+    if (window.Html5QrcodeSupportedFormats) {
+      var F = window.Html5QrcodeSupportedFormats;
+      formats = [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39].filter(function (x) { return x != null; });
+    }
+    var config = { fps: 12, qrbox: { width: 280, height: 160 }, aspectRatio: 1.777 };
+    if (formats.length) config.formatsToSupport = formats;
     html5Scanner = new Html5Qrcode('reader');
-    html5Scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 260, height: 140 } },
-      function (decoded) {
-        var digits = String(decoded || '').replace(/\D+/g, '');
-        if (!digits || digits === lastCode) return;
-        lastCode = digits;
-        if (camStatus) camStatus.textContent = 'Found ' + digits;
-        scoreBarcode(digits);
-      }
-    ).then(function () {
-      if (camStatus) camStatus.textContent = 'Point at the barcode…';
+    html5Scanner.start({ facingMode: 'environment' }, config, function (decoded) {
+      var digits = String(decoded || '').replace(/\D+/g, '');
+      if (digits.length < 8 || digits === lastCode) return;
+      lastCode = digits;
+      if (camStatus) camStatus.textContent = 'Found ' + digits;
+      scoreBarcode(digits);
+    }).then(function () {
+      if (camStatus) camStatus.textContent = 'Hold the barcode flat inside the box. Wrinkled bags are hard — type the numbers if it sits there.';
     }).catch(function () {
-      if (camStatus) camStatus.textContent = 'Camera permission denied. Type the numbers under the bars instead.';
+      if (camStatus) camStatus.textContent = 'Camera permission denied. Type the numbers under the bars.';
     });
   });
   document.getElementById('stop-cam').addEventListener('click', stopCam);
