@@ -12,13 +12,13 @@
   .scan-panel { display: none; }
   .scan-panel.active { display: block; }
   #preview { max-width: 100%; border-radius: 10px; margin-top: .75rem; }
-  #video { width: 100%; max-height: 280px; background: #111; border-radius: 10px; }
+  #video, #reader { width: 100%; max-height: 320px; background: #111; border-radius: 10px; overflow: hidden; }
   .result-card { margin-top: 1.25rem; }
   .result-card img.prod { width: 88px; height: 88px; object-fit: contain; border-radius: 8px; background: #f6f6f6; }
   .break-row { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; font-size: .95rem; }
   .hit { font-size: .85rem; color: #8a3b12; }
-  .search-hit { display: flex; justify-content: space-between; gap: .5rem; padding: .55rem 0; border-bottom: 1px solid #eee; cursor: pointer; }
 </style>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="container scan-wrap">
@@ -35,8 +35,9 @@
     <button type="button" data-tab="search">Search name</button>
   </div>
   <div id="tab-barcode" class="scan-panel active card">
-    <p>Point the camera at the barcode.</p>
-    <video id="video" playsinline></video>
+    <p>Point the camera at the barcode. If nothing happens, use <strong>Type barcode</strong> and enter the numbers under the bars.</p>
+    <div id="reader"></div>
+    <video id="video" playsinline hidden></video>
     <p style="margin-top:.75rem;">
       <button type="button" class="btn btn-primary" id="start-cam">Start camera</button>
       <button type="button" class="btn btn-outline" id="stop-cam">Stop</button>
@@ -47,7 +48,7 @@
     <form id="type-form">
       <div class="form-group">
         <label for="barcode">Barcode (UPC / EAN)</label>
-        <input type="text" id="barcode" inputmode="numeric" placeholder="044000032719" required>
+        <input type="text" id="barcode" inputmode="numeric" placeholder="041192100253" required>
       </div>
       <button type="submit" class="btn btn-primary">Score this barcode</button>
     </form>
@@ -62,7 +63,7 @@
     <form id="search-form">
       <div class="form-group">
         <label for="q">Product name</label>
-        <input type="text" id="q" placeholder="Oat milk, bread…">
+        <input type="text" id="q" placeholder="Corn Pops, oat milk…">
       </div>
       <button type="submit" class="btn btn-primary">Search</button>
     </form>
