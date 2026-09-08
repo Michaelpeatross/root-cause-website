@@ -1,4 +1,4 @@
-"""Live upgrades: client wellness plan on every report + PDF."""
+"""Live upgrades: client wellness plan + food scanner."""
 import os
 import re
 
@@ -10,7 +10,10 @@ def _brand_health_age_and_move_grok(html, ai_html=None):
 
 
 def apply_report_upgrades(app, db, Report, reports_dir):
-    from flask import redirect, url_for, abort, request, render_template, session, send_from_directory
+    from flask import (
+        redirect, url_for, abort, request, render_template, session,
+        send_from_directory, jsonify,
+    )
     from pdf_service import save_report_pdf
     from grok_assistant import collect_grok_terms
     from client_analysis_blocks import ensure_client_analysis
@@ -39,6 +42,16 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         if getattr(user, 'is_admin', False):
             return True
         return _normalize_email(user.email) == _normalize_email(report.user_email)
+
+    def _client_scan_raw(user):
+        if not user:
+            return ''
+        q = Report.query.filter_by(user_email=user.email).order_by(Report.id.desc()).all()
+        for report in q:
+            raw = report.raw_data or ''
+            if raw.strip():
+                return raw
+        return ''
 
     def _apply_plan(report):
         html = report.generated_report or report.original_generated_report or ''
@@ -98,6 +111,59 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         safe_title = re.sub(r'\s+', '-', safe_title)[:80]
         return send_from_directory(base_dir, pdf_name, as_attachment=True, download_name=safe_title + '.pdf')
 
+    def food_scanner_page():
+        current_user = _get_current_user()
+        if not current_user:
+            return redirect(url_for('login'))
+        from food_scanner import client_flags_from_scan
+        flags = client_flags_from_scan(_client_scan_raw(current_user))
+        return render_template('food_scanner.html', personal_flags=flags)
+
+    def api_food_barcode():
+        current_user = _get_current_user()
+        if not current_user:
+            return jsonify({'ok': False, 'error': 'Please log in.'}), 401
+        from food_scanner import scan_barcode_for_client
+        data = request.get_json(silent=True) or {}
+        code = data.get('barcode') or data.get('code') or ''
+        return jsonify(scan_barcode_for_client(code, _client_scan_raw(current_user)))
+
+    def api_food_photo():
+        current_user = _get_current_user()
+        if not current_user:
+            return jsonify({'ok': False, 'error': 'Please log in.'}), 401
+        from food_scanner import scan_photo_for_client
+        data = request.get_json(silent=True) or {}
+        return jsonify(scan_photo_for_client(data.get('image_b64') or '', data.get('mime') or 'image/jpeg', _client_scan_raw(current_user)))
+
+    def api_food_search():
+        current_user = _get_current_user()
+        if not current_user:
+            return jsonify({'ok': False, 'error': 'Please log in.'}), 401
+        from food_scanner import search_product_name
+        data = request.get_json(silent=True) or {}
+        return jsonify({'ok': True, 'results': search_product_name(data.get('q') or '')})
+
     app.view_functions['view_report'] = view_report
     app.view_functions['download_report_pdf'] = download_report_pdf
-    print('[Root Cause] Applied client wellness plan on reports and PDFs')
+    app.add_url_rule('/food-scanner', 'food_scanner', food_scanner_page, methods=['GET'])
+    app.add_url_rule('/api/food-scan/barcode', 'api_food_barcode', api_food_barcode, methods=['POST'])
+    app.add_url_rule('/api/food-scan/photo', 'api_food_photo', api_food_photo, methods=['POST'])
+    app.add_url_rule('/api/food-scan/search', 'api_food_search', api_food_search, methods=['POST'])
+
+    _orig_dash = app.view_functions.get('dashboard')
+    if _orig_dash is not None:
+        def dashboard_with_scanner(*args, **kwargs):
+            resp = _orig_dash(*args, **kwargs)
+            try:
+                data = resp.get_data(as_text=True)
+                if 'food-scanner' not in data and 'Dashboard' in data:
+                    btn = '<p style="margin:1rem 0;"><a class="btn btn-primary" href="/food-scanner">Scan food at the store</a></p>'
+                    data = data.replace('</h1>', '</h1>' + btn, 1)
+                    resp.set_data(data)
+            except Exception:
+                pass
+            return resp
+        app.view_functions['dashboard'] = dashboard_with_scanner
+
+    print('[Root Cause] Applied wellness plan + food scanner routes')
