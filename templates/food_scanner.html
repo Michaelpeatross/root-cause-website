@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Food Scanner — Root Cause{% endblock %}
+{% block extra_head %}
+<style>
+  .scan-wrap { max-width: 720px; margin: 0 auto; }
+  .score-ring { width: 148px; height: 148px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 1rem; color: #fff; font-weight: 800; box-shadow: 0 10px 24px rgba(0,0,0,.12); }
+  .score-ring .num { font-size: 3rem; line-height: 1; }
+  .score-ring .lbl { font-size: .85rem; font-weight: 600; opacity: .95; margin-top: .25rem; }
+  .scan-tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1rem 0; }
+  .scan-tabs button { border: 1px solid var(--green-light); background: #fff; padding: .45rem .8rem; border-radius: 999px; cursor: pointer; }
+  .scan-tabs button.active { background: var(--green-dark); color: #fff; }
+  .scan-panel { display: none; }
+  .scan-panel.active { display: block; }
+  #preview { max-width: 100%; border-radius: 10px; margin-top: .75rem; }
+  #video { width: 100%; max-height: 280px; background: #111; border-radius: 10px; }
+  .result-card { margin-top: 1.25rem; }
+  .result-card img.prod { width: 88px; height: 88px; object-fit: contain; border-radius: 8px; background: #f6f6f6; }
+  .break-row { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; font-size: .95rem; }
+  .hit { font-size: .85rem; color: #8a3b12; }
+  .search-hit { display: flex; justify-content: space-between; gap: .5rem; padding: .55rem 0; border-bottom: 1px solid #eee; cursor: pointer; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="container scan-wrap">
+  <p style="margin-top:1rem;"><a href="{{ url_for('dashboard') }}" class="btn btn-outline">← Dashboard</a></p>
+  <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark);">Food Scanner</h1>
+  <p>Scan a barcode or snap the label. Score is 1 to 100, then adjusted for your scan patterns.</p>
+  {% if personal_flags %}
+  <p class="rec-note">Personal filters: <strong>{{ personal_flags|join(', ') }}</strong></p>
+  {% endif %}
+  <div class="scan-tabs">
+    <button type="button" class="active" data-tab="barcode">Barcode camera</button>
+    <button type="button" data-tab="type">Type barcode</button>
+    <button type="button" data-tab="photo">Label photo</button>
+    <button type="button" data-tab="search">Search name</button>
+  </div>
+  <div id="tab-barcode" class="scan-panel active card">
+    <p>Point the camera at the barcode.</p>
+    <video id="video" playsinline></video>
+    <p style="margin-top:.75rem;">
+      <button type="button" class="btn btn-primary" id="start-cam">Start camera</button>
+      <button type="button" class="btn btn-outline" id="stop-cam">Stop</button>
+    </p>
+    <p id="cam-status" style="color:var(--text-muted); font-size:.9rem;"></p>
+  </div>
+  <div id="tab-type" class="scan-panel card">
+    <form id="type-form">
+      <div class="form-group">
+        <label for="barcode">Barcode (UPC / EAN)</label>
+        <input type="text" id="barcode" inputmode="numeric" placeholder="044000032719" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Score this barcode</button>
+    </form>
+  </div>
+  <div id="tab-photo" class="scan-panel card">
+    <p>Photo of Nutrition Facts + ingredients.</p>
+    <input type="file" id="photo" accept="image/*" capture="environment">
+    <img id="preview" alt="" hidden>
+    <p style="margin-top:.75rem;"><button type="button" class="btn btn-primary" id="score-photo">Score this label</button></p>
+  </div>
+  <div id="tab-search" class="scan-panel card">
+    <form id="search-form">
+      <div class="form-group">
+        <label for="q">Product name</label>
+        <input type="text" id="q" placeholder="Oat milk, bread…">
+      </div>
+      <button type="submit" class="btn btn-primary">Search</button>
+    </form>
+    <div id="search-results"></div>
+  </div>
+  <div id="result" class="result-card" hidden></div>
+  <p class="rec-note">Educational score only. Barcode data from Open Food Facts.</p>
+</div>
+<script src="{{ url_for('static', filename='js/food_scanner.js') }}"></script>
+{% endblock %}
