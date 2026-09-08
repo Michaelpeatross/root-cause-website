@@ -32,7 +32,6 @@ def _ensure_body_overview():
         url = f"{_RAW}/{_GOOD_BODY_COMMIT}/body_overview.py"
         print(f"[Root Cause] Loading body_overview from commit {_GOOD_BODY_COMMIT[:8]}...")
         src = _fetch(url)
-        print(f"[Root Cause] Loaded body_overview ({len(src)} bytes)")
     mod = types.ModuleType("body_overview")
     mod.__file__ = local
     exec(compile(src, local, "exec"), mod.__dict__)
@@ -44,7 +43,7 @@ def _patch_scan_pdf_uploads():
         import document_service as ds
     except Exception as exc:
         print(f"[Root Cause] document_service import failed: {exc}")
-        return
+        return None
 
     SCAN_PDF_MAX_BYTES = 12 * 1024 * 1024
 
@@ -76,8 +75,15 @@ def _patch_scan_pdf_uploads():
                 if ext in (".txt", ".text", ".csv"):
                     payload = file_storage.read()
                     text = payload.decode("utf-8", errors="ignore") if isinstance(payload, bytes) else str(payload or "")
+                    stored = f"{uuid.uuid4().hex}.txt"
+                    try:
+                        os.makedirs(upload_dir, exist_ok=True)
+                        with open(os.path.join(upload_dir, stored), "w", encoding="utf-8") as out:
+                            out.write(text[:200000])
+                    except Exception:
+                        stored = ""
                     results.append({
-                        "stored_filename": "",
+                        "stored_filename": stored,
                         "original_name": original,
                         "extracted_text": text[:200000],
                         "extraction_ok": bool(text.strip()),
@@ -95,8 +101,7 @@ def _patch_scan_pdf_uploads():
                     raise ValueError(f'"{original}" is empty.')
                 if size > SCAN_PDF_MAX_BYTES:
                     raise ValueError(
-                        f'"{original}" is {size / (1024 * 1024):.1f} MB — max 12 MB. '
-                        "Save that report as .txt instead."
+                        f'"{original}" is {size / (1024 * 1024):.1f} MB — max 12 MB. Save as .txt instead.'
                     )
 
                 os.makedirs(upload_dir, exist_ok=True)
@@ -104,33 +109,7 @@ def _patch_scan_pdf_uploads():
                 path = os.path.join(upload_dir, stored)
                 file_storage.save(path)
                 ds._validate_pdf_file(path, original)
-
-                max_pages, max_chars, allow_vision = 30, 50000, True
-                if size > 8 * 1024 * 1024:
-                    max_pages, max_chars, allow_vision = 20, 40000, False
-
-                text = ds.extract_text(
-                    path, original,
-                    max_pages=max_pages, max_chars=max_chars,
-                    allow_grok_vision=allow_vision,
-                )
-                if ds.is_generated_report_export(text):
-                    from report_generator import _parse_lines
-                    if len(_parse_lines(text)) < 15:
-                        try:
-                            os.remove(path)
-                        except OSError:
-                            pass
-                        path = None
-                        raise ValueError(f'"{original}" looks like a portal download.')
-                if size < 4096 and not ds.scan_text_has_content(text):
-                    try:
-                        os.remove(path)
-                    except OSError:
-                        pass
-                    path = None
-                    raise ValueError(f'"{original}" has no scan data.')
-
+                text = ds.extract_text(path, original, max_pages=30, max_chars=50000, allow_grok_vision=True)
                 extraction_ok = not ds._pdf_extraction_failed(text)
                 results.append({
                     "stored_filename": stored,
@@ -161,7 +140,9 @@ def _patch_scan_pdf_uploads():
         return results, errors
 
     ds.process_scan_pdf_uploads = process_scan_pdf_uploads
-    print("[Root Cause] Patched process_scan_pdf_uploads for large imaging PDFs")
+    globals()["process_scan_pdf_uploads"] = process_scan_pdf_uploads
+    print("[Root Cause] Patched process_scan_pdf_uploads (PDF + TXT) into admin handler")
+    return process_scan_pdf_uploads
 
 
 _ensure_body_overview()
@@ -183,7 +164,11 @@ except Exception as _disk_err:
     print(f"[Root Cause] Startup disk cleanup failed: {_disk_err}")
 
 try:
-    _patch_scan_pdf_uploads()
+    _patched = _patch_scan_pdf_uploads()
+    if _patched is not None:
+        globals()["process_scan_pdf_uploads"] = _patched
+        import document_service as _ds
+        _ds.process_scan_pdf_uploads = _patched
 except Exception as _patch_err:
     print(f"[Root Cause] Scan PDF patch failed: {_patch_err}")
 
