@@ -13,6 +13,7 @@
   var resultEl = document.getElementById('result');
   var camStatus = document.getElementById('cam-status');
   var lastCode = '';
+  var lastAt = 0;
   var html5Scanner = null;
   function escapeHtml(text) {
     return String(text || '').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
@@ -37,14 +38,20 @@
   }
   function postJSON(url, body) {
     return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (res) {
-      return res.json().catch(function () { return { ok: false, error: 'Server did not return a score. Try Type barcode.' }; });
+      return res.json().catch(function () { return { ok: false, error: 'Server did not return a score.' }; });
     });
   }
   function scoreBarcode(code) {
-    if (!code) return;
+    var digits = String(code || '').replace(/\D+/g, '');
+    if (digits.length < 8) return;
+    var now = Date.now();
+    if (digits === lastCode && now - lastAt < 4000) return;
+    lastCode = digits;
+    lastAt = now;
+    if (camStatus) camStatus.textContent = 'Read ' + digits + ' — scoring…';
     resultEl.hidden = false;
-    resultEl.innerHTML = '<div class="card"><p>Scoring ' + escapeHtml(code) + '…</p></div>';
-    postJSON('/api/food-scan/barcode', { barcode: code }).then(renderResult).catch(function () { showError('Network error scoring that barcode.'); });
+    resultEl.innerHTML = '<div class="card"><p>Scoring ' + escapeHtml(digits) + '…</p></div>';
+    postJSON('/api/food-scan/barcode', { barcode: digits }).then(renderResult).catch(function () { showError('Network error scoring that barcode.'); });
   }
   document.getElementById('type-form').addEventListener('submit', function (evt) {
     evt.preventDefault();
@@ -67,7 +74,7 @@
     reader.onload = function () {
       var raw = String(reader.result || '');
       var parts = raw.split(',');
-      postJSON('/api/food-scan/photo', { image_b64: parts[1] || '', mime: (parts[0].match(/data:(.*?);/) || [])[1] || file.type || 'image/jpeg' }).then(renderResult).catch(function () { showError('Could not read that photo.'); });
+      postJSON('/api/food-scan/photo', { image_b64: parts[1] || '', mime: (parts[0].match(/data:(.*?);/) || [])[1] || 'image/jpeg' }).then(renderResult);
     };
     reader.readAsDataURL(file);
   });
@@ -78,14 +85,13 @@
     box.innerHTML = '<p>Searching…</p>';
     postJSON('/api/food-scan/search', { q: q }).then(function (data) {
       var items = (data && data.results) || [];
-      if (!items.length) { box.innerHTML = '<p>No matches. Try Type barcode.</p>'; return; }
-      box.innerHTML = items.map(function (item) {
-        return '<div class="search-hit" data-code="' + escapeHtml(item.code) + '"><div><strong>' + escapeHtml(item.name) + '</strong><div style="color:var(--text-muted);font-size:.85rem;">' + escapeHtml(item.brands || item.code) + '</div></div></div>';
-      }).join('');
+      box.innerHTML = items.length ? items.map(function (item) {
+        return '<div class="search-hit" data-code="' + escapeHtml(item.code) + '"><strong>' + escapeHtml(item.name) + '</strong></div>';
+      }).join('') : '<p>No matches.</p>';
       box.querySelectorAll('.search-hit').forEach(function (rowEl) {
         rowEl.addEventListener('click', function () { scoreBarcode(rowEl.getAttribute('data-code')); });
       });
-    }).catch(function () { box.innerHTML = '<p>Search failed. Try a barcode.</p>'; });
+    });
   });
   function stopCam() {
     if (html5Scanner) {
@@ -93,30 +99,29 @@
     }
     if (camStatus) camStatus.textContent = 'Camera off.';
   }
+  function cameraConfig() {
+    return {
+      fps: 20,
+      disableFlip: false,
+      qrbox: function (w, h) {
+        return { width: Math.max(220, Math.floor(w * 0.94)), height: Math.max(140, Math.floor(h * 0.42)) };
+      },
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    };
+  }
   document.getElementById('start-cam').addEventListener('click', function () {
     if (typeof Html5Qrcode === 'undefined') {
-      if (camStatus) camStatus.textContent = 'Decoder missing. Type the numbers under the bars.';
+      if (camStatus) camStatus.textContent = 'Decoder did not load. Pull to refresh and try again.';
       return;
     }
     if (html5Scanner) return;
-    var formats = [];
-    if (window.Html5QrcodeSupportedFormats) {
-      var F = window.Html5QrcodeSupportedFormats;
-      formats = [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39].filter(function (x) { return x != null; });
-    }
-    var config = { fps: 12, qrbox: { width: 280, height: 160 }, aspectRatio: 1.777 };
-    if (formats.length) config.formatsToSupport = formats;
-    html5Scanner = new Html5Qrcode('reader');
-    html5Scanner.start({ facingMode: 'environment' }, config, function (decoded) {
-      var digits = String(decoded || '').replace(/\D+/g, '');
-      if (digits.length < 8 || digits === lastCode) return;
-      lastCode = digits;
-      if (camStatus) camStatus.textContent = 'Found ' + digits;
-      scoreBarcode(digits);
+    html5Scanner = new Html5Qrcode('reader', { verbose: false });
+    html5Scanner.start({ facingMode: 'environment' }, cameraConfig(), function (decodedText) {
+      scoreBarcode(decodedText);
     }).then(function () {
-      if (camStatus) camStatus.textContent = 'Hold the barcode flat inside the box. Wrinkled bags are hard — type the numbers if it sits there.';
-    }).catch(function () {
-      if (camStatus) camStatus.textContent = 'Camera permission denied. Type the numbers under the bars.';
+      if (camStatus) camStatus.textContent = 'Live. Fill the box with the barcode — it should score as soon as it locks.';
+    }).catch(function (err) {
+      if (camStatus) camStatus.textContent = 'Could not start camera (' + (err && err.message ? err.message : 'blocked') + '). Allow camera access.';
     });
   });
   document.getElementById('stop-cam').addEventListener('click', stopCam);
