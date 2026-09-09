@@ -3,28 +3,29 @@
 {% block extra_head %}
 <style>
   .scan-wrap { max-width: 720px; margin: 0 auto; }
-  .score-ring { width: 148px; height: 148px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 1rem; color: #fff; font-weight: 800; box-shadow: 0 10px 24px rgba(0,0,0,.12); }
+  .score-ring { width: 148px; height: 148px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 1rem; color: #fff; font-weight: 800; }
   .score-ring .num { font-size: 3rem; line-height: 1; }
-  .score-ring .lbl { font-size: .85rem; font-weight: 600; opacity: .95; margin-top: .25rem; }
+  .score-ring .lbl { font-size: .85rem; font-weight: 600; margin-top: .25rem; }
   .scan-tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1rem 0; }
-  .scan-tabs button { border: 1px solid var(--green-light); background: #fff; padding: .45rem .8rem; border-radius: 999px; cursor: pointer; }
+  .scan-tabs button { border: 1px solid var(--green-light); background: #fff; padding: .45rem .8rem; border-radius: 999px; }
   .scan-tabs button.active { background: var(--green-dark); color: #fff; }
   .scan-panel { display: none; }
   .scan-panel.active { display: block; }
   #preview { max-width: 100%; border-radius: 10px; margin-top: .75rem; }
-  #video, #reader { width: 100%; max-height: 320px; background: #111; border-radius: 10px; overflow: hidden; }
+  #reader { width: 100%; min-height: 300px; background: #111; border-radius: 10px; overflow: hidden; position: relative; }
+  #reader video, #reader canvas { width: 100% !important; height: auto !important; }
   .result-card { margin-top: 1.25rem; }
-  .result-card img.prod { width: 88px; height: 88px; object-fit: contain; border-radius: 8px; background: #f6f6f6; }
-  .break-row { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; font-size: .95rem; }
+  .result-card img.prod { width: 88px; height: 88px; object-fit: contain; }
+  .break-row { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; }
   .hit { font-size: .85rem; color: #8a3b12; }
 </style>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="container scan-wrap">
   <p style="margin-top:1rem;"><a href="{{ url_for('dashboard') }}" class="btn btn-outline">← Dashboard</a></p>
   <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark);">Food Scanner</h1>
-  <p>Scan a barcode or snap the label. Score is 1 to 100, then adjusted for your scan patterns.</p>
+  <p>Point the camera at any grocery barcode. It should score as soon as it locks.</p>
   {% if personal_flags %}
   <p class="rec-note">Personal filters: <strong>{{ personal_flags|join(', ') }}</strong></p>
   {% endif %}
@@ -35,9 +36,7 @@
     <button type="button" data-tab="search">Search name</button>
   </div>
   <div id="tab-barcode" class="scan-panel active card">
-    <p>Point the camera at the barcode. If nothing happens, use <strong>Type barcode</strong> and enter the numbers under the bars.</p>
     <div id="reader"></div>
-    <video id="video" playsinline hidden></video>
     <p style="margin-top:.75rem;">
       <button type="button" class="btn btn-primary" id="start-cam">Start camera</button>
       <button type="button" class="btn btn-outline" id="stop-cam">Stop</button>
@@ -48,13 +47,12 @@
     <form id="type-form">
       <div class="form-group">
         <label for="barcode">Barcode (UPC / EAN)</label>
-        <input type="text" id="barcode" inputmode="numeric" placeholder="041192100253" required>
+        <input type="text" id="barcode" inputmode="numeric" placeholder="810203040303" required>
       </div>
       <button type="submit" class="btn btn-primary">Score this barcode</button>
     </form>
   </div>
   <div id="tab-photo" class="scan-panel card">
-    <p>Photo of Nutrition Facts + ingredients.</p>
     <input type="file" id="photo" accept="image/*" capture="environment">
     <img id="preview" alt="" hidden>
     <p style="margin-top:.75rem;"><button type="button" class="btn btn-primary" id="score-photo">Score this label</button></p>
@@ -63,14 +61,13 @@
     <form id="search-form">
       <div class="form-group">
         <label for="q">Product name</label>
-        <input type="text" id="q" placeholder="Corn Pops, oat milk…">
+        <input type="text" id="q" placeholder="XO chips, Corn Pops">
       </div>
       <button type="submit" class="btn btn-primary">Search</button>
     </form>
     <div id="search-results"></div>
   </div>
   <div id="result" class="result-card" hidden></div>
-  <p class="rec-note">Educational score only. Barcode data from Open Food Facts.</p>
 </div>
 <script src="{{ url_for('static', filename='js/food_scanner.js') }}"></script>
 {% endblock %}
