@@ -5,19 +5,17 @@
   .scan-wrap { max-width: 720px; margin: 0 auto; }
   .score-ring { width: 148px; height: 148px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 1rem; color: #fff; font-weight: 800; }
   .score-ring .num { font-size: 3rem; line-height: 1; }
-  .score-ring .lbl { font-size: .85rem; font-weight: 600; margin-top: .25rem; }
   .scan-tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1rem 0; }
   .scan-tabs button { border: 1px solid var(--green-light); background: #fff; padding: .45rem .8rem; border-radius: 999px; }
   .scan-tabs button.active { background: var(--green-dark); color: #fff; }
-  .scan-panel { display: none; }
-  .scan-panel.active { display: block; }
-  #preview { max-width: 100%; border-radius: 10px; margin-top: .75rem; }
-  #reader { width: 100%; min-height: 300px; background: #111; border-radius: 10px; overflow: hidden; position: relative; }
-  #reader video, #reader canvas { width: 100% !important; height: auto !important; }
-  .result-card { margin-top: 1.25rem; }
-  .result-card img.prod { width: 88px; height: 88px; object-fit: contain; }
-  .break-row { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; }
-  .hit { font-size: .85rem; color: #8a3b12; }
+  .scan-panel { display: none; } .scan-panel.active { display: block; }
+  #reader { width: 100%; min-height: 260px; background: #111; border-radius: 10px; overflow: hidden; }
+  #reader video, #reader canvas { width: 100% !important; }
+  .hist-row { display: grid; grid-template-columns: 52px 1fr auto; gap: .6rem; align-items: center; padding: .55rem 0; border-bottom: 1px solid #eee; }
+  .hist-row img { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; background: #f3f3f3; }
+  .food-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 640px) { .food-cols { grid-template-columns: 1fr; } }
+  .food-cols ol { padding-left: 1.2rem; font-size: .92rem; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 {% endblock %}
@@ -26,48 +24,48 @@
   <p style="margin-top:1rem;"><a href="{{ url_for('dashboard') }}" class="btn btn-outline">← Dashboard</a></p>
   <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark);">Food Scanner</h1>
   <p>Point the camera at any grocery barcode. It should score as soon as it locks.</p>
-  {% if personal_flags %}
-  <p class="rec-note">Personal filters: <strong>{{ personal_flags|join(', ') }}</strong></p>
-  {% endif %}
+  {% if personal_flags %}<p class="rec-note">Personal filters: <strong>{{ personal_flags|join(', ') }}</strong></p>{% endif %}
   <div class="scan-tabs">
     <button type="button" class="active" data-tab="barcode">Barcode camera</button>
     <button type="button" data-tab="type">Type barcode</button>
     <button type="button" data-tab="photo">Label photo</button>
     <button type="button" data-tab="search">Search name</button>
   </div>
-  <div id="tab-barcode" class="scan-panel active card">
-    <div id="reader"></div>
-    <p style="margin-top:.75rem;">
-      <button type="button" class="btn btn-primary" id="start-cam">Start camera</button>
-      <button type="button" class="btn btn-outline" id="stop-cam">Stop</button>
-    </p>
-    <p id="cam-status" style="color:var(--text-muted); font-size:.9rem;"></p>
-  </div>
-  <div id="tab-type" class="scan-panel card">
-    <form id="type-form">
-      <div class="form-group">
-        <label for="barcode">Barcode (UPC / EAN)</label>
-        <input type="text" id="barcode" inputmode="numeric" placeholder="810203040303" required>
-      </div>
-      <button type="submit" class="btn btn-primary">Score this barcode</button>
-    </form>
-  </div>
-  <div id="tab-photo" class="scan-panel card">
-    <input type="file" id="photo" accept="image/*" capture="environment">
-    <img id="preview" alt="" hidden>
-    <p style="margin-top:.75rem;"><button type="button" class="btn btn-primary" id="score-photo">Score this label</button></p>
-  </div>
-  <div id="tab-search" class="scan-panel card">
-    <form id="search-form">
-      <div class="form-group">
-        <label for="q">Product name</label>
-        <input type="text" id="q" placeholder="XO chips, Corn Pops">
-      </div>
-      <button type="submit" class="btn btn-primary">Search</button>
-    </form>
-    <div id="search-results"></div>
-  </div>
+  <div id="tab-barcode" class="scan-panel active card"><div id="reader"></div>
+    <p style="margin-top:.75rem;"><button type="button" class="btn btn-primary" id="start-cam">Start camera</button>
+    <button type="button" class="btn btn-outline" id="stop-cam">Stop</button></p>
+    <p id="cam-status" style="color:var(--text-muted);"></p></div>
+  <div id="tab-type" class="scan-panel card"><form id="type-form"><div class="form-group"><label for="barcode">Barcode</label>
+    <input type="text" id="barcode" inputmode="numeric" required></div>
+    <button class="btn btn-primary" type="submit">Score this barcode</button></form></div>
+  <div id="tab-photo" class="scan-panel card"><input type="file" id="photo" accept="image/*" capture="environment">
+    <img id="preview" alt="" hidden style="max-width:100%;margin-top:.5rem;">
+    <p><button type="button" class="btn btn-primary" id="score-photo">Score this label</button></p></div>
+  <div id="tab-search" class="scan-panel card"><form id="search-form"><input type="text" id="q" placeholder="XO chips">
+    <button class="btn btn-primary" type="submit">Search</button></form><div id="search-results"></div></div>
   <div id="result" class="result-card" hidden></div>
+
+  <div class="card" style="margin-top:1.5rem;">
+    <h2>Your past scans</h2>
+    <p><label>Sort
+      <select id="hist-sort">
+        <option value="date_desc">Newest date</option>
+        <option value="date_asc">Oldest date</option>
+        <option value="score_desc">Highest score</option>
+        <option value="score_asc">Lowest score</option>
+        <option value="name">Name A–Z</option>
+      </select></label></p>
+    <div id="history-list"><p>Loading…</p></div>
+  </div>
+
+  <div class="card" style="margin-top:1.5rem;">
+    <h2>Food lists for your scan</h2>
+    <p class="rec-note">Best everyday choices vs foods to limit. Lists shift with your flags (candida, dairy, gluten, gut, liver).</p>
+    <div class="food-cols">
+      <div><h3>Top 100</h3><ol id="top-foods"></ol></div>
+      <div><h3>Lowest 100</h3><ol id="low-foods"></ol></div>
+    </div>
+  </div>
 </div>
 <script src="{{ url_for('static', filename='js/food_scanner.js') }}"></script>
 {% endblock %}
