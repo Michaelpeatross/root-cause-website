@@ -1,10 +1,5 @@
-"""Live upgrades: wellness plan, food scanner history, admin health age."""
+"""Live upgrades: plain client reports, food scanner, admin health age."""
 import json, os, re
-
-def _brand_health_age_and_move_grok(html, ai_html=None):
-    if not html:
-        return html or ''
-    return html.replace('Your Overall Health Score', 'Your Health Age').replace('>Overall Health Score<', '>Your Health Age<')
 
 def apply_report_upgrades(app, db, Report, reports_dir):
     from flask import redirect, url_for, abort, request, render_template, session, send_from_directory, jsonify, flash
@@ -56,9 +51,12 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         with open(_override_path(), 'w', encoding='utf-8') as fh:
             json.dump(data, fh)
     def _apply_plan(report):
-        html = report.generated_report or report.original_generated_report or ''
         name = _client_display_name(report.user_email)
-        html = _brand_health_age_and_move_grok(html, report.ai_recommendations)
+        try:
+            from client_plain_language import client_report_html
+            html = client_report_html(report.raw_data or '', name, report.title or '')
+        except Exception:
+            html = report.generated_report or report.original_generated_report or ''
         html = ensure_client_analysis(html, report.raw_data or '', client_name=name)
         age = _load_overrides().get(_normalize_email(report.user_email))
         if age:
@@ -185,4 +183,25 @@ def apply_report_upgrades(app, db, Report, reports_dir):
     app.add_url_rule('/api/food-scan/history', 'api_food_history', api_food_history, methods=['GET'])
     app.add_url_rule('/api/food-scan/guides', 'api_food_guides', api_food_guides, methods=['GET'])
     app.add_url_rule('/admin/health-age', 'admin_set_health_age', admin_set_health_age, methods=['POST'])
-    print('[Root Cause] Applied food history + unscanned food guides + admin health age')
+    _orig_dash = app.view_functions.get('dashboard')
+    if _orig_dash is not None:
+        def dashboard_plain(*args, **kwargs):
+            user = _get_current_user()
+            friendly = ''
+            if user:
+                report = Report.query.filter_by(user_email=user.email).order_by(Report.id.desc()).first()
+                if report:
+                    friendly = _apply_plan(report) or ''
+            resp = _orig_dash(*args, **kwargs)
+            try:
+                data = resp.get_data(as_text=True)
+                if 'food-scanner' not in data and 'Dashboard' in data:
+                    data = data.replace('</h1>', '</h1><p style="margin:1rem 0;"><a class="btn btn-primary" href="/food-scanner">Scan food at the store</a></p>', 1)
+                if friendly and 'report-card-body' in data:
+                    data = re.sub(r'(<div class="report-card-body card"[^>]*>).*?(</div>\s*</div>\s*</div>)', r'\1' + friendly + r'\2', data, count=1, flags=re.S)
+                resp.set_data(data)
+            except Exception:
+                pass
+            return resp
+        app.view_functions['dashboard'] = dashboard_plain
+    print('[Root Cause] Applied plain-language client reports')
