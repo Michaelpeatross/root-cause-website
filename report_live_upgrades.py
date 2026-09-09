@@ -1,5 +1,12 @@
-"""Live upgrades: plain client reports, food scanner, admin health age."""
+"""Live upgrades: plain client reports, food scanner on every page."""
 import json, os, re
+
+FOOD_FAB = (
+    '<a href="/food-scanner" id="food-scan-fab" '
+    'style="position:fixed;left:16px;bottom:22px;z-index:2147483646;background:#1b4332;color:#fff;'
+    'padding:11px 15px;border-radius:999px;text-decoration:none;font-weight:700;'
+    'box-shadow:0 8px 18px rgba(0,0,0,.22);font-size:14px;">Scan Food</a>'
+)
 
 def apply_report_upgrades(app, db, Report, reports_dir):
     from flask import redirect, url_for, abort, request, render_template, session, send_from_directory, jsonify, flash
@@ -195,13 +202,33 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             resp = _orig_dash(*args, **kwargs)
             try:
                 data = resp.get_data(as_text=True)
-                if 'food-scanner' not in data and 'Dashboard' in data:
-                    data = data.replace('</h1>', '</h1><p style="margin:1rem 0;"><a class="btn btn-primary" href="/food-scanner">Scan food at the store</a></p>', 1)
                 if friendly and 'report-card-body' in data:
                     data = re.sub(r'(<div class="report-card-body card"[^>]*>).*?(</div>\s*</div>\s*</div>)', r'\1' + friendly + r'\2', data, count=1, flags=re.S)
-                resp.set_data(data)
+                    resp.set_data(data)
             except Exception:
                 pass
             return resp
         app.view_functions['dashboard'] = dashboard_plain
-    print('[Root Cause] Applied plain-language client reports')
+    @app.after_request
+    def _food_nav(resp):
+        try:
+            ctype = resp.headers.get('Content-Type') or ''
+            if 'html' not in ctype:
+                return resp
+            data = resp.get_data(as_text=True)
+            if not data or 'site-header' not in data:
+                return resp
+            if 'Logout' in data or 'Dashboard</a>' in data or 'Admin</a>' in data:
+                if '>Scan Food</a>' not in data and 'Dashboard</a>' in data:
+                    data = data.replace('>Dashboard</a>', '>Dashboard</a>\n                <a href="/food-scanner">Scan Food</a>', 1)
+                if '>Scan Food</a>' not in data and 'Admin</a>' in data:
+                    data = data.replace('>Admin</a>', '>Admin</a>\n                <a href="/food-scanner">Scan Food</a>', 1)
+                if 'food-scan-fab' not in data and '/food-scanner' in (request.path or '') is False:
+                    pass
+                if 'id="food-scan-fab"' not in data and not (request.path or '').startswith('/food-scanner'):
+                    data = data.replace('</body>', FOOD_FAB + '</body>', 1)
+                resp.set_data(data)
+        except Exception:
+            pass
+        return resp
+    print('[Root Cause] Applied Scan Food on every page')
