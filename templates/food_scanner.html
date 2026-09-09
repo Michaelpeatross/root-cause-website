@@ -11,11 +11,8 @@
   .scan-panel { display: none; } .scan-panel.active { display: block; }
   #reader { width: 100%; min-height: 260px; background: #111; border-radius: 10px; overflow: hidden; }
   #reader video, #reader canvas { width: 100% !important; }
-  .hist-row { display: grid; grid-template-columns: 52px 1fr auto; gap: .6rem; align-items: center; padding: .55rem 0; border-bottom: 1px solid #eee; }
-  .hist-row img { width: 52px; height: 52px; object-fit: cover; border-radius: 8px; background: #f3f3f3; }
-  .food-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  @media (max-width: 640px) { .food-cols { grid-template-columns: 1fr; } }
-  .food-cols ol { padding-left: 1.2rem; font-size: .92rem; }
+  .macro-grid { display:grid; grid-template-columns: repeat(3,1fr); gap:.5rem; margin-top:.75rem; }
+  .macro-grid div { background:#f6f8f6; border-radius:8px; padding:.5rem; text-align:center; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 {% endblock %}
@@ -23,49 +20,39 @@
 <div class="container scan-wrap">
   <p style="margin-top:1rem;"><a href="{{ url_for('dashboard') }}" class="btn btn-outline">← Dashboard</a></p>
   <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark);">Food Scanner</h1>
-  <p>Point the camera at any grocery barcode. It should score as soon as it locks.</p>
+  <p>Scan a barcode, snap a label, or photograph the plate. Plate photos log calories and macros for the day.</p>
   {% if personal_flags %}<p class="rec-note">Personal filters: <strong>{{ personal_flags|join(', ') }}</strong></p>{% endif %}
   <div class="scan-tabs">
     <button type="button" class="active" data-tab="barcode">Barcode camera</button>
     <button type="button" data-tab="type">Type barcode</button>
     <button type="button" data-tab="photo">Label photo</button>
+    <button type="button" data-tab="plate">Plate photo</button>
     <button type="button" data-tab="search">Search name</button>
   </div>
   <div id="tab-barcode" class="scan-panel active card"><div id="reader"></div>
     <p style="margin-top:.75rem;"><button type="button" class="btn btn-primary" id="start-cam">Start camera</button>
     <button type="button" class="btn btn-outline" id="stop-cam">Stop</button></p>
     <p id="cam-status" style="color:var(--text-muted);"></p></div>
-  <div id="tab-type" class="scan-panel card"><form id="type-form"><div class="form-group"><label for="barcode">Barcode</label>
-    <input type="text" id="barcode" inputmode="numeric" required></div>
+  <div id="tab-type" class="scan-panel card"><form id="type-form"><input type="text" id="barcode" inputmode="numeric" required>
     <button class="btn btn-primary" type="submit">Score this barcode</button></form></div>
-  <div id="tab-photo" class="scan-panel card"><input type="file" id="photo" accept="image/*" capture="environment">
+  <div id="tab-photo" class="scan-panel card"><p>Nutrition Facts + ingredients label.</p>
+    <input type="file" id="photo" accept="image/*" capture="environment">
     <img id="preview" alt="" hidden style="max-width:100%;margin-top:.5rem;">
     <p><button type="button" class="btn btn-primary" id="score-photo">Score this label</button></p></div>
-  <div id="tab-search" class="scan-panel card"><form id="search-form"><input type="text" id="q" placeholder="XO chips">
+  <div id="tab-plate" class="scan-panel card"><p>Photograph the actual meal. We estimate nutrition, score it for your scan, and add it to today’s log.</p>
+    <input type="file" id="plate" accept="image/*" capture="environment">
+    <img id="plate-preview" alt="" hidden style="max-width:100%;margin-top:.5rem;">
+    <p><button type="button" class="btn btn-primary" id="score-plate">Score and log this meal</button></p></div>
+  <div id="tab-search" class="scan-panel card"><form id="search-form"><input type="text" id="q">
     <button class="btn btn-primary" type="submit">Search</button></form><div id="search-results"></div></div>
   <div id="result" class="result-card" hidden></div>
-
-  <div class="card" style="margin-top:1.5rem;">
-    <h2>Your past scans</h2>
-    <p><label>Sort
-      <select id="hist-sort">
-        <option value="date_desc">Newest date</option>
-        <option value="date_asc">Oldest date</option>
-        <option value="score_desc">Highest score</option>
-        <option value="score_asc">Lowest score</option>
-        <option value="name">Name A–Z</option>
-      </select></label></p>
-    <div id="history-list"><p>Loading…</p></div>
-  </div>
-
-  <div class="card" style="margin-top:1.5rem;">
-    <h2>Food lists for your scan</h2>
-    <p class="rec-note">Best everyday choices vs foods to limit. Lists shift with your flags (candida, dairy, gluten, gut, liver).</p>
-    <div class="food-cols">
-      <div><h3>Top 100</h3><ol id="top-foods"></ol></div>
-      <div><h3>Lowest 100</h3><ol id="low-foods"></ol></div>
-    </div>
-  </div>
+  <div class="card" style="margin-top:1.5rem;"><h2>Today’s intake</h2><div id="diary-today"><p>Loading…</p></div></div>
+  <div class="card" style="margin-top:1.5rem;"><h2>Daily progress</h2><div id="diary-days"></div></div>
+  <div class="card" style="margin-top:1.5rem;"><h2>Your past scans</h2>
+    <select id="hist-sort"><option value="date_desc">Newest date</option><option value="score_desc">Highest score</option><option value="score_asc">Lowest score</option></select>
+    <div id="history-list"></div></div>
+  <div class="card" style="margin-top:1.5rem;"><h2>Food lists for your scan</h2>
+    <div class="food-cols" style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;"><div><h3>Top 100</h3><ol id="top-foods"></ol></div><div><h3>Lowest 100</h3><ol id="low-foods"></ol></div></div></div>
 </div>
 <script src="{{ url_for('static', filename='js/food_scanner.js') }}"></script>
 {% endblock %}
