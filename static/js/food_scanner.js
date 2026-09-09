@@ -14,7 +14,7 @@
   var camStatus = document.getElementById('cam-status');
   var lastCode = '';
   var lastAt = 0;
-  var html5Scanner = null;
+  var running = false;
   function escapeHtml(text) {
     return String(text || '').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
   }
@@ -45,7 +45,7 @@
     var digits = String(code || '').replace(/\D+/g, '');
     if (digits.length < 8) return;
     var now = Date.now();
-    if (digits === lastCode && now - lastAt < 4000) return;
+    if (digits === lastCode && now - lastAt < 3500) return;
     lastCode = digits;
     lastAt = now;
     if (camStatus) camStatus.textContent = 'Read ' + digits + ' — scoring…';
@@ -68,61 +68,74 @@
   document.getElementById('score-photo').addEventListener('click', function () {
     var file = photoInput.files && photoInput.files[0];
     if (!file) { showError('Choose a label photo first.'); return; }
-    resultEl.hidden = false;
-    resultEl.innerHTML = '<div class="card"><p>Reading the label…</p></div>';
     var reader = new FileReader();
     reader.onload = function () {
       var raw = String(reader.result || '');
       var parts = raw.split(',');
-      postJSON('/api/food-scan/photo', { image_b64: parts[1] || '', mime: (parts[0].match(/data:(.*?);/) || [])[1] || 'image/jpeg' }).then(renderResult);
+      postJSON('/api/food-scan/photo', { image_b64: parts[1] || '', mime: 'image/jpeg' }).then(renderResult);
     };
     reader.readAsDataURL(file);
   });
   document.getElementById('search-form').addEventListener('submit', function (evt) {
     evt.preventDefault();
-    var q = document.getElementById('q').value.trim();
     var box = document.getElementById('search-results');
     box.innerHTML = '<p>Searching…</p>';
-    postJSON('/api/food-scan/search', { q: q }).then(function (data) {
+    postJSON('/api/food-scan/search', { q: document.getElementById('q').value.trim() }).then(function (data) {
       var items = (data && data.results) || [];
       box.innerHTML = items.length ? items.map(function (item) {
         return '<div class="search-hit" data-code="' + escapeHtml(item.code) + '"><strong>' + escapeHtml(item.name) + '</strong></div>';
       }).join('') : '<p>No matches.</p>';
-      box.querySelectorAll('.search-hit').forEach(function (rowEl) {
-        rowEl.addEventListener('click', function () { scoreBarcode(rowEl.getAttribute('data-code')); });
+      box.querySelectorAll('.search-hit').forEach(function (el) {
+        el.addEventListener('click', function () { scoreBarcode(el.getAttribute('data-code')); });
       });
     });
   });
+  function onDetected(result) {
+    if (!result || !result.codeResult || !result.codeResult.code) return;
+    var err = result.codeResult.decodedCodes || [];
+    var errors = 0;
+    err.forEach(function (c) { if (c.error) errors += c.error; });
+    if (err.length && errors / err.length > 0.25) return;
+    scoreBarcode(result.codeResult.code);
+  }
   function stopCam() {
-    if (html5Scanner) {
-      html5Scanner.stop().then(function () { html5Scanner.clear(); html5Scanner = null; }).catch(function () { html5Scanner = null; });
-    }
+    running = false;
+    try { if (window.Quagga) Quagga.stop(); } catch (e) {}
     if (camStatus) camStatus.textContent = 'Camera off.';
   }
-  function cameraConfig() {
-    return {
-      fps: 20,
-      disableFlip: false,
-      qrbox: function (w, h) {
-        return { width: Math.max(220, Math.floor(w * 0.94)), height: Math.max(140, Math.floor(h * 0.42)) };
-      },
-      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
-    };
-  }
   document.getElementById('start-cam').addEventListener('click', function () {
-    if (typeof Html5Qrcode === 'undefined') {
-      if (camStatus) camStatus.textContent = 'Decoder did not load. Pull to refresh and try again.';
+    if (typeof Quagga === 'undefined') {
+      if (camStatus) camStatus.textContent = 'Scanner library did not load. Refresh the page on Wi-Fi.';
       return;
     }
-    if (html5Scanner) return;
-    html5Scanner = new Html5Qrcode('reader', { verbose: false });
-    html5Scanner.start({ facingMode: 'environment' }, cameraConfig(), function (decodedText) {
-      scoreBarcode(decodedText);
-    }).then(function () {
-      if (camStatus) camStatus.textContent = 'Live. Fill the box with the barcode — it should score as soon as it locks.';
-    }).catch(function (err) {
-      if (camStatus) camStatus.textContent = 'Could not start camera (' + (err && err.message ? err.message : 'blocked') + '). Allow camera access.';
+    if (running) return;
+    running = true;
+    if (camStatus) camStatus.textContent = 'Starting camera…';
+    Quagga.init({
+      inputStream: {
+        name: 'Live',
+        type: 'LiveStream',
+        target: document.getElementById('reader'),
+        constraints: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+      },
+      locator: { patchSize: 'medium', halfSample: true },
+      numOfWorkers: 0,
+      frequency: 12,
+      decoder: {
+        readers: ['upc_reader', 'upc_e_reader', 'ean_reader', 'ean_8_reader', 'code_128_reader']
+      },
+      locate: true
+    }, function (err) {
+      if (err) {
+        running = false;
+        if (camStatus) camStatus.textContent = 'Camera failed: ' + (err.message || err);
+        return;
+      }
+      Quagga.start();
+      if (camStatus) camStatus.textContent = 'Live grocery scanner. Hold the barcode steady 6 inches away.';
     });
+    Quagga.offDetected(onDetected);
+    Quagga.onDetected(onDetected);
   });
   document.getElementById('stop-cam').addEventListener('click', stopCam);
 })();
