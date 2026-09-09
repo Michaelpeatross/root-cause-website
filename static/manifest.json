@@ -1,22 +1,15 @@
 {
-  "name": "Root Cause Health",
+  "name": "Root Cause",
   "short_name": "Root Cause",
-  "description": "Upload your Apple Watch and health data directly to Grok for analysis",
-  "start_url": "/health-app",
+  "description": "Scan food, log meals, and read your Root Cause plan.",
+  "start_url": "/food-scanner",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2e7d32",
+  "background_color": "#f7faf7",
+  "theme_color": "#1b4332",
   "orientation": "portrait",
   "icons": [
-    {
-      "src": "/static/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/static/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
+    {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png"}
   ]
 }
