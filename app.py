@@ -185,3 +185,11 @@ try:
     register_public_seo_routes(app)
 except Exception as _seo_err:
     print(f"[Root Cause] SEO routes not applied: {_seo_err}")
+
+try:
+    from food_scan_routes import register_food_scan_routes
+    register_food_scan_routes(app, db=db, Report=Report)
+except Exception as _food_err:
+    print(f"[Root Cause] Food scanner routes not applied: {_food_err}")
+    import traceback
+    traceback.print_exc()
