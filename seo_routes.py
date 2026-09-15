@@ -103,7 +103,15 @@ def register_public_seo_routes(app):
         '.compare-table th{background:#0b3d2a;color:#fff}.compare-table tr:nth-child(even) td{background:#f3faf7}'
         '.step-grid,.include-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}'
         '.faq details{background:#fff;border-radius:12px;padding:1rem 1.15rem;margin:0 0 .75rem;box-shadow:0 4px 24px rgba(11,61,42,.08)}'
-        '.faq summary{cursor:pointer;font-weight:600;color:#0b3d2a}</style>'
+        '.faq summary{cursor:pointer;font-weight:600;color:#0b3d2a}'
+        'body{padding-bottom:72px}'
+        '@media(max-width:720px){'
+        '#grok-label,#grok-bubble-label{display:none!important}'
+        '#grok-float{bottom:12px;right:12px}'
+        '#grok-panel{width:min(360px,calc(100vw - 24px));max-height:58vh}'
+        'body{padding-bottom:96px}'
+        '.container,.card,form{padding-bottom:12px}'
+        '}</style>'
     )
 
     NOINDEX_PREFIXES = (
@@ -144,6 +152,9 @@ def register_public_seo_routes(app):
                     'Upload your Apple Watch, Fitbit, blood work and medical records. Grok analyzes everything for deep health insights.',
                     'At-home bioenergetic hair + saliva wellness scan with a clear report and supplement ideas. $199. Not a medical diagnosis or allergy test.',
                 )
+            if path in ('/login', '/register', '/buy', '/contact', '/checkout/success'):
+                html = html.replace('<body>', '<body class="rc-form-page">', 1)
+                extra += '<style>.rc-form-page #grok-label,.rc-form-page #grok-bubble-label{display:none!important}</style>'
             if '</head>' in html and 'rel="canonical"' not in html:
                 html = html.replace('</head>', extra + '</head>', 1)
             if 'site-footer' not in html and '</body>' in html:
