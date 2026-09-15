@@ -8,7 +8,74 @@
 <div class="container" style="max-width:440px; margin-top:4rem;">
     <div class="card">
         <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">Client Log In</h2>
-        {% include 'login.html' ignore missing %}
+        <p style="text-align:center; color:var(--text-muted); margin-bottom:1.5rem;">Access your reports, uploads, and recommendations</p>
+
+        {% if not show_reset %}
+        <form method="POST">
+            <input type="hidden" name="action" value="login">
+            <div class="form-group">
+                <label for="email">Email or Phone Number</label>
+                <input type="text" id="email" name="email" value="{{ email or '' }}" required autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you@example.com or 225-555-1234">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Log In</button>
+        </form>
+
+        <p style="text-align:center; margin-top:1rem;">
+            <a href="#" onclick="document.getElementById('reset-panel').style.display='block'; return false;">Forgot password?</a>
+        </p>
+
+        <div id="reset-panel" style="display:none; margin-top:1.5rem; padding-top:1.5rem; border-top:1px solid #eee;">
+            <h3 style="font-size:1rem; color:var(--green-dark);">Reset Password</h3>
+            <form method="POST">
+                <input type="hidden" name="action" value="reset_password">
+                <div class="form-group">
+                    <label for="reset_email">Your email or phone number</label>
+                    <input type="text" id="reset_email" name="email" required autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you@example.com or 225-555-1234">
+                </div>
+                <div class="form-group">
+                    <label for="reset_code">Reset Code (via SMS)</label>
+                    <input type="text" id="reset_code" name="reset_code" maxlength="6" placeholder="123456 (sent to your phone)">
+                    <p style="font-size:0.75rem; color:var(--text-muted); margin:0.2rem 0 0;">If resetting with your phone number: Submit once (leave code blank) to receive a 6-digit SMS code, then re-submit with the code + new password.</p>
+                </div>
+                <div class="form-group">
+                    <label for="new_password">New password</label>
+                    <input type="password" id="new_password" name="new_password" minlength="6" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" minlength="6" required>
+                </div>
+                <button type="submit" class="btn btn-secondary" style="width:100%;">Update Password</button>
+            </form>
+        </div>
+        {% else %}
+        <form method="POST">
+            <input type="hidden" name="action" value="login">
+            <div class="form-group">
+                <label for="email">Email or Phone Number</label>
+                <input type="text" id="email" name="email" value="{{ email or '' }}" required autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="you@example.com or 225-555-1234">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Log In</button>
+        </form>
+        {% endif %}
+
+        <p style="text-align:center; margin-top:1.5rem;">
+            New customer? <a href="{{ url_for('register') }}"><strong>Create free account</strong></a>
+        </p>
+        <p style="text-align:center; margin-top:0.5rem; font-size:0.9rem; color:var(--text-muted);">
+            Use the <strong>same email or phone</strong> your practitioner has on file to see your reports.
+        </p>
+        <p style="text-align:center; margin-top:0.5rem;">
+            <a href="{{ url_for('index') }}">← Back to home</a>
+        </p>
     </div>
 </div>
 {% endblock %}
