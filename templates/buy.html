@@ -1,31 +1,26 @@
 {% extends "base.html" %}
-{% block title %}Get Your Analysis — Root Cause{% endblock %}
+{% block title %}Buy the $199 Bioenergetic Scan | Root Cause Test{% endblock %}
+{% block meta_description %}Order the Root Cause Bioenergetic Scan for $199. At-home hair and saliva wellness scan with a clear report and supplement ideas. Not a medical diagnosis.{% endblock %}
 
 {% block content %}
 <section class="hero" style="padding:3rem 2rem;">
     <h1 style="font-size:2.5rem;">Get Your Analysis</h1>
-    <p class="tagline">Bioenergetic Hair + Saliva Scan</p>
+    <p class="tagline">At-home bioenergetic hair + saliva wellness scan. $199.</p>
 </section>
 
 <div class="container" style="max-width:520px;">
     <div class="card purchase-card checkout-single-card" style="margin-top:-2rem;">
         <p class="purchase-now" style="margin:0 0 0.5rem;">$199</p>
-        <p style="color:var(--text-muted); margin:0 0 1.5rem;">One personalized bioenergetic analysis</p>
+        <p style="color:var(--text-muted); margin:0 0 1.5rem;">One Root Cause Bioenergetic Scan — wellness report and supplement ideas</p>
 
         {% include '_checkout_single.html' %}
 
         <p style="margin-top:1.25rem; font-size:0.9rem; color:var(--text-muted); text-align:center;">
             After payment, <a href="{{ url_for('register') }}">create your free account</a> for collection instructions and your client portal.
         </p>
-    </div>
-
-    <div class="card" style="margin-top:1.25rem;">
-        <h2 style="font-family:'Playfair Display',serif; color:var(--green-dark); font-size:1.15rem; margin-top:0;">What's included</h2>
-        <ul style="margin:0.5rem 0 0; padding-left:1.25rem; color:var(--text-muted); line-height:1.7;">
-            <li>Full bioenergetic hair + saliva scan analysis</li>
-            <li>Personalized report on your client portal</li>
-            <li>Supplement and lab recommendations</li>
-        </ul>
+        <p style="margin-top:0.75rem; font-size:0.85rem; color:var(--text-muted); text-align:center;">
+            Not a medical diagnosis or allergy test. See <a href="{{ url_for('refunds') }}">refunds</a> and <a href="{{ url_for('terms') }}">terms</a>.
+        </p>
     </div>
 </div>
 {% endblock %}

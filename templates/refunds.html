@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Refund Policy | Root Cause Test{% endblock %}
+{% block meta_description %}Refunds for the $199 Root Cause Bioenergetic Scan. Unopened kits: contact support. After samples are received, orders are typically non-refundable once processing starts.{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:760px;">
+  <div class="card">
+    <h1>Refund Policy</h1>
+    <p style="color:var(--text-muted);">ROOTCAUSE LLC · Last updated September 14, 2026</p>
+    <p>The Root Cause Bioenergetic Scan is <strong>$199</strong>, paid through Stripe.</p>
+    <h2>Before you send samples</h2>
+    <p>If the kit is unopened and you have not mailed hair or saliva samples, email <a href="mailto:test@root-cause-test.com">test@root-cause-test.com</a> and we will review a refund or cancellation.</p>
+    <h2>After samples arrive</h2>
+    <p>Once samples are received and processing starts, the order is <strong>typically non-refundable</strong> because lab time and report preparation have begun.</p>
+    <h2>How to ask</h2>
+    <p>Email <a href="mailto:test@root-cause-test.com">test@root-cause-test.com</a> with your order email and the reason for the request. We respond as quickly as we can.</p>
+    <p><a href="{{ url_for('contact') }}">Contact page</a> · <a href="{{ url_for('buy') }}">Buy the $199 scan</a></p>
+  </div>
+</div>
+{% endblock %}

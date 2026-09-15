@@ -1,15 +1,12 @@
 {% extends "base.html" %}
-
-{% block title %}Page Not Found - Root Cause{% endblock %}
+{% block title %}Page Not Found | Root Cause Test{% endblock %}
+{% block meta_description %}That page is not on Root Cause Test. Return home to order the $199 at-home wellness scan.{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
 <div class="container" style="text-align: center; padding: 60px 20px;">
-    <h1>404 - Not Found</h1>
-    <p>Sorry, the page you were looking for doesn't exist or has been moved.</p>
-    <p><a href="{{ url_for('index') }}">Return to homepage</a></p>
-    <p style="margin-top: 30px; color: #666; font-size: 0.9rem;">
-        If you arrived here from a Google search, the link may be outdated. 
-        Try searching for "root cause test" or visit the main site.
-    </p>
+    <h1>Page not found</h1>
+    <p>That URL is not on this site.</p>
+    <p><a href="{{ url_for('index') }}">Return to homepage</a> · <a href="{{ url_for('buy') }}">Get Your Analysis — $199</a></p>
 </div>
 {% endblock %}
