@@ -179,3 +179,9 @@ except Exception as _upgrade_err:
     print(f"[Root Cause] Live upgrades not applied: {_upgrade_err}")
     import traceback
     traceback.print_exc()
+
+try:
+    from seo_routes import register_public_seo_routes
+    register_public_seo_routes(app)
+except Exception as _seo_err:
+    print(f"[Root Cause] SEO routes not applied: {_seo_err}")
