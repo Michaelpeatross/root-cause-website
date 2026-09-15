@@ -2,7 +2,6 @@
 
 
 def register_public_seo_routes(app):
-    """Legal pages, robots/sitemap fix, OG image. Safe to call after app load."""
     from flask import render_template, Response
 
     SITE = 'https://www.root-cause-test.com'
@@ -30,36 +29,25 @@ def register_public_seo_routes(app):
 
     def robots_txt():
         body = (
-            "User-agent: *\n"
-            "Allow: /\n"
-            "Disallow: /admin\n"
-            "Disallow: /dashboard\n"
-            "Disallow: /login\n"
-            "Disallow: /register\n"
-            "Disallow: /checkout/success\n"
-            "Disallow: /reports/\n"
-            "Disallow: /documents/\n"
+            "User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /dashboard\n"
+            "Disallow: /login\nDisallow: /register\nDisallow: /checkout/success\n"
+            "Disallow: /reports/\nDisallow: /documents/\n"
             f"Sitemap: {SITE}/sitemap.xml\n"
         )
         return Response(body, mimetype='text/plain')
 
     def sitemap():
         pages = [
-            ('/', 'weekly', '1.0'),
-            ('/buy', 'monthly', '0.9'),
-            ('/contact', 'monthly', '0.7'),
-            ('/instructions', 'monthly', '0.6'),
-            ('/how-it-works', 'monthly', '0.8'),
-            ('/sample-report', 'monthly', '0.7'),
+            ('/', 'weekly', '1.0'), ('/buy', 'monthly', '0.9'), ('/contact', 'monthly', '0.7'),
+            ('/instructions', 'monthly', '0.6'), ('/how-it-works', 'monthly', '0.8'),
+            ('/sample-report', 'monthly', '0.7'), ('/scan-food', 'weekly', '0.8'),
+            ('/blog', 'monthly', '0.6'),
             ('/blog/what-is-bioenergetic-hair-saliva-scan', 'monthly', '0.7'),
             ('/blog/bioenergetic-vs-food-allergy-test', 'monthly', '0.7'),
-            ('/health-app', 'monthly', '0.5'),
-            ('/privacy', 'yearly', '0.3'),
-            ('/terms', 'yearly', '0.3'),
-            ('/refunds', 'yearly', '0.3'),
+            ('/health-app', 'monthly', '0.5'), ('/privacy', 'yearly', '0.3'),
+            ('/terms', 'yearly', '0.3'), ('/refunds', 'yearly', '0.3'),
         ]
-        xml = ['<?xml version="1.0" encoding="UTF-8"?>',
-               '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+        xml = ['<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
         for path, freq, pri in pages:
             loc = SITE if path == '/' else SITE + path
             xml.append('  <url>')
@@ -80,11 +68,8 @@ def register_public_seo_routes(app):
         return Response(data, mimetype='image/jpeg')
 
     routes = [
-        ('/privacy', 'privacy', privacy),
-        ('/terms', 'terms', terms),
-        ('/refunds', 'refunds', refunds),
-        ('/sample-report', 'sample_report', sample_report),
-        ('/how-it-works', 'how_it_works', how_it_works),
+        ('/privacy', 'privacy', privacy), ('/terms', 'terms', terms), ('/refunds', 'refunds', refunds),
+        ('/sample-report', 'sample_report', sample_report), ('/how-it-works', 'how_it_works', how_it_works),
         ('/blog/what-is-bioenergetic-hair-saliva-scan', 'blog_what_is_scan', blog_what_is_scan),
         ('/blog/bioenergetic-vs-food-allergy-test', 'blog_vs_allergy', blog_vs_allergy),
         ('/og-scan.jpg', 'og_scan_jpg', og_scan_jpg),
@@ -94,16 +79,16 @@ def register_public_seo_routes(app):
         app.view_functions[endpoint] = view
         if endpoint not in existing:
             app.add_url_rule(path, endpoint, view)
-
     app.view_functions['robots_txt'] = robots_txt
     app.view_functions['sitemap'] = sitemap
 
     FOOTER = (
-        '<footer class="site-footer">'
-        '<div class="footer-inner"><strong>Root Cause Test</strong> \u00b7 ROOTCAUSE LLC'
+        '<footer class="site-footer"><div class="footer-inner"><strong>Root Cause Test</strong> \u00b7 ROOTCAUSE LLC'
         '<nav aria-label="Footer">'
+        '<a href="/scan-food">Scan Food</a> '
         '<a href="/how-it-works">How it works</a> '
         '<a href="/sample-report">Sample Report</a> '
+        '<a href="/blog">Guides</a> '
         '<a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is the scan</a> '
         '<a href="/blog/bioenergetic-vs-food-allergy-test">Vs allergy test</a> '
         '<a href="/contact">Contact</a> '
@@ -111,13 +96,11 @@ def register_public_seo_routes(app):
         '<a href="/terms">Terms</a> '
         '<a href="/refunds">Refunds</a> '
         '<a href="/buy">Buy $199</a> '
-        '<a href="/login">Login</a>'
-        '</nav>'
+        '<a href="/login">Login</a></nav>'
         '<p class="fine">Wellness information only. This at-home bioenergetic hair and saliva scan '
         'is not a medical diagnosis, not an allergy test, not a DNA test, and not intended to detect '
         'or treat disease. It does not replace care from a licensed clinician. Questions: '
-        '<a href="mailto:test@root-cause-test.com">test@root-cause-test.com</a></p>'
-        '</div></footer>'
+        '<a href="mailto:test@root-cause-test.com">test@root-cause-test.com</a></p></div></footer>'
         '<style>.site-footer{background:#0b3d2a;color:rgba(255,255,255,.88);margin-top:3rem;padding:2rem 1.5rem 2.5rem}'
         '.site-footer .footer-inner{max-width:1100px;margin:0 auto}.site-footer a{color:#d7efe8}'
         '.site-footer nav{display:flex;flex-wrap:wrap;gap:.75rem 1.25rem;margin:.75rem 0 1rem}'
@@ -129,19 +112,12 @@ def register_public_seo_routes(app):
         '.faq details{background:#fff;border-radius:12px;padding:1rem 1.15rem;margin:0 0 .75rem;box-shadow:0 4px 24px rgba(11,61,42,.08)}'
         '.faq summary{cursor:pointer;font-weight:600;color:#0b3d2a}'
         'body{padding-bottom:72px}'
-        '@media(max-width:720px){'
-        '#grok-label,#grok-bubble-label{display:none!important}'
-        '#grok-float{bottom:12px;right:12px}'
-        '#grok-panel{width:min(360px,calc(100vw - 24px));max-height:58vh}'
-        'body{padding-bottom:96px}'
-        '.container,.card,form{padding-bottom:12px}'
-        '}</style>'
+        '@media(max-width:720px){#grok-label,#grok-bubble-label{display:none!important}'
+        '#grok-float{bottom:12px;right:12px}#grok-panel{width:min(360px,calc(100vw - 24px));max-height:58vh}'
+        'body{padding-bottom:96px}}</style>'
     )
 
-    NOINDEX_PREFIXES = (
-        '/login', '/register', '/checkout/success', '/admin',
-        '/dashboard', '/reports', '/documents',
-    )
+    NOINDEX_PREFIXES = ('/login', '/register', '/checkout/success', '/admin', '/dashboard', '/reports', '/documents', '/nutrition')
 
     @app.after_request
     def _seo_html_touch(response):
@@ -155,15 +131,15 @@ def register_public_seo_routes(app):
             from flask import request
             path = request.path or '/'
             canon = SITE + ('/' if path == '/' else path)
-            noindex = path == '/checkout/success' or any(
-                path == p or path.startswith(p + '/') for p in NOINDEX_PREFIXES
-            ) or response.status_code == 404
+            noindex = path == '/checkout/success' or any(path == p or path.startswith(p + '/') for p in NOINDEX_PREFIXES) or response.status_code == 404
             robots = 'noindex, nofollow' if noindex else 'index, follow'
             DESCS = {
-                '/sample-report': 'See how a Root Cause wellness report is organized: body-system sections, priority themes, and optional supplement or lifestyle ideas. Informational only. $199 scan.',
-                '/how-it-works': 'Order, collect hair and saliva at home, ship to Covington, LA, then view your wellness report. Typical turnaround 7-14 days after samples arrive. $199.',
-                '/blog/what-is-bioenergetic-hair-saliva-scan': 'What a bioenergetic hair and saliva wellness scan is and is not. Compared carefully with clinical allergy testing and HTMA. $199. Not a medical diagnosis.',
-                '/blog/bioenergetic-vs-food-allergy-test': 'Side-by-side look at a $199 bioenergetic hair and saliva wellness scan versus clinical food allergy testing. It does not diagnose or rule out food allergy.',
+                '/scan-food': 'Scan a barcode, search a food name, or photograph a label or plate for educational calorie and macro estimates. Free to use. Not medical advice.',
+                '/blog': 'Short wellness articles about the $199 bioenergetic hair and saliva scan. Educational only — not medical advice.',
+                '/sample-report': 'See how a Root Cause wellness report is organized. Informational only. $199 scan.',
+                '/how-it-works': 'Order, collect hair and saliva at home, ship to Covington, LA, then view your wellness report. $199.',
+                '/blog/what-is-bioenergetic-hair-saliva-scan': 'What a bioenergetic hair and saliva wellness scan is and is not. $199. Not a medical diagnosis.',
+                '/blog/bioenergetic-vs-food-allergy-test': 'A $199 bioenergetic hair and saliva wellness scan versus clinical food allergy testing. It does not diagnose or rule out food allergy.',
             }
             extra = (
                 f'<link rel="canonical" href="{canon}">'
@@ -181,37 +157,25 @@ def register_public_seo_routes(app):
                     'Root Cause Test: Bioenergetic scanning combined with Grok AI analysis of your wearable health data, blood work, and medical records. Personalized reports and recommendations.',
                     'At-home bioenergetic hair + saliva wellness scan with a clear report and supplement ideas. $199. Not a medical diagnosis or allergy test.',
                 )
-                html = html.replace(
-                    'Upload your Apple Watch, Fitbit, blood work and medical records. Grok analyzes everything for deep health insights.',
-                    'At-home bioenergetic hair + saliva wellness scan with a clear report and supplement ideas. $199. Not a medical diagnosis or allergy test.',
-                )
-            if path in ('/login', '/register', '/buy', '/contact', '/checkout/success'):
-                html = html.replace('<body>', '<body class="rc-form-page">', 1)
-                extra += '<style>.rc-form-page #grok-label,.rc-form-page #grok-bubble-label{display:none!important}</style>'
             if '</head>' in html and 'rel="canonical"' not in html:
                 html = html.replace('</head>', extra + '</head>', 1)
-            NAV = (
-                '<a href="/how-it-works">How it works</a>'
-                '<a href="/sample-report">Sample Report</a>'
-            )
-            if 'href="/how-it-works"' not in html and 'Get Analysis</a>' in html:
-                html = html.replace('Get Analysis</a>', 'Get Analysis</a>' + NAV, 1)
+            NAV = '<a href="/scan-food">Scan Food</a><a href="/how-it-works">How it works</a><a href="/sample-report">Sample Report</a>'
+            if 'href="/scan-food"' not in html:
+                if 'Get Analysis</a>' in html:
+                    html = html.replace('Get Analysis</a>', 'Get Analysis</a>' + NAV, 1)
+                elif '<nav>' in html:
+                    html = html.replace('<nav>', '<nav>' + NAV, 1)
+            if 'class="site-header"' not in html:
+                header = '<header class="site-header"><a href="/" class="logo">Root Cause</a><nav><a href="/scan-food">Scan Food</a><a href="/how-it-works">How it works</a><a href="/buy">Get Analysis</a><a href="/login">Log In</a></nav></header>'
+                html = html.replace('<body>', '<body>' + header, 1)
             if 'site-footer' in html:
                 import re
-                html = re.sub(
-                    r'<footer class="site-footer">.*?</footer>',
-                    FOOTER.split('<style>')[0],
-                    html,
-                    count=1,
-                    flags=re.DOTALL,
-                )
+                html = re.sub(r'<footer class="site-footer">.*?</footer>', FOOTER.split('<style>')[0], html, count=1, flags=re.DOTALL)
             elif '</body>' in html:
                 html = html.replace('</body>', FOOTER + '</body>', 1)
-            if response.status_code == 404 and 'noindex' not in html:
-                html = html.replace('<head>', '<head><meta name="robots" content="noindex, nofollow">', 1)
             response.set_data(html)
         except Exception as exc:
             print(f'[Root Cause] SEO after_request skipped: {exc}')
         return response
 
-    print('[Root Cause] Registered sample-report how-it-works blog + legal SEO routes')
+    print('[Root Cause] Registered public SEO routes + Scan Food footer')
