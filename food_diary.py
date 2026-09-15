@@ -1,6 +1,6 @@
 """Meal photo diary and daily macro totals."""
 import json, os, re
-from datetime import datetime, timedelta
+from datetime import datetime
 
 try:
     from persistent_storage import setup_persistent_paths
@@ -29,6 +29,9 @@ def load_meals(email):
 
 def save_meal(email, meal):
     rows = load_meals(email)
+    thumb = meal.get('thumbnail') or ''
+    if not (str(thumb).startswith('http://') or str(thumb).startswith('https://')):
+        thumb = ''
     entry = {
         'id': datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
         'eaten_at': meal.get('eaten_at') or datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC'),
@@ -41,9 +44,11 @@ def save_meal(email, meal):
         'fat': meal.get('fat'),
         'sugar': meal.get('sugar'),
         'fiber': meal.get('fiber'),
+        'sodium': meal.get('sodium'),
         'score': meal.get('score'),
         'label': meal.get('label') or '',
         'notes': meal.get('notes') or '',
+        'thumbnail': thumb[:240],
     }
     rows.insert(0, entry)
     with open(_path(email), 'w', encoding='utf-8') as fh:
