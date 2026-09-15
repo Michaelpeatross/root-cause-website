@@ -94,7 +94,18 @@ def normalize_off_product(product, code=''):
         'nova': product.get('nova_group'), 'nutriscore': (product.get('nutriscore_grade') or product.get('nutrition_grades') or '').upper(),
         'labels': product.get('labels_tags') or [], 'allergens': product.get('allergens_tags') or [],
         'categories': product.get('categories') or '', 'quantity': product.get('quantity') or '',
-        'nutrients': {'energy_kcal': num('energy-kcal_100g','energy-kcal'), 'sugars': num('sugars_100g','sugars'), 'salt': num('salt_100g','salt'), 'sodium': num('sodium_100g','sodium'), 'fat': num('fat_100g','fat'), 'sat_fat': num('saturated-fat_100g','saturated-fat'), 'fiber': num('fiber_100g','fiber'), 'protein': num('proteins_100g','proteins')},
+        'nutrients': {
+            'energy_kcal': num('energy-kcal_100g','energy-kcal'),
+            'sugars': num('sugars_100g','sugars'),
+            'salt': num('salt_100g','salt'),
+            'sodium': num('sodium_100g','sodium'),
+            'fat': num('fat_100g','fat'),
+            'sat_fat': num('saturated-fat_100g','saturated-fat'),
+            'fiber': num('fiber_100g','fiber'),
+            'protein': num('proteins_100g','proteins'),
+            'carbs': num('carbohydrates_100g','carbohydrates'),
+            'carbohydrates': num('carbohydrates_100g','carbohydrates'),
+        },
     }
 
 def client_flags_from_scan(raw_data):
@@ -166,7 +177,7 @@ def extract_label_from_image(image_b64, mime='image/jpeg'):
         from health_advisor import _grok_vision_chat
     except Exception:
         return None
-    prompt = 'Extract grocery label JSON only: {"barcode":"digits or null","name":"","brand":"","ingredients":"","sugars_100g":null,"salt_100g":null,"sat_fat_100g":null,"fiber_100g":null,"protein_100g":null,"additives":[],"organic":false}'
+    prompt = 'Extract grocery label JSON only: {"barcode":"digits or null","name":"","brand":"","ingredients":"","energy_kcal":null,"carbs_100g":null,"sugars_100g":null,"salt_100g":null,"sat_fat_100g":null,"fiber_100g":null,"protein_100g":null,"sodium_mg":null,"additives":[],"organic":false}'
     raw = _grok_vision_chat([{'type':'text','text':prompt},{'type':'image_url','image_url':{'url':'data:%s;base64,%s' % (mime, image_b64),'detail':'high'}}], system='Return valid JSON only.', temperature=0.1, timeout=50)
     if not raw:
         return None
@@ -182,11 +193,16 @@ def product_from_label_extract(extracted):
     if not extracted:
         return None
     nutrients = {}
-    for src, dest in (('sugars_100g','sugars'),('salt_100g','salt'),('sat_fat_100g','sat_fat'),('fiber_100g','fiber'),('protein_100g','protein')):
+    for src, dest in (('sugars_100g','sugars'),('salt_100g','salt'),('sat_fat_100g','sat_fat'),('fiber_100g','fiber'),('protein_100g','protein'),('carbs_100g','carbs'),('energy_kcal','energy_kcal')):
         try:
             nutrients[dest] = float(extracted[src]) if extracted.get(src) is not None else None
         except (TypeError, ValueError):
             nutrients[dest] = None
+    try:
+        if extracted.get('sodium_mg') is not None:
+            nutrients['sodium'] = float(extracted.get('sodium_mg')) / 1000.0
+    except (TypeError, ValueError):
+        pass
     additives = []
     for item in extracted.get('additives') or []:
         text = str(item).lower()
