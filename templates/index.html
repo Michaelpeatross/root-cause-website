@@ -1,12 +1,91 @@
 {% extends "base.html" %}
-{% block title %}Root Cause Test | Bioenergetic Scans + Grok AI Analysis of Apple Watch, Blood Work & Medical Records{% endblock %}
+{% block title %}Root Cause Test | $199 At-Home Bioenergetic Hair & Saliva Wellness Scan{% endblock %}
+{% block meta_description %}At-home bioenergetic hair + saliva wellness scan with a clear report and supplement ideas. $199. Not a medical diagnosis or allergy test.{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://www.root-cause-test.com/#org",
+      "name": "Root Cause Test",
+      "legalName": "ROOTCAUSE LLC",
+      "url": "https://www.root-cause-test.com/",
+      "email": "test@root-cause-test.com",
+      "logo": "https://www.root-cause-test.com/og-scan.jpg"
+    },
+    {
+      "@type": "Product",
+      "@id": "https://www.root-cause-test.com/#scan",
+      "name": "Root Cause Bioenergetic Scan",
+      "description": "At-home bioenergetic hair and saliva wellness scan with a prioritized wellness report and supplement ideas. Not a medical diagnosis or allergy test.",
+      "brand": { "@id": "https://www.root-cause-test.com/#org" },
+      "offers": {
+        "@type": "Offer",
+        "url": "https://www.root-cause-test.com/buy",
+        "priceCurrency": "USD",
+        "price": "199.00",
+        "availability": "https://schema.org/InStock"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is this a medical test?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Root Cause Test is a wellness scan. It is not a medical diagnosis, not an allergy test, not a DNA test, and not intended to detect or treat disease."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How is this different from bloodwork?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Bloodwork is a clinical lab service ordered with a licensed clinician. This is an at-home bioenergetic hair and saliva wellness scan that produces a prioritized wellness report and supplement ideas. It does not replace bloodwork or a doctor visit."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How long until I get my report?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Typical turnaround is 7-14 days after your hair and saliva samples arrive at our lab address."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Will this replace my doctor?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Do not use this scan instead of licensed medical care. Share questions about symptoms or treatment with your clinician."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How much does it cost?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The Root Cause Bioenergetic Scan is $199, paid securely through Stripe checkout."
+          }
+        }
+      ]
+    }
+  ]
+}
+</script>
+{% endblock %}
 
 {% block header %}{% endblock %}
 
 {% block content %}
 <section class="hero">
-    <h1>Root Cause</h1>
-    <p class="tagline">Bioenergetic Hair Analysis — Get to the Root of Your Health Issues</p>
+    <h1>At-Home Bioenergetic Hair & Saliva Wellness Scan</h1>
+    <p class="tagline">Get a clear, prioritized wellness report from hair and saliva samples — shipped from home, no clinic visit. $199.</p>
     <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis — $199</a>
     <a href="{{ url_for('register') }}" class="btn btn-primary" style="background:rgba(255,255,255,0.2); border:2px solid white;">Create Free Account</a>
     <a href="{{ url_for('login') }}" class="btn btn-outline" style="color:white; border-color:white;">Log In</a>
@@ -14,64 +93,133 @@
 
 <div class="container">
     <div class="trust-banner">
-        <p><strong>Non-invasive · Personalized Report · Supplement Recommendations</strong></p>
-        <p><span style="color:var(--green); font-weight:700; font-size:1.2rem;">$199</span> · Bioenergetic Hair + Saliva Analysis</p>
+        <p><strong>Non-invasive · Prioritized wellness report · Supplement ideas</strong></p>
+        <p><span style="color:var(--green); font-weight:700; font-size:1.2rem;">$199</span> · At-home hair + saliva collection</p>
     </div>
 
-    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">Discover the Root Cause</h2>
-
-    <div class="features">
-        <div class="feature card">
-            <h3>🔬 Hair + Saliva Scan</h3>
-            <p>Advanced bioenergetic testing from the comfort of home — no needles, no clinic visit.</p>
+    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">How it works</h2>
+    <div class="step-grid" style="margin-bottom:2rem;">
+        <div class="card step-card">
+            <h3>1. Order</h3>
+            <p>Checkout for $199. Create your free account so collection steps and your dashboard are ready.</p>
         </div>
-        <div class="feature card">
-            <h3>📊 Clear Report</h3>
-            <p>Easy-to-understand results organized by body system with actionable priorities.</p>
+        <div class="card step-card">
+            <h3>2. Collect hair + saliva</h3>
+            <p>Follow the at-home instructions. No clinic visit and no needles.</p>
         </div>
-        <div class="feature card">
-            <h3>🌱 Supplement Guidance</h3>
-            <p>Targeted recommendations and lab suggestions based on your unique scan.</p>
+        <div class="card step-card">
+            <h3>3. Ship</h3>
+            <p>Mail your samples to our Covington, LA address using the prepaid or labeled kit directions.</p>
+        </div>
+        <div class="card step-card">
+            <h3>4. Dashboard report</h3>
+            <p>When processing is complete, your prioritized wellness report appears in your client portal.</p>
         </div>
     </div>
 
-    <div class="card" style="margin-top:2rem; max-width:720px; margin-left:auto; margin-right:auto;">
+    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">What’s included</h2>
+    <div class="include-grid" style="margin-bottom:2rem;">
+        <div class="card include-card">
+            <h3>Hair + saliva scan</h3>
+            <p>One Root Cause Bioenergetic Scan from samples you collect at home.</p>
+        </div>
+        <div class="card include-card">
+            <h3>Clear wellness report</h3>
+            <p>A prioritized summary organized so you can see what to look at first.</p>
+        </div>
+        <div class="card include-card">
+            <h3>Supplement ideas</h3>
+            <p>Educational product ideas tied to your scan themes — not prescriptions.</p>
+        </div>
+        <div class="card include-card">
+            <h3>Client dashboard</h3>
+            <p>Secure login to view your report and ask follow-up questions.</p>
+        </div>
+    </div>
 
+    <div class="card">
+        <h2>What this is — and isn’t</h2>
+        <p><strong>This is</strong> an at-home bioenergetic hair and saliva wellness scan with a written report and supplement ideas.</p>
+        <p><strong>This is not</strong> a medical diagnosis, allergy test, DNA test, HTMA (hair tissue mineral analysis), blood panel, or a tool for detecting or treating disease.</p>
+        <p style="color:var(--text-muted); margin-bottom:0;">Educational wellness information only. It does not replace licensed medical care.</p>
+    </div>
 
+    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">How it compares</h2>
+    <div class="card" style="overflow-x:auto;">
+        <table class="compare-table">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Root Cause Scan</th>
+                    <th>Clinical bloodwork</th>
+                    <th>Allergy testing</th>
+                    <th>DNA test</th>
+                    <th>HTMA</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <th scope="row">What it is</th>
+                    <td>At-home bioenergetic hair + saliva wellness scan</td>
+                    <td>Lab blood analysis ordered with a clinician</td>
+                    <td>Clinical test for allergic response</td>
+                    <td>Genetic sequencing or SNP report</td>
+                    <td>Laboratory mineral content of hair</td>
+                </tr>
+                <tr>
+                    <th scope="row">Done at home?</th>
+                    <td>Yes — ship samples</td>
+                    <td>Usually a draw site</td>
+                    <td>Usually a clinic</td>
+                    <td>Often a mail-in kit</td>
+                    <td>Often a mail-in kit</td>
+                </tr>
+                <tr>
+                    <th scope="row">Medical diagnosis?</th>
+                    <td>No</td>
+                    <td>Used in clinical care</td>
+                    <td>Used in clinical care</td>
+                    <td>Not a diagnosis by itself</td>
+                    <td>Not a diagnosis by itself</td>
+                </tr>
+                <tr>
+                    <th scope="row">Price</th>
+                    <td>$199</td>
+                    <td>Varies</td>
+                    <td>Varies</td>
+                    <td>Varies</td>
+                    <td>Varies</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 
+    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">FAQ</h2>
+    <div class="faq">
+        <details>
+            <summary>Is this a medical test?</summary>
+            <p>No. Root Cause Test is a wellness scan. It is not a medical diagnosis, not an allergy test, not a DNA test, and not intended to detect or treat disease.</p>
+        </details>
+        <details>
+            <summary>How is this different from bloodwork?</summary>
+            <p>Bloodwork is a clinical lab service ordered with a licensed clinician. This is an at-home bioenergetic hair and saliva wellness scan that produces a prioritized wellness report and supplement ideas. It does not replace bloodwork or a doctor visit.</p>
+        </details>
+        <details>
+            <summary>How long until I get my report?</summary>
+            <p>Typical turnaround is 7–14 days after your hair and saliva samples arrive at our lab address.</p>
+        </details>
+        <details>
+            <summary>Will this replace my doctor?</summary>
+            <p>No. Do not use this scan instead of licensed medical care. Share questions about symptoms or treatment with your clinician.</p>
+        </details>
+        <details>
+            <summary>How much does it cost?</summary>
+            <p>The Root Cause Bioenergetic Scan is $199, paid securely through Stripe checkout.</p>
+        </details>
+    </div>
 
-
-
+    <div style="text-align:center; margin:2.5rem 0 1rem;">
+        <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis — $199</a>
+    </div>
 </div>
-
-<script>
-(function(){
-  var form = document.getElementById('home-grok-form');
-  var input = document.getElementById('home-grok-input');
-  var panel = document.getElementById('home-grok-response');
-  var body = document.getElementById('home-grok-body');
-  if(!form || !input || !panel) return;
-
-  function escapeHtml(t){ return (t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-
-  form.addEventListener('submit', function(e){
-    e.preventDefault();
-    var q = (input.value || '').trim();
-    if(!q) return;
-    panel.hidden = false;
-    body.innerHTML = '<p class="grok-loading" style="color:#666;font-style:italic;">Thinking…</p>';
-    fetch('/api/grok/public', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({question: q})
-    }).then(function(r){ return r.json(); }).then(function(d){
-      if(d.error){ body.innerHTML = '<p>'+escapeHtml(d.error)+'</p>'; return; }
-      var paras = (d.answer || 'No response.').split(/\n{2,}/);
-      body.innerHTML = paras.map(function(p){ return '<p>'+escapeHtml(p.trim())+'</p>'; }).join('');
-    }).catch(function(){
-      body.innerHTML = '<p>Sorry, could not reach Grok right now.</p>';
-    });
-  });
-})();
-</script>
 {% endblock %}
