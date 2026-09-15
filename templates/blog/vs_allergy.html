@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Bioenergetic Scan vs Food Allergy Test | Root Cause Test{% endblock %}
+{% block meta_description %}Side-by-side look at a $199 bioenergetic hair and saliva wellness scan versus clinical food allergy testing. It does not diagnose or rule out food allergy.{% endblock %}
+
+{% block content %}
+<article class="container" style="max-width:800px;">
+  <p style="color:var(--text-muted); font-size:.85rem; margin:1.5rem 0 .5rem;"><a href="{{ url_for('index') }}">Home</a> · Article</p>
+  <h1>Bioenergetic wellness scan vs food allergy testing</h1>
+  <p>These two services answer different questions. A Root Cause Bioenergetic Scan is an at-home wellness report from hair and saliva. Clinical food allergy testing is medical care. This page exists so those are not confused.</p>
+
+  <div class="card" style="overflow-x:auto;">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Root Cause bioenergetic scan</th>
+          <th>Clinical food allergy testing</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Purpose</th>
+          <td>Wellness report with priority themes and optional ideas</td>
+          <td>Evaluate possible allergic response under clinical care</td>
+        </tr>
+        <tr>
+          <th scope="row">Sample</th>
+          <td>Hair and saliva collected at home, then shipped</td>
+          <td>Set by the clinician (often blood, skin, or supervised challenge)</td>
+        </tr>
+        <tr>
+          <th scope="row">Outputs</th>
+          <td>Written wellness report in a client dashboard</td>
+          <td>Clinical results interpreted by a licensed clinician</td>
+        </tr>
+        <tr>
+          <th scope="row">Validation / limits</th>
+          <td>Wellness information only; not a diagnostic method</td>
+          <td>Used in medical practice; still requires professional interpretation</td>
+        </tr>
+        <tr>
+          <th scope="row">When to see a clinician</th>
+          <td>Always for symptoms, suspected allergy, or disease questions</td>
+          <td>This is the clinical path for those questions</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Clear limit</h2>
+  <p>A Root Cause scan <strong>does not diagnose food allergy</strong>, does not rule food allergy out, and is <strong>not a substitute for clinical care</strong>. Do not use it to decide whether to eat a food that has caused a reaction. Seek a licensed clinician for allergy, anaphylaxis risk, or any disease concern.</p>
+
+  <p>Related: <a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is a bioenergetic hair and saliva scan?</a> · <a href="/sample-report">Sample report</a></p>
+
+  <p><strong>Disclaimer:</strong> Educational wellness information only. Not medical advice, not an allergy test, and not intended to detect or treat disease.</p>
+
+  <div style="text-align:center; margin:2.5rem 0;">
+    <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis — $199</a>
+  </div>
+</article>
+{% endblock %}

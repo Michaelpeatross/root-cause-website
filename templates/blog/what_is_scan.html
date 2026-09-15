@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}What Is a Bioenergetic Hair & Saliva Wellness Scan? | Root Cause Test{% endblock %}
+{% block meta_description %}What a bioenergetic hair and saliva wellness scan is and is not — compared carefully with clinical allergy testing and HTMA. $199 at-home kit. Not a medical diagnosis.{% endblock %}
+
+{% block content %}
+<article class="container" style="max-width:760px;">
+  <p style="color:var(--text-muted); font-size:.85rem; margin:1.5rem 0 .5rem;"><a href="{{ url_for('index') }}">Home</a> · Article</p>
+  <h1>What is a bioenergetic hair and saliva wellness scan?</h1>
+  <p>Root Cause Test offers an at-home bioenergetic hair and saliva wellness scan for $199. You collect samples at home, ship them, and receive a prioritized written wellness report. This article explains the service in plain language.</p>
+
+  <h2>What it is</h2>
+  <p>It is a wellness scan that uses hair and saliva samples you mail in. The output is a report organized by body-system themes, with priority notes and optional supplement or lifestyle ideas. Collection does not require a clinic or a blood draw.</p>
+
+  <h2>What it is not</h2>
+  <ul>
+    <li>Not a medical diagnosis or treatment plan</li>
+    <li>Not an allergy test and not a way to detect or rule out disease</li>
+    <li>Not a DNA test</li>
+    <li>Not HTMA (hair tissue mineral analysis from a clinical laboratory)</li>
+    <li>Not a substitute for licensed medical care</li>
+  </ul>
+
+  <h2>Careful comparison</h2>
+  <p><strong>Clinical allergy testing</strong> is ordered and interpreted in a medical setting to evaluate allergic response. A Root Cause scan does not do that work and must not be used to decide whether a food or substance is “safe.”</p>
+  <p><strong>HTMA</strong> is a laboratory measurement of mineral content in hair. A Root Cause bioenergetic scan is a different method and a different kind of report. They are not interchangeable.</p>
+  <p>See also: <a href="/blog/bioenergetic-vs-food-allergy-test">Bioenergetic scan vs food allergy test</a>.</p>
+
+  <h2>Who may be interested</h2>
+  <p>People who want an at-home wellness report from hair and saliva, and who already work with — or are willing to see — a licensed clinician for symptoms, allergies, or disease questions.</p>
+
+  <h2>Samples and timing</h2>
+  <p>Collect hair and saliva as instructed, then ship to 743 Rue Bourdeaux, Covington, LA 70433. Typical turnaround is 7–14 days after samples arrive. Details: <a href="/how-it-works">How it works</a>.</p>
+
+  <p><strong>Disclaimer:</strong> Educational wellness information only. Not medical advice. Not an allergy test. Not intended to diagnose, treat, cure, or prevent any disease.</p>
+
+  <div style="text-align:center; margin:2.5rem 0;">
+    <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis — $199</a>
+  </div>
+</article>
+{% endblock %}
