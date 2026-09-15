@@ -12,25 +12,18 @@ def register_food_scan_routes(app, db=None, Report=None):
 
     def _scan_raw():
         raw = session.get("latest_scan_raw") or ""
-        if raw or not (_logged_in() and Report is not None and db is not None):
+        if raw or not (_logged_in() and Report is not None):
             return raw or ""
         email = _email()
         if not email:
             return ""
         try:
-            q = Report.query.filter((Report.user_email == email) | (Report.client_email == email))
-        except Exception:
-            try:
-                q = Report.query.filter_by(user_email=email)
-            except Exception:
-                return ""
-        try:
-            row = q.order_by(Report.id.desc()).first()
+            row = Report.query.filter_by(user_email=email).order_by(Report.id.desc()).first()
         except Exception:
             return ""
         if not row:
             return ""
-        return (getattr(row, "raw_data", None) or getattr(row, "original_text", None) or getattr(row, "generated_report", None) or "")[:80000]
+        return (getattr(row, "raw_data", None) or getattr(row, "generated_report", None) or "")[:80000]
 
     def _flags():
         try:
@@ -66,7 +59,7 @@ def register_food_scan_routes(app, db=None, Report=None):
             from food_scan_history import save_scan
             save_scan(email, result)
         except Exception as exc:
-            print(f"[FoodScan] history save skipped: {exc}")
+            print("[FoodScan] history save skipped:", exc)
         if kind == "meal":
             try:
                 from food_diary import save_meal
@@ -75,13 +68,12 @@ def register_food_scan_routes(app, db=None, Report=None):
                 macros = result.get("macros") or _macros(product)
                 save_meal(email, {"name": product.get("name") or "Food", "calories": macros.get("calories"), "protein": macros.get("protein"), "carbs": macros.get("carbs"), "fat": macros.get("fat"), "sugar": macros.get("sugar"), "fiber": macros.get("fiber"), "score": rating.get("score"), "label": rating.get("label") or "", "notes": macros.get("notes") or "", "portion": macros.get("portion") or ""})
             except Exception as exc:
-                print(f"[FoodScan] diary save skipped: {exc}")
+                print("[FoodScan] diary save skipped:", exc)
         result["saved"] = True
         return result
 
     def scan_food_page():
-        flags = _flags() if _logged_in() else []
-        return render_template("food_scanner.html", personal_flags=flags, logged_in=_logged_in())
+        return render_template("food_scanner.html", personal_flags=(_flags() if _logged_in() else []), logged_in=_logged_in())
 
     def nutrition_page():
         if not _logged_in():
@@ -98,13 +90,13 @@ def register_food_scan_routes(app, db=None, Report=None):
             from food_scanner import lookup_barcode, score_product
             product = lookup_barcode(code)
             if not product:
-                return jsonify({"ok": False, "error": "No product in the grocery database for that barcode. Try Search name or Label photo. Store brands are often missing."})
+                return jsonify({"ok": False, "error": "No product in the grocery database for that barcode. Try Search name or Label photo."})
             product = _enrich_product(product)
             flags = _flags() if _logged_in() else []
             result = {"ok": True, "product": product, "rating": score_product(product, flags), "macros": _macros(product), "confidence": "database", "uncertainty": "Barcode data can be incomplete. Values are usually per 100 g.", "guest": not _logged_in()}
             return jsonify(_maybe_save(result, kind="scan"))
         except Exception as exc:
-            return jsonify({"ok": False, "error": f"Lookup failed: {exc}"}), 200
+            return jsonify({"ok": False, "error": "Lookup failed: %s" % exc})
 
     def api_search():
         data = request.get_json(silent=True) or {}
@@ -139,8 +131,7 @@ def register_food_scan_routes(app, db=None, Report=None):
             return jsonify({"ok": False, "error": err})
         try:
             from food_scanner import scan_photo_for_client
-            raw = _scan_raw() if _logged_in() else ""
-            result = scan_photo_for_client(b64, mime=mime, scan_raw=raw)
+            result = scan_photo_for_client(b64, mime=mime, scan_raw=_scan_raw() if _logged_in() else "")
             if result.get("ok"):
                 result["product"] = _enrich_product(result.get("product"))
                 result["macros"] = result.get("macros") or _macros(result.get("product"))
@@ -150,7 +141,7 @@ def register_food_scan_routes(app, db=None, Report=None):
                 result = _maybe_save(result, kind="scan")
             return jsonify(result)
         except Exception as exc:
-            return jsonify({"ok": False, "error": f"Could not read that label: {exc}"})
+            return jsonify({"ok": False, "error": "Could not read that label: %s" % exc})
 
     def api_meal():
         b64, mime, err = _read_image()
@@ -158,8 +149,7 @@ def register_food_scan_routes(app, db=None, Report=None):
             return jsonify({"ok": False, "error": err})
         try:
             from meal_photo import analyze_plate_for_client
-            raw = _scan_raw() if _logged_in() else ""
-            result = analyze_plate_for_client(b64, mime=mime, scan_raw=raw)
+            result = analyze_plate_for_client(b64, mime=mime, scan_raw=_scan_raw() if _logged_in() else "")
             if result.get("ok"):
                 result["confidence"] = "estimate"
                 result["uncertainty"] = "Plate photos are rough educational estimates. Portion size is often uncertain."
@@ -167,7 +157,7 @@ def register_food_scan_routes(app, db=None, Report=None):
                 result = _maybe_save(result, kind="meal")
             return jsonify(result)
         except Exception as exc:
-            return jsonify({"ok": False, "error": f"Could not read that plate: {exc}"})
+            return jsonify({"ok": False, "error": "Could not read that plate: %s" % exc})
 
     def api_history():
         if not _logged_in():
@@ -180,7 +170,7 @@ def register_food_scan_routes(app, db=None, Report=None):
 
     def api_diary():
         if not _logged_in():
-            return jsonify({"ok": True, "guest": True, "today": {"meals": 0, "calories": 0, "avg_score": None}, "days": [], "meals": []})
+            return jsonify({"ok": True, "guest": True, "today": {"meals": 0, "calories": 0}, "days": [], "meals": []})
         try:
             from food_diary import daily_summary
             data = daily_summary(_email())
@@ -191,51 +181,51 @@ def register_food_scan_routes(app, db=None, Report=None):
             return jsonify({"ok": False, "error": str(exc), "today": {}, "days": [], "meals": []})
 
     def api_guides():
-        flags = _flags() if _logged_in() else []
         try:
             from food_guides import lists_for_flags
-            top, low = lists_for_flags(flags, raw_text=_scan_raw() if _logged_in() else "")
+            top, low = lists_for_flags(_flags() if _logged_in() else [], raw_text=_scan_raw() if _logged_in() else "")
             return jsonify({"ok": True, "top": top[:40], "low": low[:40], "guest": not _logged_in()})
         except Exception as exc:
             return jsonify({"ok": False, "top": [], "low": [], "error": str(exc)})
 
     routes = [
-        ("/scan-food", "scan_food", scan_food_page, ["GET"]),
-        ("/food-scanner", "food_scanner_alias", scan_food_page, ["GET"]),
-        ("/nutrition", "nutrition", nutrition_page, ["GET"]),
-        ("/blog", "blog_index", blog_index, ["GET"]),
-        ("/api/food-scan/barcode", "api_food_barcode", api_barcode, ["POST"]),
-        ("/api/food-scan/search", "api_food_search", api_search, ["POST", "GET"]),
-        ("/api/food-scan/photo", "api_food_photo", api_photo, ["POST"]),
-        ("/api/food-scan/meal", "api_food_meal", api_meal, ["POST"]),
-        ("/api/food-scan/history", "api_food_history", api_history, ["GET"]),
-        ("/api/food-scan/diary", "api_food_diary", api_diary, ["GET"]),
-        ("/api/food-scan/guides", "api_food_guides", api_guides, ["GET"]),
+        ("/scan-food", "scan_food_public", scan_food_page, ["GET"]),
+        ("/nutrition", "nutrition_public", nutrition_page, ["GET"]),
+        ("/blog", "blog_index_public", blog_index, ["GET"]),
+        ("/api/food-scan/barcode", "api_food_barcode_public", api_barcode, ["POST"]),
+        ("/api/food-scan/search", "api_food_search_public", api_search, ["POST", "GET"]),
+        ("/api/food-scan/photo", "api_food_photo_public", api_photo, ["POST"]),
+        ("/api/food-scan/meal", "api_food_meal_public", api_meal, ["POST"]),
+        ("/api/food-scan/history", "api_food_history_public", api_history, ["GET"]),
+        ("/api/food-scan/diary", "api_food_diary_public", api_diary, ["GET"]),
+        ("/api/food-scan/guides", "api_food_guides_public", api_guides, ["GET"]),
     ]
-    existing = {rule.endpoint for rule in app.url_map.iter_rules()}
+    existing_paths = {}
+    for rule in app.url_map.iter_rules():
+        existing_paths[rule.rule] = rule.endpoint
     for path, endpoint, view, methods in routes:
+        if path in existing_paths:
+            app.view_functions[existing_paths[path]] = view
+            continue
         app.view_functions[endpoint] = view
-        if endpoint not in existing:
-            app.add_url_rule(path, endpoint, view, methods=methods)
+        app.add_url_rule(path, endpoint, view, methods=methods)
 
     @app.after_request
     def _food_nav(response):
         try:
-            ctype = response.headers.get("Content-Type", "")
-            if "text/html" not in ctype:
+            if "text/html" not in (response.headers.get("Content-Type") or ""):
                 return response
             html = response.get_data(as_text=True)
             if not html:
                 return response
             if 'href="/scan-food"' not in html and "Get Analysis</a>" in html:
                 html = html.replace("Get Analysis</a>", 'Get Analysis</a><a href="/scan-food">Scan Food</a>', 1)
-            path = request.path or "/"
-            if path == "/dashboard" and "My nutrition history" not in html:
+            if request.path == "/dashboard" and "My nutrition history" not in html:
                 card = '<div class="card"><h2>My nutrition history</h2><p>Log meals from the Food Scanner. Educational estimates only.</p><p><a class="btn btn-primary" href="/scan-food">Scan Food</a> <a class="btn btn-outline" href="/nutrition">Open nutrition log</a></p></div>'
                 html = html.replace("Your personalized bioenergetic portal</p>", "Your personalized bioenergetic portal</p>" + card, 1)
             response.set_data(html)
         except Exception as exc:
-            print(f"[FoodScan] after_request skipped: {exc}")
+            print("[FoodScan] after_request skipped:", exc)
         return response
 
     print("[Root Cause] Registered public /scan-food + nutrition APIs")
