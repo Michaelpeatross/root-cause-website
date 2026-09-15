@@ -25,7 +25,7 @@
         </form>
 
         <p style="text-align:center; margin-top:1rem;">
-            <a href="#" onclick="document.getElementById('reset-panel').style.display='block'; return false;">Forgot password?</a>
+            <a href="{{ url_for('login', reset=1) }}" id="forgot-password-link">Forgot password?</a>
         </p>
 
         <div id="reset-panel" style="display:none; margin-top:1.5rem; padding-top:1.5rem; border-top:1px solid #eee;">
@@ -74,8 +74,23 @@
             Use the <strong>same email or phone</strong> your practitioner has on file to see your reports.
         </p>
         <p style="text-align:center; margin-top:0.5rem;">
-            <a href="{{ url_for('index') }}">← Back to home</a>
+            <a href="{{ url_for('index') }}">Back to home</a>
         </p>
     </div>
 </div>
+<script>
+(function () {
+  var panel = document.getElementById('reset-panel');
+  var link = document.getElementById('forgot-password-link');
+  function openReset(e) {
+    if (!panel) return;
+    if (e) e.preventDefault();
+    panel.style.display = 'block';
+    var field = document.getElementById('reset_email');
+    if (field) field.focus();
+  }
+  if (link) link.addEventListener('click', openReset);
+  if (panel && /[?&]reset=1(?:&|$)/.test(location.search)) openReset();
+})();
+</script>
 {% endblock %}
