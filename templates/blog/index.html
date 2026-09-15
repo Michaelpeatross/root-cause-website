@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Wellness Guides | Root Cause Test{% endblock %}
+{% block meta_description %}Short wellness articles about the $199 bioenergetic hair and saliva scan. Educational only — not medical advice.{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:760px;">
+  <p style="margin-top:1.25rem; font-size:.85rem;"><a href="{{ url_for('index') }}">Home</a> · Guides</p>
+  <h1>Wellness guides</h1>
+  <p>Educational reading about the at-home hair and saliva wellness scan. Not medical advice.</p>
+  <div class="card">
+    <h2><a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is a bioenergetic hair and saliva wellness scan?</a></h2>
+    <p>What the $199 scan is, what it is not, and how it differs from clinical allergy testing and HTMA.</p>
+  </div>
+  <div class="card">
+    <h2><a href="/blog/bioenergetic-vs-food-allergy-test">Bioenergetic scan vs food allergy testing</a></h2>
+    <p>Side-by-side comparison. A Root Cause scan does not diagnose or rule out food allergy.</p>
+  </div>
+  <p><a href="/scan-food">Food Scanner</a> · <a href="{{ url_for('buy') }}">Get Your Analysis — $199</a></p>
+</div>
+{% endblock %}

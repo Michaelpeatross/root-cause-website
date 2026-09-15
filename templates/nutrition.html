@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}My Nutrition History | Root Cause Test{% endblock %}
+{% block meta_description %}Your saved Food Scanner meals and macro estimates. Educational wellness information only.{% endblock %}
+{% block robots %}noindex, nofollow{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:760px;">
+  <p style="margin-top:1.25rem;"><a href="/scan-food">← Food Scanner</a></p>
+  <h1>My nutrition history</h1>
+  <p>Saved from the Food Scanner. Estimates only — not medical advice.</p>
+  <div id="status">Loading…</div>
+  <div id="today" class="card"></div>
+  <div id="list"></div>
+</div>
+<script>
+(function () {
+  function esc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  var status = document.getElementById('status');
+  fetch('/api/food-scan/diary').then(function (r) { return r.json(); }).then(function (data) {
+    if (!data || data.ok === false) { status.textContent = (data && data.error) || 'Could not load your log.'; return; }
+    if (data.guest) { status.innerHTML = 'Log in to save history. <a href="/login">Log in</a>'; return; }
+    status.textContent = '';
+    var t = data.today || {};
+    document.getElementById('today').innerHTML = '<h2>Today</h2><p>' + (t.meals || 0) + ' meals · ' + (t.calories || 0) + ' kcal · P ' + (t.protein || 0) + ' · C ' + (t.carbs || 0) + ' · F ' + (t.fat || 0) + '</p>';
+    var meals = data.meals || [];
+    document.getElementById('list').innerHTML = meals.length ? meals.map(function (m) {
+      return '<div class="card"><p><strong>' + esc(m.name) + '</strong></p><p>' + esc(m.eaten_at || m.day || '') + '</p><p>' + esc(m.calories) + ' kcal · P ' + esc(m.protein) + ' · C ' + esc(m.carbs) + ' · F ' + esc(m.fat) + '</p>' + (m.notes ? '<p>' + esc(m.notes) + '</p>' : '') + '</div>';
+    }).join('') : '<p>No meals yet. <a href="/scan-food">Scan a food</a> to add one.</p>';
+  }).catch(function () { status.textContent = 'Could not load your log.'; });
+})();
+</script>
+{% endblock %}
