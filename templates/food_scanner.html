@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Food Scanner | Root Cause Test{% endblock %}
-{% block meta_description %}Scan a barcode, search a food name, or photograph a label or plate for educational calorie and macro estimates. Free to use. Not medical advice.{% endblock %}
+{% block meta_description %}Use the free Food Scanner to look up barcodes, search foods, or upload a nutrition label or plate photo for educational calorie and macro estimates. Not medical advice; nutrition data may be incomplete.{% endblock %}
 {% block extra_head %}
 <style>
   .scan-wrap { max-width: 760px; margin: 0 auto; padding-bottom: 3rem; }
@@ -95,7 +95,7 @@
   <div class="card guest-cta" style="margin-top:1.5rem;">
     <h2>Save this to a nutrition log</h2>
     <p>Guests can see the estimate on this page. Create a free account to keep a food diary.</p>
-    <a class="btn btn-primary" href="{{ url_for('register') }}">Create a free account to save personal filters &amp; nutrition history</a>
+    <a class="btn btn-primary" href="{{ url_for('register') }}">Create a free account to save personal filters & nutrition history</a>
   </div>
   {% endif %}
   <p class="hint" style="margin-top:1.5rem;">Barcode and nutrition-database values may be incomplete. Photo results are estimates. Not medical advice.</p>
