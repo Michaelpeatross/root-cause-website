@@ -7,26 +7,34 @@
 <div class="container" style="max-width:760px;">
   <p style="margin-top:1.25rem;"><a href="/scan-food">← Food Scanner</a></p>
   <h1>My nutrition history</h1>
-  <p>Saved from the Food Scanner. Estimates only — not medical advice.</p>
-  <div id="status">Loading…</div>
-  <div id="today" class="card"></div>
+  <p class="hint">Saved from the Food Scanner. Estimates only — not medical advice.</p>
+  <div id="status" class="hint">Loading…</div>
+  <div id="today" class="card" hidden></div>
   <div id="list"></div>
 </div>
 <script>
 (function () {
   function esc(t) { return String(t == null ? '' : t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   var status = document.getElementById('status');
+  var todayBox = document.getElementById('today');
+  var list = document.getElementById('list');
   fetch('/api/food-scan/diary').then(function (r) { return r.json(); }).then(function (data) {
     if (!data || data.ok === false) { status.textContent = (data && data.error) || 'Could not load your log.'; return; }
-    if (data.guest) { status.innerHTML = 'Log in to save history. <a href="/login">Log in</a>'; return; }
+    if (data.guest) {
+      status.innerHTML = 'Create a free account to save personal filters and nutrition history. <a href="/register">Create account</a> · <a href="/login">Log in</a>';
+      list.innerHTML = '<p class="hint">Guests can still estimate foods on the <a href="/scan-food">Food Scanner</a>. History is saved after you log in.</p>';
+      return;
+    }
     status.textContent = '';
     var t = data.today || {};
-    document.getElementById('today').innerHTML = '<h2>Today</h2><p>' + (t.meals || 0) + ' meals · ' + (t.calories || 0) + ' kcal · P ' + (t.protein || 0) + ' · C ' + (t.carbs || 0) + ' · F ' + (t.fat || 0) + '</p>';
+    todayBox.hidden = false;
+    todayBox.innerHTML = '<h2>Today</h2><p>' + (t.meals || 0) + ' meals · ' + (t.calories || 0) + ' kcal · P ' + (t.protein || 0) + ' · C ' + (t.carbs || 0) + ' · F ' + (t.fat || 0) + '</p>';
     var meals = data.meals || [];
-    document.getElementById('list').innerHTML = meals.length ? meals.map(function (m) {
-      return '<div class="card"><p><strong>' + esc(m.name) + '</strong></p><p>' + esc(m.eaten_at || m.day || '') + '</p><p>' + esc(m.calories) + ' kcal · P ' + esc(m.protein) + ' · C ' + esc(m.carbs) + ' · F ' + esc(m.fat) + '</p>' + (m.notes ? '<p>' + esc(m.notes) + '</p>' : '') + '</div>';
+    list.innerHTML = meals.length ? meals.map(function (m) {
+      var thumb = (m.thumbnail && String(m.thumbnail).indexOf('http') === 0) ? '<img src="' + esc(m.thumbnail) + '" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;float:left;margin:0 12px 8px 0;">' : '';
+      return '<div class="card">' + thumb + '<p><strong>' + esc(m.name) + '</strong></p><p class="hint">' + esc(m.eaten_at || m.day || '') + '</p><p>' + esc(m.calories) + ' kcal · P ' + esc(m.protein) + ' · C ' + esc(m.carbs) + ' · F ' + esc(m.fat) + '</p>' + (m.notes ? '<p>' + esc(m.notes) + '</p>' : '') + '<div style="clear:both"></div></div>';
     }).join('') : '<p>No meals yet. <a href="/scan-food">Scan a food</a> to add one.</p>';
-  }).catch(function () { status.textContent = 'Could not load your log.'; });
+  }).catch(function () { status.textContent = 'Could not load your log. Check your connection and try again.'; });
 })();
 </script>
 {% endblock %}
