@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
-{% block title %}Health Uploader - Root Cause{% endblock %}
+{% block title %}Optional Health App Uploader | Root Cause Test{% endblock %}
+{% block meta_description %}Optional wearable file upload for extra wellness context. The $199 Root Cause scan is hair and saliva — this uploader is not required.{% endblock %}
+
 
 {% block extra_head %}
 <style>
@@ -30,8 +32,8 @@
 {% block content %}
 <div class="app-container">
   <div class="app-header">
-    <h1>📱 Root Cause Health</h1>
-    <p>Send your Apple Watch data to Grok</p>
+    <h1>Optional Health App</h1>
+    <p>Upload a wearable export for extra wellness context. Not required for the $199 hair + saliva scan.</p>
   </div>
 
   <div class="card">
@@ -95,7 +97,6 @@
       const fileInput = document.getElementById('health_file');
 
       try {
-        // Use the same API the desktop app uses
         const response = await fetch('/api/client/upload_health', {
           method: 'POST',
           body: formData
@@ -104,19 +105,18 @@
         const result = await response.json();
 
         if (response.ok && result.success) {
-          statusBox.textContent = '✅ Success!\n\n' + result.message + '\n\nNow go to your Dashboard and request an analysis update.';
+          statusBox.textContent = '\u2705 Success!\n\n' + result.message + '\n\nNow go to your Dashboard and request an analysis update.';
         } else {
-          statusBox.textContent = '❌ Error: ' + (result.error || 'Upload failed');
+          statusBox.textContent = '\u274c Error: ' + (result.error || 'Upload failed');
         }
       } catch (err) {
-        statusBox.textContent = '❌ Network error: ' + err.message;
+        statusBox.textContent = '\u274c Network error: ' + err.message;
       }
 
       btn.disabled = false;
       btn.textContent = 'Upload to Grok';
     });
 
-    // Simple drag & drop
     const dropZone = document.getElementById('drop-zone');
     if (dropZone) {
       dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = '#e8f5e9'; });
