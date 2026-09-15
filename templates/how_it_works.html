@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}How the $199 At-Home Scan Works | Root Cause Test{% endblock %}
+{% block meta_description %}Order, collect hair and saliva at home, ship to Covington, LA, then view your wellness report. Typical turnaround 7–14 days after samples arrive. $199.{% endblock %}
+
+{% block extra_head %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {"@type":"Question","name":"How long does the report take?","acceptedAnswer":{"@type":"Answer","text":"Typical turnaround is 7-14 days after hair and saliva samples arrive at our Covington, LA address."}},
+    {"@type":"Question","name":"Do I need a clinic visit?","acceptedAnswer":{"@type":"Answer","text":"No. You collect hair and saliva at home and ship the samples."}},
+    {"@type":"Question","name":"Is this a medical or allergy test?","acceptedAnswer":{"@type":"Answer","text":"No. This is a wellness scan. It is not a medical diagnosis, not an allergy test, and not intended to detect or treat disease."}},
+    {"@type":"Question","name":"How much does it cost?","acceptedAnswer":{"@type":"Answer","text":"The Root Cause Bioenergetic Scan is $199 through Stripe checkout."}}
+  ]
+}
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:800px;">
+  <p style="color:var(--text-muted); font-size:.85rem; margin:1.5rem 0 .5rem;"><a href="{{ url_for('index') }}">Home</a> · How it works</p>
+  <h1>How the at-home scan works</h1>
+  <p>Four steps. No clinic visit. $199 for one Root Cause Bioenergetic Scan.</p>
+
+  <div class="card"><h2>1. Order</h2>
+    <p>Pay $199 on the secure Stripe checkout. You do not need an account to pay. Create a free account after purchase so collection instructions and your dashboard are ready.</p></div>
+  <div class="card"><h2>2. Collect hair + saliva</h2>
+    <p>Use the instructions in your portal. Take hair from a clean, product-light area and collect saliva as directed. Do not send extra items that are not requested. Keep samples labeled with the name that matches your order.</p></div>
+  <div class="card"><h2>3. Ship</h2>
+    <p>Mail samples to <strong>743 Rue Bourdeaux, Covington, LA 70433</strong> using the kit directions. Typical reporting time starts when the package arrives — not on the day you check out.</p></div>
+  <div class="card"><h2>4. Dashboard report</h2>
+    <p>When processing finishes, the prioritized wellness report appears in your client portal. You can read it there and download a PDF when that option is available.</p></div>
+
+  <div class="card">
+    <h2>What to expect</h2>
+    <ul>
+      <li>Turnaround is typically <strong>7–14 days after samples arrive</strong>.</li>
+      <li>The report is wellness information, not a diagnosis.</li>
+      <li>Questions: <a href="mailto:test@root-cause-test.com">test@root-cause-test.com</a> or <a href="{{ url_for('contact') }}">Contact</a>.</li>
+    </ul>
+  </div>
+
+  <h2>FAQ</h2>
+  <div class="faq">
+    <details><summary>How long does the report take?</summary><p>Typical turnaround is 7–14 days after hair and saliva samples arrive at our Covington, LA address.</p></details>
+    <details><summary>Do I need a clinic visit?</summary><p>No. You collect hair and saliva at home and ship the samples.</p></details>
+    <details><summary>Is this a medical or allergy test?</summary><p>No. This is a wellness scan. It is not a medical diagnosis, not an allergy test, and not intended to detect or treat disease.</p></details>
+    <details><summary>How much does it cost?</summary><p>The Root Cause Bioenergetic Scan is $199 through Stripe checkout.</p></details>
+  </div>
+
+  <div style="text-align:center; margin:2.5rem 0;">
+    <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis — $199</a>
+  </div>
+</div>
+{% endblock %}
