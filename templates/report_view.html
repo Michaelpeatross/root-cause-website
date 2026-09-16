@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% block title %}{{ report.title }} - Root Cause{% endblock %}
+{% block title %}{{ report.title }} — Root Cause{% endblock %}
 {% block extra_head %}
 <style>
 .wellness-report-view{max-width:100%;overflow-wrap:anywhere}
+.rc-tablist{position:sticky;top:0;z-index:6}
 .report-card-header{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-start}
 @media (max-width:720px){
   .container{padding-left:.75rem;padding-right:.75rem}
@@ -13,7 +14,6 @@
 }
 </style>
 {% endblock %}
-
 {% block content %}
 <div class="container">
     <p><a href="{{ url_for('dashboard') }}">&larr; Back to portal</a></p>
@@ -37,7 +37,7 @@
             <a href="{{ url_for('view_report', report_id=report.id, view='updates') }}" class="btn {% if view == 'updates' %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Updates</a>
             {% endif %}
         </div>
-        <div style="padding:0 1.5rem;">{% include '_grok_assistant.html' %}</div>
+        <div style="padding:0 1.5rem;">{% include '_grok_assistant.html' ignore missing %}</div>
         <div class="report-card-body card" style="margin:0; box-shadow:none;">
             {% if view == 'original' %}
                 <div class="grok-analysis-content">
@@ -53,7 +53,7 @@
                 </div>
             {% else %}
                 <div class="grok-analysis-content wellness-report-view">
-                <p style="font-size:.9rem;color:var(--text-muted);margin:0 0 1rem;">This is a wellness report: Health Scores and plain-language themes first, raw scanner lists folded away. Informational only - not a diagnosis or allergy test. Open Words used in this report for glossary terms.</p>
+                <p style="font-size:.9rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.65rem .8rem;margin:0 0 1rem;">Wellness information only. Health Scores and plain-language themes first. Informational only &mdash; not a diagnosis, allergy test, treatment plan, or medical advice.</p>
                 {{ (report.generated_report or report.original_generated_report)|safe }}
                 </div>
             {% endif %}
