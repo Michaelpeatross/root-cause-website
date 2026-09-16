@@ -54,7 +54,8 @@
                 {% endif %}
                 </div>
             {% else %}
-                <div class="grok-analysis-content">
+                <div class="grok-analysis-content wellness-report-view">
+                <p style="font-size:.9rem;color:var(--text-muted);margin:0 0 1rem;">This is a wellness report: Health Scores and plain-language themes first, raw scanner lists folded away. Informational only — not a diagnosis or allergy test.</p>
                 {{ (report.generated_report or report.original_generated_report)|safe }}
                 </div>
             {% endif %}
