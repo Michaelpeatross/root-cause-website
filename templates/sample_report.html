@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 {% block title %}Sample Wellness Report | Root Cause Test{% endblock %}
-{% block meta_description %}See how a Root Cause wellness report is organized: Your top 3 priorities in plain language, body-system sections, and optional supplement or lifestyle ideas. Informational only. $199 scan.{% endblock %}
+{% block meta_description %}See how a Root Cause wellness report is organized: Your top 3 priorities with High/Medium/Low informational badges, body-system sections, and optional lifestyle ideas. Informational only. $199 scan.{% endblock %}
 
 {% block content %}
 <div class="container" style="max-width:800px;">
-  <p style="color:var(--text-muted); font-size:.85rem; margin:1.5rem 0 .5rem;"><a href="{{ url_for('index') }}">Home</a> \u00b7 Sample report</p>
+  <p style="color:var(--text-muted); font-size:.85rem; margin:1.5rem 0 .5rem;"><a href="{{ url_for('index') }}">Home</a> &middot; Sample report</p>
   <h1>What a Root Cause wellness report looks like</h1>
-  <p>After hair and saliva samples are processed, the written report is meant to be easy to scan \u2014 not a raw marker dump. This page explains the layout. It is a description of the report format, not your personal results and not medical advice.</p>
+  <p>After hair and saliva samples are processed, the written report is meant to be easy to scan &mdash; not a raw marker dump. This page explains the layout. It is a description of the report format, not your personal results and not medical advice.</p>
 
   <div class="card">
     <h2>Your top 3 priorities</h2>
-    <p>The report opens with a numbered list \u2014 <strong>Your top 3 priorities</strong> \u2014 written in everyday language. Those are the three patterns that stood out most on that scan, each with a simple first step. Lower-priority notes stay available further down and are not the lead.</p>
+    <p>The report opens with a numbered list &mdash; <strong>Your top 3 priorities</strong> &mdash; written in everyday language. Color badges mark relative emphasis as High, Medium, or Low. Those badges are informational only. Each item includes a simple first step. Lower-priority notes stay available further down and are not the lead.</p>
   </div>
   <div class="card">
     <h2>Body-system sections</h2>
-    <p>Findings are grouped by body system or theme (for example energy, digestion, skin, sleep, or stress-related patterns). Each section summarizes what the scan highlighted so you can read one area at a time instead of paging through unprioritized lists.</p>
+    <p>Findings are grouped by body system or theme (for example energy, digestion, skin, sleep, or stress-related patterns). Each system also carries a High / Medium / Low badge next to its Health Score so you can see relative emphasis at a glance.</p>
   </div>
   <div class="card">
     <h2>Optional supplement and lifestyle ideas</h2>
@@ -27,8 +27,8 @@
   </div>
 
   <div style="text-align:center; margin:2.5rem 0;">
-    <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis \u2014 $199</a>
-    <p style="margin-top:1rem;"><a href="/how-it-works">How it works</a> \u00b7 <a href="{{ url_for('contact') }}">Contact</a></p>
+    <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis &mdash; $199</a>
+    <p style="margin-top:1rem;"><a href="/how-it-works">How it works</a> &middot; <a href="{{ url_for('contact') }}">Contact</a></p>
   </div>
 </div>
 {% endblock %}
