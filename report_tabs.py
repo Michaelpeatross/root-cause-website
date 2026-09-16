@@ -127,7 +127,7 @@ def _has(html, *needles):
 def _extract_questions(html):
     items = []
     for m in re.finditer(
-        r'<article class="sys-plain-card discuss">\\s*<h4>[^<]+</h4>\\s*<p>(.*?)</p>',
+        r'<article class="sys-plain-card discuss">.*?<h4>[^<]+</h4>.*?<p>(.*?)</p>',
         html or '',
         re.I | re.S,
     ):
@@ -135,7 +135,7 @@ def _extract_questions(html):
         if text and text not in items:
             items.append(text)
     for m in re.finditer(
-        r'<p class="top3-step">\\s*Simple first step:\\s*(.*?)</p>',
+        r'<p class="top3-step">.*?Simple first step:(.*?)</p>',
         html or '',
         re.I | re.S,
     ):
@@ -146,7 +146,7 @@ def _extract_questions(html):
 
 
 def _extract_priority_titles(html):
-    titles = re.findall(r'<div class="top3-head">\\s*<h3>(.*?)</h3>', html or '', re.I | re.S)
+    titles = re.findall(r'<div class="top3-head">.*?<h3>(.*?)</h3>', html or '', re.I | re.S)
     clean = [re.sub(r'<[^>]+>', '', t).strip() for t in titles]
     return [t for t in clean if t][:3]
 
@@ -260,7 +260,7 @@ def _classify_chunk(chunk):
         return 'systems'
     if 'hormonal imbalance' in low or 'metabolic marker' in low or 'sleep marker' in low:
         return 'systems'
-    if 'sensitivit' in low or 'environmental &amp; microbial' in low or 'environmental & microbial' in low:
+    if 'sensitivit' in low or 'environmental & microbial' in low or 'environmental & microbial' in low:
         return 'food'
     if '<h2>toxins</h2>' in low or 'energetic toxin' in low:
         return 'food'
@@ -300,7 +300,6 @@ def _split_inner(inner):
     extra = extra.strip()
     if extra:
         buckets[_classify_chunk(extra)].insert(0, extra)
-    # Rescue: never leave Systems empty if the overview blob still holds scores.
     if not ''.join(buckets['systems']).strip():
         kept = []
         for chunk in buckets['overview']:
@@ -367,14 +366,19 @@ def apply_report_tabs(html):
         for i, (key, full, short) in enumerate(buttons)
     ) + '</div>'
 
-    match = re.search(r'(<div class="wellness-report"[^>]*>)(.*)</div>\\s*$', html, re.S)
-    if match:
-        prefix, inner = match.group(1), match.group(2)
+    start = html.find('<div class="wellness-report"')
+    end = html.rfind('</div>')
+    if start != -1 and end > start:
+        gt = html.find('>', start)
+        prefix = html[start:gt + 1]
+        inner = html[gt + 1:end]
         styles = ''
-        sm = re.match(r'(\\s*<style>[\\s\\S]*?</style>)', inner)
-        if sm:
-            styles = sm.group(1)
-            inner = inner[sm.end():]
+        rest = inner.lstrip()
+        if rest.startswith('<style>'):
+            close = rest.find('</style>')
+            if close != -1:
+                styles = inner[:len(inner) - len(rest)] + rest[:close + len('</style>')]
+                inner = rest[close + len('</style>'):]
         buckets = _split_inner(inner)
         panels = []
         section_prompts = {
