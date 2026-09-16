@@ -193,3 +193,11 @@ except Exception as _food_err:
     print(f"[Root Cause] Food scanner routes not applied: {_food_err}")
     import traceback
     traceback.print_exc()
+
+try:
+    from health_records import register_health_record_routes
+    register_health_record_routes(app, db=db)
+except Exception as _hr_err:
+    print(f"[Root Cause] Health record routes not applied: {_hr_err}")
+    import traceback
+    traceback.print_exc()
