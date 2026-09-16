@@ -17,7 +17,19 @@ def register_public_seo_routes(app):
         return render_template('refunds.html')
 
     def sample_report():
-        return render_template('sample_report.html')
+        sample_html = ''
+        try:
+            from sample_report_builder import build_sample_report_html
+            sample_html = build_sample_report_html() or ''
+        except Exception as exc:
+            print('[Root Cause] sample report build failed: %s' % exc)
+            sample_html = (
+                '<p>The sample template could not be generated just now. '
+                'A Root Cause wellness report uses Health Scores, top priorities, '
+                'and body-system cards. It is informational only — not a diagnosis '
+                'or allergy test.</p>'
+            )
+        return render_template('sample_report.html', sample_html=sample_html)
 
     def how_it_works():
         return render_template('how_it_works.html')
@@ -167,7 +179,7 @@ def register_public_seo_routes(app):
             DESCS = {
                 '/scan-food': 'Use the free Food Scanner to look up barcodes, search foods, or upload a nutrition label or plate photo for educational calorie and macro estimates. Not medical advice; nutrition data may be incomplete.',
                 '/blog': 'Short wellness articles about the $199 bioenergetic hair and saliva scan. Educational only — not medical advice.',
-                '/sample-report': 'See how a Root Cause wellness report is organized: body-system sections, priority themes, and optional supplement or lifestyle ideas. Informational only. $199 scan.',
+                '/sample-report': 'Preview the same wellness report template clients see after a $199 hair and saliva scan: top 3 priorities, Health Scores, and optional food or supplement tabs. Placeholder sample. Not a diagnosis or allergy test.',
                 '/how-it-works': 'Order, collect hair and saliva at home, ship to Covington, LA, then view your wellness report. Typical turnaround 7-14 days after samples arrive. $199.',
                 '/blog/what-is-bioenergetic-hair-saliva-scan': 'What a bioenergetic hair and saliva wellness scan is and is not. Compared carefully with clinical allergy testing and HTMA. $199. Not a medical diagnosis.',
                 '/blog/bioenergetic-vs-food-allergy-test': 'Side-by-side look at a $199 bioenergetic hair and saliva wellness scan versus clinical food allergy testing. It does not diagnose or rule out food allergy.',
@@ -238,7 +250,7 @@ def register_public_seo_routes(app):
                 html = html.replace('<body>', '<body>' + header, 1)
                 if 'class="site-header"' not in html:
                     import re as _re_hdr
-                    html = _re_hdr.sub(r'<body([^>]*)>', r'<body\1>' + header, html, count=1)
+                    html = _re_hdr.sub(r'<body([^>]*)>', r'<body\\1>' + header, html, count=1)
             if 'site-footer' in html:
                 import re
                 html = re.sub(
