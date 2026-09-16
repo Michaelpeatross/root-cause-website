@@ -68,6 +68,7 @@ def register_public_seo_routes(app):
             ('/blog/what-is-bioenergetic-hair-saliva-scan', 'monthly', '0.7'),
             ('/blog/bioenergetic-vs-food-allergy-test', 'monthly', '0.7'),
             ('/health-app', 'monthly', '0.5'),
+            ('/export-records', 'monthly', '0.5'),
             ('/privacy', 'yearly', '0.3'),
             ('/terms', 'yearly', '0.3'),
             ('/refunds', 'yearly', '0.3'),
@@ -119,6 +120,8 @@ def register_public_seo_routes(app):
         '<a href="/scan-food">Scan Food</a> '
         '<a href="/how-it-works">How it works</a> '
         '<a href="/sample-report">Sample Report</a> '
+        '<a href="/export-records">Export records</a> '
+        '<a href="/health-app">Health records</a> '
         '<a href="/blog">Guides</a> '
         '<a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is the scan</a> '
         '<a href="/blog/bioenergetic-vs-food-allergy-test">Vs allergy test</a> '
@@ -183,6 +186,8 @@ def register_public_seo_routes(app):
                 '/how-it-works': 'Order, collect hair and saliva at home, ship to Covington, LA, then view your wellness report. Typical turnaround 7-14 days after samples arrive. $199.',
                 '/blog/what-is-bioenergetic-hair-saliva-scan': 'What a bioenergetic hair and saliva wellness scan is and is not. Compared carefully with clinical allergy testing and HTMA. $199. Not a medical diagnosis.',
                 '/blog/bioenergetic-vs-food-allergy-test': 'Side-by-side look at a $199 bioenergetic hair and saliva wellness scan versus clinical food allergy testing. It does not diagnose or rule out food allergy.',
+                '/health-app': 'Optional add-on: upload wearable exports, lab PDFs, visit summaries, imaging reports, or medication lists for educational wellness context next to your $199 hair and saliva scan. Not a diagnosis. We never ask for portal passwords.',
+                '/export-records': 'Download your own MyChart, Labcorp, or Quest files, then upload them for optional wellness context next to the $199 hair and saliva scan. We never ask for portal passwords. Not a medical diagnosis.',
             }
             extra = (
                 f'<link rel="canonical" href="{canon}">'
