@@ -76,7 +76,6 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             json.dump(data, fh)
 
     def _apply_plan(report):
-        """Keep the full scan report; wrap with wellness chrome + client blocks."""
         name = _client_display_name(report.user_email)
         html = report.generated_report or report.original_generated_report or ''
         raw = report.raw_data or ''
@@ -101,27 +100,25 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                 if rebuilt and len(rebuilt) > 200:
                     html = rebuilt
             except Exception as exc:
-                print(f'[Root Cause] wellness rebuild failed for report {getattr(report, "id", "?")}: {exc}')
+                print('[Root Cause] wellness rebuild failed for report %s: %s' % (getattr(report, 'id', '?'), exc))
                 traceback.print_exc()
         try:
             from wellness_template import wrap_wellness_report
-            html = wrap_wellness_report(
-                html, client_name=name, title=report.title, raw_data=raw,
-            )
+            html = wrap_wellness_report(html, client_name=name, title=report.title, raw_data=raw)
         except Exception as exc:
-            print(f'[Root Cause] wellness wrap failed: {exc}')
+            print('[Root Cause] wellness wrap failed: %s' % exc)
+        try:
+            from system_plain import inject_system_plain_cards
+            html = inject_system_plain_cards(html)
+        except Exception as exc:
+            print('[Root Cause] system plain cards failed: %s' % exc)
         try:
             html = ensure_client_analysis(html, raw, client_name=name)
         except Exception as exc:
-            print(f'[Root Cause] client analysis blocks failed: {exc}')
+            print('[Root Cause] client analysis blocks failed: %s' % exc)
         age = _load_overrides().get(_normalize_email(report.user_email))
         if age:
-            html = re.sub(
-                r'(<strong>Biometric age:</strong>\s*)\d+',
-                r'\g<1>%s' % age,
-                html,
-                count=1,
-            )
+            html = re.sub(r'(<strong>Biometric age:</strong>\s*)\d+', r'\g<1>%s' % age, html, count=1)
         if html and html != (report.generated_report or ''):
             report.generated_report = html
             try:
@@ -177,7 +174,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         try:
             ok = bool(save_report_pdf(html, os.path.join(base_dir, pdf_name)))
         except Exception as exc:
-            print(f'[Root Cause] save_report_pdf exception: {exc}')
+            print('[Root Cause] save_report_pdf exception: %s' % exc)
             traceback.print_exc()
         if not ok or not os.path.isfile(os.path.join(base_dir, pdf_name)):
             flash('Could not generate the PDF for this report. Try again in a moment.', 'error')
@@ -209,10 +206,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         if not current_user:
             return redirect(url_for('login'))
         from food_scanner import client_flags_from_scan
-        return render_template(
-            'food_scanner.html',
-            personal_flags=client_flags_from_scan(_client_scan_raw(current_user)),
-        )
+        return render_template('food_scanner.html', personal_flags=client_flags_from_scan(_client_scan_raw(current_user)))
 
     def api_food_barcode():
         current_user = _get_current_user()
@@ -220,10 +214,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             return jsonify({'ok': False, 'error': 'Please log in.'}), 401
         from food_scanner import scan_barcode_for_client
         data = request.get_json(silent=True) or {}
-        return jsonify(_store_food(
-            current_user,
-            scan_barcode_for_client(data.get('barcode') or '', _client_scan_raw(current_user)),
-        ))
+        return jsonify(_store_food(current_user, scan_barcode_for_client(data.get('barcode') or '', _client_scan_raw(current_user))))
 
     def api_food_photo():
         current_user = _get_current_user()
@@ -231,14 +222,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             return jsonify({'ok': False, 'error': 'Please log in.'}), 401
         from food_scanner import scan_photo_for_client
         data = request.get_json(silent=True) or {}
-        return jsonify(_store_food(
-            current_user,
-            scan_photo_for_client(
-                data.get('image_b64') or '',
-                data.get('mime') or 'image/jpeg',
-                _client_scan_raw(current_user),
-            ),
-        ))
+        return jsonify(_store_food(current_user, scan_photo_for_client(data.get('image_b64') or '', data.get('mime') or 'image/jpeg', _client_scan_raw(current_user))))
 
     def api_food_search():
         current_user = _get_current_user()
@@ -253,10 +237,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         if not current_user:
             return jsonify({'ok': False, 'items': []}), 401
         from food_scan_history import sorted_history
-        return jsonify({
-            'ok': True,
-            'items': sorted_history(current_user.email, request.args.get('sort') or 'date_desc'),
-        })
+        return jsonify({'ok': True, 'items': sorted_history(current_user.email, request.args.get('sort') or 'date_desc')})
 
     def api_food_guides():
         current_user = _get_current_user()
@@ -278,26 +259,17 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         from meal_photo import analyze_plate_for_client
         from food_diary import save_meal
         data = request.get_json(silent=True) or {}
-        result = analyze_plate_for_client(
-            data.get('image_b64') or '',
-            data.get('mime') or 'image/jpeg',
-            _client_scan_raw(current_user),
-        )
+        result = analyze_plate_for_client(data.get('image_b64') or '', data.get('mime') or 'image/jpeg', _client_scan_raw(current_user))
         if result.get('ok'):
             macros = result.get('macros') or {}
             rating = result.get('rating') or {}
             product = result.get('product') or {}
             save_meal(current_user.email, {
-                'name': product.get('name'),
-                'portion': macros.get('portion'),
-                'calories': macros.get('calories'),
-                'protein': macros.get('protein'),
-                'carbs': macros.get('carbs'),
-                'fat': macros.get('fat'),
-                'sugar': macros.get('sugar'),
-                'fiber': macros.get('fiber'),
-                'score': rating.get('score'),
-                'label': rating.get('label'),
+                'name': product.get('name'), 'portion': macros.get('portion'),
+                'calories': macros.get('calories'), 'protein': macros.get('protein'),
+                'carbs': macros.get('carbs'), 'fat': macros.get('fat'),
+                'sugar': macros.get('sugar'), 'fiber': macros.get('fiber'),
+                'score': rating.get('score'), 'label': rating.get('label'),
                 'notes': macros.get('notes'),
             })
             _store_food(current_user, result)
@@ -355,11 +327,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                 return resp
             if 'Logout' in data or 'Dashboard</a>' in data:
                 if '>Scan Food</a>' not in data and 'Dashboard</a>' in data:
-                    data = data.replace(
-                        '>Dashboard</a>',
-                        '>Dashboard</a><a href="/food-scanner">Scan Food</a>',
-                        1,
-                    )
+                    data = data.replace('>Dashboard</a>', '>Dashboard</a><a href="/food-scanner">Scan Food</a>', 1)
                 if 'id="food-scan-fab"' not in data and not (request.path or '').startswith('/food-scanner'):
                     data = data.replace('</body>', FOOD_FAB + '</body>', 1)
                 resp.set_data(data)
