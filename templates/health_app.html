@@ -1,137 +1,48 @@
 {% extends "base.html" %}
 
-{% block title %}Optional Health App Uploader | Root Cause Test{% endblock %}
-{% block meta_description %}Optional wearable file upload for extra wellness context. The $199 Root Cause scan is hair and saliva — this uploader is not required.{% endblock %}
-
+{% block title %}Optional Health Records Uploader | Root Cause Test{% endblock %}
+{% block meta_description %}Optional add-on: upload wearable exports, lab PDFs, visit summaries, imaging reports, or medication lists for educational wellness context next to your $199 hair and saliva scan. Not a diagnosis. Download files yourself — we never ask for portal passwords.{% endblock %}
 
 {% block extra_head %}
 <style>
-  .app-container { max-width: 480px; margin: 0 auto; padding: 16px; }
-  .app-header { text-align: center; margin-bottom: 24px; }
-  .app-header h1 { font-size: 1.6rem; margin: 0; }
-  .upload-box {
-    border: 3px dashed #2e7d32;
-    border-radius: 16px;
-    padding: 40px 20px;
-    text-align: center;
-    margin: 20px 0;
-    background: #f8fff8;
-  }
-  .btn-big {
-    display: block;
-    width: 100%;
-    padding: 18px;
-    font-size: 1.1rem;
-    margin-top: 12px;
-  }
-  .status { margin-top: 20px; padding: 12px; border-radius: 8px; background: #f5f5f5; font-family: monospace; white-space: pre-wrap; }
-  .step { margin-bottom: 16px; }
+  .app-container { max-width: 920px; margin: 0 auto; padding: 16px; }
+  .app-header { text-align: center; margin-bottom: 1.25rem; }
+  .app-header h1 { font-size: 1.6rem; margin: 0 0 .4rem; color: #0b3d2a; }
+  .btn-big { display: inline-block; padding: 14px 18px; font-size: 1.05rem; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="app-container">
   <div class="app-header">
-    <h1>Optional Health App</h1>
-    <p>Upload a wearable export for extra wellness context. Not required for the $199 hair + saliva scan.</p>
+    <h1>Optional health records</h1>
+    <p>Upload wearable exports and records you already downloaded for extra wellness context. <strong>Not required</strong> for the $199 hair + saliva scan.</p>
   </div>
 
   <div class="card">
-    <h2>Step 1: Export from your wearable</h2>
-    <ol>
-      <li>Apple: Health app → profile → Export All Health Data</li>
-      <li>Fitbit/Garmin/etc: App or website → Export / Download data (CSV/JSON usually)</li>
-      <li>Transfer the file to this device</li>
-    </ol>
-  </div>
-
-  <div class="card">
-    <h2>Step 2: Upload here</h2>
-
-    {% if not session.get('user_id') %}
-      <p><strong>You need to be logged in.</strong></p>
-      <a href="{{ url_for('login') }}" class="btn btn-primary btn-big">Log In to Continue</a>
-    {% else %}
-
-    <form id="upload-form" enctype="multipart/form-data">
-      <div class="upload-box" id="drop-zone">
-        <p><strong>Drop your export.zip here</strong><br>or</p>
-        <input type="file" id="health_file" name="file" accept=".zip,.xml" required style="margin: 10px 0;">
-        <p style="font-size: 0.85rem; color: #666;">Max ~200MB. We'll focus on recent data.</p>
-      </div>
-
-      <button type="submit" class="btn btn-primary btn-big" id="upload-btn">
-        Upload to Grok
-      </button>
-    </form>
-
-    <div id="status" class="status" style="display:none;"></div>
-
-    <p style="margin-top: 20px; font-size: 0.9rem;">
-      After uploading, go to your <a href="{{ url_for('dashboard') }}">Dashboard</a> and click
-      <strong>"Request Updated Grok Analysis"</strong>.
+    <p><a href="/export-records"><strong>How to export your records</strong></a> — MyChart, Labcorp, and Quest steps. You download the file; we never ask for those passwords.</p>
+    <p style="font-size:.92rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.7rem .85rem;">
+      <strong>Wellness information only.</strong> Files are used only for educational wellness analysis alongside your scan. This is not a medical diagnosis, not treatment, and not a substitute for a licensed clinician.
     </p>
-
-    {% endif %}
   </div>
 
-  <div style="text-align:center; margin-top:30px; font-size:0.8rem; color:#888;">
-    <strong>On iPhone:</strong> Tap Share → "Add to Home Screen" to install as an app.
+  {% if not session.get('user_id') %}
+  <div class="card">
+    <p><strong>Log in to upload files.</strong></p>
+    <a href="{{ url_for('login') }}" class="btn btn-primary btn-big">Log in to continue</a>
   </div>
+  {% else %}
+  <div class="card">
+    {% include '_health_upload.html' %}
+    <p style="margin-top:1rem;font-size:.9rem;">
+      After uploading, open your <a href="{{ url_for('dashboard') }}">Dashboard</a> and choose
+      <strong>Request Updated Grok Analysis</strong> so the files can be considered with your scan.
+    </p>
+  </div>
+  {% endif %}
+
+  <p style="text-align:center;margin-top:2rem;font-size:.8rem;color:#888;">
+    On iPhone: Share → Add to Home Screen. The $199 scan price is unchanged.
+  </p>
 </div>
-
-<script>
-  const form = document.getElementById('upload-form');
-  const statusBox = document.getElementById('status');
-  const btn = document.getElementById('upload-btn');
-
-  if (form) {
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      btn.disabled = true;
-      btn.textContent = 'Uploading...';
-      statusBox.style.display = 'block';
-      statusBox.textContent = 'Preparing upload...\n';
-
-      const formData = new FormData(form);
-      const fileInput = document.getElementById('health_file');
-
-      try {
-        const response = await fetch('/api/client/upload_health', {
-          method: 'POST',
-          body: formData
-        });
-
-        const result = await response.json();
-
-        if (response.ok && result.success) {
-          statusBox.textContent = '\u2705 Success!\n\n' + result.message + '\n\nNow go to your Dashboard and request an analysis update.';
-        } else {
-          statusBox.textContent = '\u274c Error: ' + (result.error || 'Upload failed');
-        }
-      } catch (err) {
-        statusBox.textContent = '\u274c Network error: ' + err.message;
-      }
-
-      btn.disabled = false;
-      btn.textContent = 'Upload to Grok';
-    });
-
-    const dropZone = document.getElementById('drop-zone');
-    if (dropZone) {
-      dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.background = '#e8f5e9'; });
-      dropZone.addEventListener('dragleave', () => { dropZone.style.background = '#f8fff8'; });
-      dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.style.background = '#f8fff8';
-        const file = e.dataTransfer.files[0];
-        if (file) {
-          const dt = new DataTransfer();
-          dt.items.add(file);
-          document.getElementById('health_file').files = dt.files;
-        }
-      });
-    }
-  }
-</script>
 {% endblock %}

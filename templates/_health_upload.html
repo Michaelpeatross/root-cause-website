@@ -1,0 +1,79 @@
+{# Categorized multi-file uploader. Expects session login for submit. #}
+<section class="hr-uploader" aria-labelledby="hr-upload-heading">
+  <h2 id="hr-upload-heading">Upload records for wellness analysis</h2>
+  <p class="hr-lead">Add files next to your hair + saliva scan. Grok uses them only for educational wellness context. This is <strong>not a medical diagnosis</strong>.</p>
+  <p class="hr-privacy" role="note">
+    <strong>Privacy:</strong> Files are used only for wellness analysis with your scan.
+    Do not send portal passwords. Download the file yourself from MyChart, Labcorp, or Quest, then upload it here.
+    <a href="/export-records">How to export your records</a>.
+  </p>
+
+  <form id="hr-upload-form" enctype="multipart/form-data" novalidate>
+    <div class="hr-grid">
+      {% set cats = [
+        ('wearable', 'Wearable exports', 'Apple Health, Fitbit, Garmin', '.zip,.xml,.csv,.json,.txt', 'ZIP, XML, CSV, JSON — max 200 MB'),
+        ('labs', 'Lab PDFs / blood work', 'Results you already downloaded', '.pdf,.txt', 'PDF or TXT — max 25 MB'),
+        ('clinical', 'Clinical visit summaries', 'After-visit summaries you downloaded', '.pdf,.txt,.doc,.docx,.png,.jpg,.jpeg,.webp', 'PDF, text, or photo — max 25 MB'),
+        ('imaging', 'Imaging report PDFs', 'Written imaging reports, not raw DICOM', '.pdf', 'PDF — max 40 MB'),
+        ('meds', 'Medication / supplement lists', 'Lists or photos of bottles / printouts', '.pdf,.txt,.csv,.doc,.docx,.png,.jpg,.jpeg,.webp', 'PDF, text, CSV, or photo — max 15 MB')
+      ] %}
+      {% for key, title, sub, accept, limits in cats %}
+      <div class="hr-zone" data-hr-zone data-category="{{ key }}">
+        <h3>{{ title }}</h3>
+        <p>{{ sub }}</p>
+        <p class="hr-limits">{{ limits }}</p>
+        <label class="hr-browse">
+          <span>Browse files</span>
+          <input type="file" multiple accept="{{ accept }}" aria-label="Browse {{ title }}">
+        </label>
+        <p class="hr-drop-hint">or drop files here</p>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="form-group" style="margin-top:1rem;">
+      <label for="hr-test-date">Approximate date for these files (optional)</label>
+      <input type="date" id="hr-test-date" name="test_date">
+    </div>
+
+    <h3 class="hr-list-title">Selected files</h3>
+    <p id="hr-file-empty" class="hr-empty">Nothing selected yet.</p>
+    <ul id="hr-file-list" class="hr-file-list" aria-live="polite"></ul>
+
+    <p class="hr-disclaimer">Wellness information only. Uploads do not diagnose, treat, or replace care from a licensed clinician. Nutrition and record data may be incomplete.</p>
+    <button type="submit" class="btn btn-primary" id="hr-submit">Upload selected files</button>
+    <p id="hr-status" class="hr-status" hidden></p>
+  </form>
+</section>
+
+<style>
+.hr-uploader{margin:0 0 1.5rem}
+.hr-lead,.hr-disclaimer{color:var(--text-muted,#555);line-height:1.5}
+.hr-privacy{background:#f3faf7;border:1px solid #cde6dc;border-radius:10px;padding:.75rem .9rem;font-size:.92rem;line-height:1.5}
+.hr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem;margin:1rem 0}
+.hr-zone{border:2px dashed #2e7d32;border-radius:14px;padding:.9rem;background:#f8fff8;min-height:150px}
+.hr-zone.is-drag{background:#e8f5e9;border-color:#1b5e20}
+.hr-zone h3{margin:0 0 .25rem;font-size:1rem;color:#0b3d2a}
+.hr-zone p{margin:0 0 .35rem;font-size:.85rem;color:#555}
+.hr-limits{font-size:.78rem!important;color:#666}
+.hr-browse{display:inline-block;margin:.35rem 0;background:#0b3d2a;color:#fff;border-radius:999px;padding:.4rem .8rem;font-size:.85rem;cursor:pointer}
+.hr-browse input{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
+.hr-drop-hint{font-size:.78rem;color:#777}
+.hr-file-list{list-style:none;padding:0;margin:.5rem 0 1rem}
+.hr-file{display:flex;justify-content:space-between;gap:.6rem;align-items:flex-start;flex-wrap:wrap;padding:.65rem 0;border-bottom:1px solid #eee}
+.hr-file-main{display:flex;flex-wrap:wrap;gap:.35rem .7rem;align-items:center;flex:1}
+.hr-chip{background:#e8f5e9;color:#0b3d2a;border-radius:999px;padding:.15rem .55rem;font-size:.75rem;font-weight:700}
+.hr-name{font-weight:600;word-break:break-word}
+.hr-size,.hr-state{font-size:.85rem;color:#555}
+.hr-file--ok .hr-state{color:#1b5e20}
+.hr-file--error .hr-state{color:#9b1c1c}
+.hr-file--uploading .hr-state{color:#1a5276}
+.hr-remove{background:transparent;border:1px solid #ccc;border-radius:8px;padding:.25rem .55rem;cursor:pointer;font-size:.8rem}
+.hr-status{margin-top:.75rem;padding:.7rem .85rem;border-radius:8px;background:#f5f5f5}
+.hr-empty{color:#777;font-size:.9rem}
+@media(max-width:720px){
+  .hr-zone{min-height:0}
+  .hr-file{flex-direction:column}
+}
+</style>
+<script src="{{ url_for('static', filename='js/health_records.js') }}" defer></script>
