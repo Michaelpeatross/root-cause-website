@@ -33,7 +33,7 @@ font-size:.78rem;margin-left:.35rem;color:#0d5c4d}
 .top3{margin:0 0 1.4rem}
 .top3 h2{margin:0 0 .35rem;color:#0b3d2a;font-size:1.35rem}
 .top3 .lead{margin:0 0 .85rem;color:#3d5c55;line-height:1.5}
-.top3-list{display:grid;gap:.75rem;margin:0;padding:0;list-style:none;counter-reset:top3}
+.top3-list{display:grid;gap:.75rem;margin:0;padding:0;list-style:none}
 .top3-item{display:grid;grid-template-columns:auto 1fr;gap:.75rem;align-items:start;
 background:#fff;border:1px solid #c5ddd5;border-radius:14px;padding:.95rem 1.05rem;
 box-shadow:0 4px 18px rgba(11,61,42,.06)}
@@ -51,7 +51,7 @@ THEME_HINTS = [
     ('bile', 'Gallbladder & bile flow',
      'Bile-flow patterns showed up. Fats can feel heavy. Go easy on large fatty meals while things settle.'),
     ('lymph', 'Lymph & drainage',
-     'Drainage points were marked. Think congestion or slow recovery \u2014 walking, hydration, and daily movement are simple supports.'),
+     'Drainage points were marked. Think congestion or slow recovery - walking, hydration, and daily movement are simple supports.'),
     ('kidney', 'Kidneys & fluid balance',
      'Kidney-related patterns were in the scan. Steady hydration through the day usually matters more than a large amount at night.'),
     ('liver', 'Liver & processing load',
@@ -91,7 +91,6 @@ def _first_name(client_name):
 
 
 def theme_cards_html(raw_data, limit=6):
-    """Short plain-English theme cards from scan text. Never a diagnosis."""
     text = (raw_data or '').lower()
     found, seen = [], set()
     for key, title, blurb in THEME_HINTS:
@@ -106,16 +105,16 @@ def theme_cards_html(raw_data, limit=6):
             'Start with Health Scores and the short themes. Open the lists only if you want the item names from the scan file.',
         )]
     cards = ''.join(
-        f'<article class="wellness-theme-card"><h4>{escape(t)}</h4><p>{escape(b)}</p></article>'
+        '<article class="wellness-theme-card"><h4>' + escape(t) + '</h4><p>' + escape(b) + '</p></article>'
         for t, b in found
     )
-    return f'<div class="wellness-theme-grid">{cards}</div>'
+    return '<div class="wellness-theme-grid">' + cards + '</div>'
 
 
 SYSTEM_PLAIN = {
     'digestive': (
         'Digestion',
-        'Your scan put extra weight on the gut \u2014 how food is broken down and how comfortable meals feel afterward.',
+        'Your scan put extra weight on the gut - how food is broken down and how comfortable meals feel afterward.',
         'Start with simpler meals, chew well, and cut back on constant snacking for a week.',
     ),
     'liver_gallbladder': (
@@ -125,7 +124,7 @@ SYSTEM_PLAIN = {
     ),
     'immune': (
         'Immune load',
-        'Immune-related markers were among the strongest signals. Think recovery load \u2014 sleep and sugar usually matter here.',
+        'Immune-related markers were among the strongest signals. Think recovery load - sleep and sugar usually matter here.',
         'Protect sleep and skip soda, juice, and dessert for a short stretch to see if you feel clearer.',
     ),
     'nervous': (
@@ -263,27 +262,27 @@ def pick_top_priorities(raw_data, limit=3):
 
 
 def top_priorities_html(raw_data, client_name=None):
-    """Numbered top-3 list in plain language. Wellness only \u2014 not a diagnosis."""
     items = pick_top_priorities(raw_data)
     first = _first_name(client_name)
     rows = []
     for idx, (title, why, step) in enumerate(items, start=1):
         rows.append(
             '<li class="top3-item">'
-            f'<span class="top3-num" aria-hidden="true">{idx}</span>'
+            '<span class="top3-num" aria-hidden="true">' + str(idx) + '</span>'
             '<div>'
-            f'<h3>{escape(title)}</h3>'
-            f'<p>{escape(why)}</p>'
-            f'<p class="top3-step">Simple first step: {escape(step)}</p>'
+            '<h3>' + escape(title) + '</h3>'
+            '<p>' + escape(why) + '</p>'
+            '<p class="top3-step">Simple first step: ' + escape(step) + '</p>'
             '</div></li>'
         )
+    joined = ''.join(rows)
     return (
         '<section class="top3" id="your-top-priorities" aria-label="Your top 3 priorities">'
-        f'<h2>Your top 3 priorities</h2>'
-        f'<p class="lead">{first}, start here. These are the three patterns that stood out most '
+        '<h2>Your top 3 priorities</h2>'
+        '<p class="lead">' + first + ', start here. These are the three patterns that stood out most '
         'on this wellness scan, written in everyday language. They are not a diagnosis, '
         'not an allergy result, and not a treatment plan.</p>'
-        f'<ol class="top3-list">{{"".join(rows)}</ol>'
+        '<ol class="top3-list">' + joined + '</ol>'
         '</section>'
     )
 
@@ -291,31 +290,30 @@ def top_priorities_html(raw_data, client_name=None):
 def _banner_html(client_name=None):
     first = _first_name(client_name)
     return (
-        f'<aside class="wellness-banner" aria-label="How to read this wellness report">'
-        f'<h2>Your wellness report</h2>'
-        f'<p>Hi {first}. This page is written in everyday language. Health Scores '
-        f'(0\u2013100, higher is better) summarize how balanced each body system looked on this scan.</p>'
-        f'<p><strong>Your top 3 priorities</strong> come first, in everyday language. '
-        f'Long item lists from the scanner file are folded up so they do not dominate the page.</p>'
-        f'<div class="wellness-pill-row">'
-        f'<span class="wellness-pill">Informational only</span>'
-        f'<span class="wellness-pill">Not a diagnosis</span>'
-        f'<span class="wellness-pill">Not an allergy test</span>'
-        f'<span class="wellness-pill">Not a substitute for a clinician</span>'
-        f'</div></aside>'
+        '<aside class="wellness-banner" aria-label="How to read this wellness report">'
+        '<h2>Your wellness report</h2>'
+        '<p>Hi ' + first + '. This page is written in everyday language. Health Scores '
+        '(0-100, higher is better) summarize how balanced each body system looked on this scan.</p>'
+        '<p><strong>Your top 3 priorities</strong> come first, in everyday language. '
+        'Long item lists from the scanner file are folded up so they do not dominate the page.</p>'
+        '<div class="wellness-pill-row">'
+        '<span class="wellness-pill">Informational only</span>'
+        '<span class="wellness-pill">Not a diagnosis</span>'
+        '<span class="wellness-pill">Not an allergy test</span>'
+        '<span class="wellness-pill">Not a substitute for a clinician</span>'
+        '</div></aside>'
     )
 
 
 def collapse_raw_lists(html):
-    """Fold bulky scanner lists so summaries stay on top."""
     if not html or 'wellness-raw-toggle' in html:
         return html
 
     def wrap_columns(match):
         lead, columns, tail = match.group(1), match.group(2), match.group(3)
         return (
-            f'{lead}<details class="wellness-raw-toggle">'
-            f'<summary>Show detailed item lists</summary>{columns}</details>{tail}'
+            lead + '<details class="wellness-raw-toggle">'
+            '<summary>Show detailed item lists</summary>' + columns + '</details>' + tail
         )
 
     html = re.sub(
@@ -329,9 +327,9 @@ def collapse_raw_lists(html):
 
     def wrap_findings(match):
         return (
-            f'{match.group(1)}<details class="wellness-raw-toggle">'
-            f'<summary>Show marker details</summary>'
-            f'{match.group(2)}</details>{match.group(3)}'
+            match.group(1) + '<details class="wellness-raw-toggle">'
+            '<summary>Show marker details</summary>'
+            + match.group(2) + '</details>' + match.group(3)
         )
 
     html = re.sub(
@@ -361,7 +359,6 @@ def ensure_wellness_disclaimer(html):
 
 
 def wrap_wellness_report(html, client_name=None, title=None, raw_data=None):
-    """Idempotent chrome around any generated report HTML."""
     html = html or ''
     if len(html.strip()) < 40:
         return html
@@ -370,31 +367,27 @@ def wrap_wellness_report(html, client_name=None, title=None, raw_data=None):
     priorities = top_priorities_html(raw_data, client_name=client_name)
     if WELLNESS_MARKER in html:
         if 'id="your-top-priorities"' not in html:
-            html = re.sub(
-                r'(</aside>\s*)',
-                r'\1' + priorities,
-                html,
-                count=1,
-            )
+            html = re.sub(r'(</aside>\s*)', r'\1' + priorities, html, count=1)
             if 'id="your-top-priorities"' not in html:
                 html = html.replace(
-                    f'<div class="wellness-report" {WELLNESS_MARKER}>',
-                    f'<div class="wellness-report" {WELLNESS_MARKER}>{priorities}',
+                    '<div class="wellness-report" ' + WELLNESS_MARKER + '>',
+                    '<div class="wellness-report" ' + WELLNESS_MARKER + '>' + priorities,
                     1,
                 )
-        if '.top3{' not in html and WELLNESS_STYLES not in html:
-            html = html.replace('</style>', WELLNESS_STYLES.replace('<style>', '', 1), 1)
-        elif '.top3{' not in html:
+        if '.top3{' not in html:
             extra = WELLNESS_STYLES.replace('<style>', '').replace('</style>', '')
-            html = html.replace('</style>', extra + '</style>', 1)
+            if '</style>' in html:
+                html = html.replace('</style>', extra + '</style>', 1)
+            else:
+                html = WELLNESS_STYLES + html
         return html
     themes = theme_cards_html(raw_data) if raw_data else ''
     return (
-        f'<div class="wellness-report" {WELLNESS_MARKER}>'
-        f'{WELLNESS_STYLES}'
-        f'{_banner_html(client_name)}'
-        f'{priorities}'
-        f'{themes}'
-        f'{html}'
-        f'</div>'
+        '<div class="wellness-report" ' + WELLNESS_MARKER + '>' +
+        WELLNESS_STYLES +
+        _banner_html(client_name) +
+        priorities +
+        themes +
+        html +
+        '</div>'
     )
