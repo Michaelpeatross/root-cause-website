@@ -4,7 +4,6 @@ SAMPLE_CLIENT = 'Alex Sample'
 SAMPLE_EMAIL = 'sample@example.com'
 SAMPLE_TITLE = 'Sample Full Scan (placeholder)'
 
-# Realistic scanner-shaped text. Names are educational placeholders, not lab results.
 SAMPLE_RAW = """Full Scan
 Alex Sample - 01/15/2026
 
@@ -171,6 +170,11 @@ def build_sample_report_html():
         except Exception as exc2:
             print('[Root Cause] sample wrap fallback failed: %s' % exc2)
             html = _FALLBACK
+    try:
+        from system_plain import inject_system_plain_cards
+        html = inject_system_plain_cards(html)
+    except Exception:
+        pass
     html = _attach_sample_banner(html or _FALLBACK)
     _cache['html'] = html
     return html
