@@ -118,4 +118,9 @@ def inject_system_plain_cards(html):
         updated = updated.replace('</style>', SYS_PLAIN_CSS + '</style>', 1)
     elif '.sys-plain-grid{' not in updated:
         updated = '<style>' + SYS_PLAIN_CSS + '</style>' + updated
+    try:
+        from report_a11y import apply_report_a11y
+        updated = apply_report_a11y(updated)
+    except Exception:
+        pass
     return updated
