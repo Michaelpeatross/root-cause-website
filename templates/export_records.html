@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}How to export your records | Root Cause Test{% endblock %}
+{% block meta_description %}Download your own MyChart, Labcorp, or Quest files, then upload them to Root Cause for optional wellness context next to the $199 hair and saliva scan. We never ask for portal passwords. Not a medical diagnosis.{% endblock %}
+
+{% block extra_head %}
+<style>
+  .export-wrap{max-width:760px;margin:0 auto;padding:1rem 1.15rem 2.5rem}
+  .export-wrap h1{color:#0b3d2a;font-family:'Playfair Display',serif}
+  .export-wrap h2{color:#0b3d2a;margin-top:1.6rem}
+  .export-wrap ol{line-height:1.55}
+  .note{background:#f3faf7;border:1px solid #cde6dc;border-radius:10px;padding:.75rem .9rem}
+  .warn{background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.75rem .9rem;color:#5c4316}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="export-wrap">
+  <p style="color:var(--text-muted);font-size:.85rem;margin:1.5rem 0 .5rem;"><a href="/">Home</a> · How to export your records</p>
+  <h1>How to export your records</h1>
+  <p>Root Cause never asks for MyChart, Labcorp, or Quest passwords. Sign in on <em>their</em> site or app, download the file to your device, then upload it here or on your dashboard.</p>
+  <p class="note"><strong>Privacy:</strong> Files you upload are used only for educational wellness analysis with your hair + saliva scan. They are not a medical diagnosis.</p>
+
+  <h2>MyChart</h2>
+  <ol>
+    <li>Open your clinic’s MyChart website or the MyChart app and sign in there.</li>
+    <li>Go to the menu and look for <strong>Medical Records</strong>, <strong>Visits</strong>, <strong>Test Results</strong>, or <strong>Health Summary</strong>.</li>
+    <li>Open the visit summary, lab result, or imaging report you want.</li>
+    <li>Use <strong>Download</strong>, <strong>Print</strong>, or <strong>Share / Print to PDF</strong> and save the file on your phone or computer.</li>
+    <li>Return to <a href="/health-app">Health records</a> or your dashboard and upload that file. Do not send your MyChart password.</li>
+  </ol>
+  <p style="font-size:.9rem;color:#666;">Menu names vary by clinic. If you cannot find a download button, use the portal’s print option and choose “Save as PDF.”</p>
+
+  <h2>Labcorp</h2>
+  <ol>
+    <li>Sign in at the Labcorp Patient website or app (patient.labcorp.com or the Labcorp Patient app).</li>
+    <li>Open <strong>Results</strong>.</li>
+    <li>Select a result and download or print it to PDF.</li>
+    <li>Upload the saved PDF under <strong>Lab PDFs / blood work</strong>. We do not accept your Labcorp password.</li>
+  </ol>
+
+  <h2>Quest</h2>
+  <ol>
+    <li>Sign in at MyQuest (myquest.questdiagnostics.com or the MyQuest app).</li>
+    <li>Open <strong>Results</strong> or <strong>My Results</strong>.</li>
+    <li>Download the result PDF (or print to PDF).</li>
+    <li>Upload that file here. We do not accept your Quest password.</li>
+  </ol>
+
+  <h2>Wearable exports (optional)</h2>
+  <ol>
+    <li><strong>Apple Health:</strong> Health app → your profile picture → <strong>Export All Health Data</strong>. Wait for the ZIP, then upload it.</li>
+    <li><strong>Fitbit:</strong> Fitbit account / data settings → export or download your data, then upload the ZIP or CSV.</li>
+    <li><strong>Garmin:</strong> Garmin Connect (web or app) → export or download activity / health data, then upload the file.</li>
+  </ol>
+
+  <p class="warn"><strong>Wellness information only.</strong> Optional uploads add context for Grok wellness analysis next to the $199 hair and saliva scan. They do not diagnose, treat, or replace a licensed clinician. Portal layouts change; if a step looks different, use the portal’s own help pages.</p>
+
+  <p style="margin-top:1.5rem;">
+    <a href="/health-app" class="btn btn-primary">Open the uploader</a>
+    <a href="/sample-report" class="btn btn-outline" style="margin-left:.4rem;">See a sample report</a>
+  </p>
+</div>
+{% endblock %}
