@@ -30,7 +30,7 @@
     <div class="card">
         <h2>Order Status</h2>
         <p style="background:#fff3cd; color:#856404; padding:0.75rem 1rem; border-radius:8px; display:inline-block; font-weight:600;">
-            {% if reports %}{{ reports|length }} scan report{{ 's' if reports|length > 1 else '' }} available{% else %}Awaiting Hair &amp; Saliva Sample{% endif %}
+            {% if reports %}{{ reports|length }} scan report{{ 's' if reports|length > 1 else '' }} available{% else %}Awaiting Hair & Saliva Sample{% endif %}
         </p>
         <p style="margin-top:1rem;"><a href="{{ url_for('instructions') }}" class="btn btn-outline">Collection Instructions</a></p>
     </div>
@@ -58,7 +58,7 @@
 
     <div class="card">
         <h2>Grok Analysis</h2>
-        <p style="color:var(--text-muted);">Your original scan analysis is preserved. After you upload medical records, request an updated analysis.</p>
+        <p style="color:var(--text-muted);">Your original scan analysis is preserved. After you upload records, request an updated analysis.</p>
 
         {% include '_grok_assistant.html' %}
 
@@ -138,27 +138,17 @@
     {% endif %}
 
     <div class="card">
-        <h2>Upload Medical Tests &amp; Records</h2>
-        <p style="color:var(--text-muted);">Upload <strong>blood work, lab PDFs, photos, and medical records</strong>. After uploading new documents, request an updated Grok analysis below.</p>
+        <h2>Upload records for Grok wellness analysis</h2>
+        <p style="color:var(--text-muted);">Optional add-on next to your hair + saliva scan. Choose a category, drop or browse multiple files, then request an updated analysis.</p>
+        <p style="font-size:.92rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.7rem .85rem;">
+            <strong>Wellness information only.</strong> Files are used only for wellness analysis and are not a medical diagnosis. We never ask for MyChart, Labcorp, or Quest passwords.
+            <a href="/export-records">How to export your records</a>
+            · <a href="/health-app">Open the Health App page</a>
+        </p>
         {% if admin_preview %}
         <p class="admin-preview-note">Upload form hidden in admin preview.</p>
         {% else %}
-        <form method="POST" enctype="multipart/form-data" style="margin-top:1rem;">
-            <input type="hidden" name="action" value="upload">
-            <div class="form-group">
-                <label for="documents">Files (select many)</label>
-                <input type="file" id="documents" name="documents" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif,.bmp,.heic,.heif,image/*,.zip,.xml,.csv,.json" multiple required>
-                <p style="font-size:0.85rem; color:var(--text-muted); margin:0.35rem 0 0;">PDF, lab reports, photos, screenshots, or health exports (ZIP/XML/CSV/JSON) — up to 25 files, 100 MB each</p>
-                <p style="font-size:0.8rem; margin-top:0.5rem; color:#555;">
-                    <strong>Auto-fetch from labs?</strong> Download the Desktop Tool (see Wearables section below) — it can log into GoodLabs, Quest, LabCorp etc. using your credentials and pull the PDFs for you.
-                </p>
-            </div>
-            <div class="form-group">
-                <label for="test_date">Test date for all files (optional)</label>
-                <input type="date" id="test_date" name="test_date">
-            </div>
-            <button type="submit" class="btn btn-primary">Upload Files</button>
-        </form>
+        {% include '_health_upload.html' %}
         {% endif %}
 
         {% if documents %}
@@ -183,79 +173,10 @@
         {% endif %}
     </div>
 
-    <!-- NEW: Wearable / Health Device Connection -->
-    <div class="card" style="margin-top: 1.5rem; border: 2px dashed var(--green-dark);">
-        <h2>📱 Connect Health Devices &amp; Wearables</h2>
-        <p style="color: var(--text-muted);">
-            Upload data from your <strong>Apple Watch</strong>, Fitbit, Garmin, Oura, Whoop, or other health monitors.
-            Grok will analyze heart rate, sleep, steps, HRV, activity and more, and include insights in your reports.
-        </p>
-
-        <details style="margin-bottom: 1rem;">
-            <summary style="cursor: pointer; font-weight: 600; color: var(--green-dark);">Easiest way to upload data from ANY wearable (clients)</summary>
-            <ol style="margin: 0.4rem 0 0 1.25rem; font-size: 0.92rem; line-height: 1.35;">
-                <li>Export data from your device (Apple Health app, Fitbit/Garmin app or website, etc.).</li>
-                <li>Get the file (zip, xml, csv, json) to a computer.</li>
-                <li>Use the Desktop Tool or Web App below for smart local processing + upload.</li>
-            </ol>
-            <p style="font-size: 0.85rem; margin: 0.4rem 0; color: #555;">
-                The uploader app automatically focuses on <strong>recent data</strong> and works with Apple, Fitbit, Garmin, and most other wearables.
-                For blood tests: Use the built-in lab portal fetcher (GoodLabs, Quest, etc.) — just enter your lab login and it downloads the results for you.
-            </p>
-            <p style="margin-top: 0.35rem; display: flex; gap: 8px; flex-wrap: wrap;">
-                <a href="/health-app" class="btn btn-primary" style="font-size:0.9rem; padding:0.35rem 0.7rem;">
-                    📱 Open Web App (install on iPhone)
-                </a>
-                <a href="/download/health-uploader" class="btn btn-success" style="font-size:0.9rem; padding:0.35rem 0.7rem;">
-                    💻 Download Desktop Tool — auto fetch blood tests from GoodLabs, Quest, etc.
-                </a>
-            </p>
-            <p style="font-size: 0.8rem; color: #666;">
-                Want a real <strong>iOS App on the App Store</strong> using HealthKit directly? 
-                Full starter code + instructions are ready in the project (<code>ios-app/README.md</code>).
-            </p>
-        </details>
-
-        <details style="margin-bottom: 1rem;">
-            <summary style="cursor: pointer; font-weight: 600; color: var(--green-dark);">Other devices (Fitbit, Garmin, Oura, etc.)</summary>
-            <ul style="margin: 0.5rem 0 0 1.25rem; font-size: 0.9rem;">
-                <li>Log into the device's web or app dashboard.</li>
-                <li>Look for "Export data", "Download CSV", "Health data export", or "Share data".</li>
-                <li>Upload the CSV, JSON, or XML file(s) here.</li>
-            </ul>
-        </details>
-
-        {% if admin_preview %}
-        <p class="admin-preview-note">Health device upload hidden in admin preview.</p>
-        {% else %}
-        <form method="POST" enctype="multipart/form-data" style="margin-top: 0.5rem;">
-            <input type="hidden" name="action" value="upload_health_data">
-            <div class="form-group">
-                <label for="health_files">Health data files (Apple export, CSVs, etc.)</label>
-                <input type="file" id="health_files" name="health_files" accept=".zip,.xml,.csv,.json,.txt" multiple required>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin: 0.25rem 0 0;">
-                    Just upload the Apple zip (or export.xml). Most clients can upload directly.<br>
-                    The system focuses on your recent data. If it's too big, delete the two big folders after unzipping first.
-                </p>
-            </div>
-            <div class="form-group">
-                <label for="health_test_date">Approximate date range for this data (optional)</label>
-                <input type="date" id="health_test_date" name="health_test_date">
-            </div>
-            <button type="submit" class="btn btn-primary">Upload Health / Wearable Data</button>
-        </form>
-        {% endif %}
-
-        <p style="font-size: 0.85rem; margin-top: 0.75rem; color: var(--text-muted);">
-            Upload creates a safe local summary of recent wearable data.<br>
-            Scroll down to the <strong>"Request Updated Grok Analysis"</strong> card (always visible now) to incorporate it once you have a report.
-        </p>
-    </div>
-
     <div class="card">
         <h2>Request Updated Grok Analysis</h2>
         {% if reports %}
-            <p style="color:var(--text-muted);">After uploading new medical documents or wearable data, Grok will compare them against your original bio scan and refresh your analysis.</p>
+            <p style="color:var(--text-muted);">After uploading records, Grok can compare them with your original bio scan and refresh the wellness analysis. This is not a diagnosis.</p>
             {% if admin_preview %}
             <p class="admin-preview-note">Client phone: {{ user.phone or 'not set' }}</p>
             <p class="admin-preview-note">Request analysis controls hidden in admin preview.</p>
@@ -274,10 +195,10 @@
             {% endif %}
         {% else %}
             <p style="color:var(--text-muted);">
-                Your wearable data and medical uploads are saved. 
-                Once your practitioner publishes your bio scan report, the <strong>"Request Updated Grok Analysis"</strong> button will appear here so Grok can incorporate everything.
+                Your uploads are saved.
+                Once your practitioner publishes your bio scan report, the <strong>Request Updated Grok Analysis</strong> button will appear here so Grok can incorporate everything.
             </p>
-            <p style="font-size:0.85rem;">You currently have {{ documents|length if documents else 0 }} medical document(s) and wearable data ready for when the report is available.</p>
+            <p style="font-size:0.85rem;">You currently have {{ documents|length if documents else 0 }} document(s) ready for when the report is available.</p>
         {% endif %}
     </div>
 </div>
