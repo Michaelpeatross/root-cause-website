@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ report.title }} — Root Cause{% endblock %}
+
 {% block extra_head %}
 <style>
 .wellness-report-view{max-width:100%;overflow-wrap:anywhere}
@@ -16,7 +17,8 @@
 {% endblock %}
 {% block content %}
 <div class="container">
-    <p><a href="{{ url_for('dashboard') }}">&larr; Back to portal</a></p>
+    <p><a href="{{ url_for('dashboard') }}">← Back to portal</a></p>
+
     <div class="report-card" style="margin-top:1rem;">
         <div class="report-card-header">
             <div>
@@ -30,6 +32,7 @@
             <a href="{{ url_for('download_report_pdf', report_id=report.id) }}" class="btn btn-primary">Download PDF</a>
             {% endif %}
         </div>
+
         <div class="scan-view-tabs" style="padding:0.75rem 1.5rem 0; display:flex; gap:0.5rem; flex-wrap:wrap;">
             <a href="{{ url_for('view_report', report_id=report.id, view='scan') }}" class="btn {% if view == 'scan' or not view %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Scan Report</a>
             <a href="{{ url_for('view_report', report_id=report.id, view='original') }}" class="btn {% if view == 'original' %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Original Scan Analysis</a>
@@ -37,23 +40,36 @@
             <a href="{{ url_for('view_report', report_id=report.id, view='updates') }}" class="btn {% if view == 'updates' %}btn-primary{% else %}btn-outline{% endif %}" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Updates</a>
             {% endif %}
         </div>
-        <div style="padding:0 1.5rem;">{% include '_grok_assistant.html' ignore missing %}</div>
+
+        <div style="padding:0 1.5rem;">
+            {% include '_grok_assistant.html' ignore missing %}
+        </div>
+
         <div class="report-card-body card" style="margin:0; box-shadow:none;">
             {% if view == 'original' %}
                 <div class="grok-analysis-content">
-                {% if report.original_ai_recommendations %}{{ report.original_ai_recommendations|safe }}
-                {% elif report.ai_recommendations %}{{ report.ai_recommendations|safe }}
-                {% else %}<p style="color:var(--text-muted);">Original Grok analysis not available for this report.</p>{% endif %}
+                {% if report.original_ai_recommendations %}
+                {{ report.original_ai_recommendations|safe }}
+                {% elif report.ai_recommendations %}
+                {{ report.ai_recommendations|safe }}
+                {% else %}
+                <p style="color:var(--text-muted);">Original Grok analysis not available for this report.</p>
+                {% endif %}
                 </div>
             {% elif view == 'updates' %}
                 <div class="grok-analysis-content">
-                {% if report.blood_reconciliation_html %}{{ report.blood_reconciliation_html|safe }}{% endif %}
-                {% if report.ai_recommendations %}{{ report.ai_recommendations|safe }}
-                {% else %}<p style="color:var(--text-muted);">No updated analysis yet. Upload medical documents and request an updated Grok analysis.</p>{% endif %}
+                {% if report.blood_reconciliation_html %}
+                {{ report.blood_reconciliation_html|safe }}
+                {% endif %}
+                {% if report.ai_recommendations %}
+                {{ report.ai_recommendations|safe }}
+                {% else %}
+                <p style="color:var(--text-muted);">No updated analysis yet. Upload medical documents and request an updated Grok analysis.</p>
+                {% endif %}
                 </div>
             {% else %}
                 <div class="grok-analysis-content wellness-report-view">
-                <p style="font-size:.9rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.65rem .8rem;margin:0 0 1rem;">Wellness information only. Health Scores and plain-language themes first. Informational only &mdash; not a diagnosis, allergy test, treatment plan, or medical advice.</p>
+                <p style="font-size:.92rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.7rem .85rem;margin:0 0 1rem;"><strong>Wellness information only.</strong> Health Scores and themes first; raw scanner lists stay folded. Not a medical diagnosis, allergy test, treatment plan, DNA test, HTMA, or tool for detecting disease. Not a substitute for a licensed clinician.</p>
                 {{ (report.generated_report or report.original_generated_report)|safe }}
                 </div>
             {% endif %}

@@ -3,8 +3,10 @@ import re
 from html import escape
 
 TAB_CSS = """
-.rc-tablist{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 1rem;padding:.35rem 0 .45rem;position:sticky;top:0;z-index:5;background:linear-gradient(#fff 72%,rgba(255,255,255,.92))}
-.rc-tab{border:1px solid #c5ddd5;background:#fff;color:#0b3d2a;border-radius:999px;padding:.45rem .8rem;font-size:.85rem;font-weight:700;cursor:pointer;min-height:40px}
+.rc-tablist{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 1rem;padding:.35rem 0 .45rem;
+position:sticky;top:0;z-index:5;background:linear-gradient(#fff 72%,rgba(255,255,255,.92))}
+.rc-tab{border:1px solid #c5ddd5;background:#fff;color:#0b3d2a;border-radius:999px;
+padding:.45rem .8rem;font-size:.85rem;font-weight:700;cursor:pointer;min-height:40px}
 .rc-tab.is-active{background:#0b3d2a;color:#fff;border-color:#0b3d2a}
 .rc-tab:focus-visible{outline:3px solid #0d5c4d;outline-offset:2px}
 .rc-tab-short{display:none}
@@ -14,17 +16,28 @@ TAB_CSS = """
 .rc-ask-card h2{margin:0 0 .4rem;color:#0b3d2a;font-size:1.15rem}
 .rc-ask-card p{margin:0 0 .75rem;color:#334;line-height:1.45}
 .rc-ask-chips{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 .85rem}
-.rc-ask-chip{border:1px solid #c5ddd5;background:#fff;border-radius:999px;padding:.4rem .7rem;font-size:.82rem;cursor:pointer;color:#0d5c4d;font-weight:600;min-height:40px}
-.rc-ask-open{background:#0b3d2a;color:#fff;border:0;border-radius:999px;padding:.55rem 1rem;font-weight:700;cursor:pointer;min-height:44px}
+.rc-ask-chip{border:1px solid #c5ddd5;background:#fff;border-radius:999px;padding:.4rem .7rem;
+font-size:.82rem;cursor:pointer;color:#0d5c4d;font-weight:600;min-height:40px}
+.rc-ask-open{background:#0b3d2a;color:#fff;border:0;border-radius:999px;padding:.55rem 1rem;
+font-weight:700;cursor:pointer;min-height:44px}
 .rc-ask-compose{display:flex;gap:.45rem;flex-wrap:wrap;margin:.15rem 0 .85rem}
-.rc-ask-compose input{flex:1 1 220px;min-height:44px;border:1px solid #c5ddd5;border-radius:999px;padding:.45rem .9rem;font-size:.95rem}
+.rc-ask-compose input{flex:1 1 220px;min-height:44px;border:1px solid #c5ddd5;border-radius:999px;
+padding:.45rem .9rem;font-size:.95rem}
 .rc-section-ask{margin:.65rem 0 0}
 .rc-q-list{margin:0;padding:0;list-style:none;display:grid;gap:.65rem}
 .rc-q-list li{border:1px solid #f1e0c2;background:#fffaf3;border-radius:10px;padding:.75rem .85rem}
 .rc-q-list h3{margin:0 0 .3rem;color:#0b3d2a;font-size:.95rem}
 .rc-q-list p{margin:0;color:#334;font-size:.9rem;line-height:1.45}
-@media (max-width:720px){.rc-tablist{gap:.3rem}.rc-tab{flex:1 1 calc(50% - .3rem);text-align:center;padding:.4rem .55rem;font-size:.8rem}.rc-tab-full{display:none}.rc-tab-short{display:inline}}
-@media print{.rc-tablist,.rc-ask-open,.rc-ask-chips,.rc-ask-compose,.rc-section-ask{display:none!important}.rc-tab-panel{display:block!important}}
+@media (max-width:720px){
+  .rc-tablist{gap:.3rem}
+  .rc-tab{flex:1 1 calc(50% - .3rem);text-align:center;padding:.4rem .55rem;font-size:.8rem}
+  .rc-tab-full{display:none}
+  .rc-tab-short{display:inline}
+}
+@media print{
+  .rc-tablist,.rc-ask-open,.rc-ask-chips,.rc-ask-compose,.rc-section-ask{display:none!important}
+  .rc-tab-panel{display:block!important}
+}
 """
 
 TAB_JS = """
@@ -38,10 +51,19 @@ TAB_JS = """
     var input = document.getElementById('grok-input');
     var bubble = document.getElementById('grok-bubble');
     var panel = document.getElementById('grok-panel');
-    if (typeof window.__openAskGrok === 'function') window.__openAskGrok();
-    else if (bubble && panel && !panel.classList.contains('open')) bubble.click();
-    if (input && q) { input.value = q; try { input.focus(); } catch (e) {} }
-    if (send && q) { var sendBtn = document.getElementById('grok-send'); if (sendBtn) sendBtn.click(); }
+    if (typeof window.__openAskGrok === 'function') {
+      window.__openAskGrok();
+    } else if (bubble && panel && !panel.classList.contains('open')) {
+      bubble.click();
+    }
+    if (input && q) {
+      input.value = q;
+      try { input.focus(); } catch (e) {}
+    }
+    if (send && q) {
+      var sendBtn = document.getElementById('grok-send');
+      if (sendBtn) sendBtn.click();
+    }
   }
   function show(id){
     tabs.forEach(function(t){
@@ -53,7 +75,8 @@ TAB_JS = """
     panels.forEach(function(p){
       var on = p.getAttribute('data-panel') === id;
       p.classList.toggle('is-active', on);
-      if (on) p.removeAttribute('hidden'); else p.setAttribute('hidden', 'hidden');
+      if (on) p.removeAttribute('hidden');
+      else p.setAttribute('hidden', 'hidden');
     });
     if (id === 'ask') openGrok('', false);
     try { history.replaceState(null, '', '#tab-' + id); } catch (e) {}
@@ -84,7 +107,9 @@ TAB_JS = """
       openGrok(q, true);
     }
     go.addEventListener('click', sendTyped);
-    box.addEventListener('keydown', function(ev){ if (ev.key === 'Enter') { ev.preventDefault(); sendTyped(); } });
+    box.addEventListener('keydown', function(ev){
+      if (ev.key === 'Enter') { ev.preventDefault(); sendTyped(); }
+    });
   }
   var hash = (location.hash || '').replace('#tab-', '').replace('#', '');
   var allowed = {overview:1, systems:1, food:1, supplements:1, questions:1, ask:1};
@@ -101,11 +126,19 @@ def _has(html, *needles):
 
 def _extract_questions(html):
     items = []
-    for m in re.finditer(r'<article class="sys-plain-card discuss">.*?<h4>[^<]+</h4>.*?<p>(.*?)</p>', html or '', re.I | re.S):
+    for m in re.finditer(
+        r'<article class="sys-plain-card discuss">\\s*<h4>[^<]+</h4>\\s*<p>(.*?)</p>',
+        html or '',
+        re.I | re.S,
+    ):
         text = re.sub(r'<[^>]+>', '', m.group(1)).strip()
         if text and text not in items:
             items.append(text)
-    for m in re.finditer(r'<p class="top3-step">.*?Simple first step:(.*?)</p>', html or '', re.I | re.S):
+    for m in re.finditer(
+        r'<p class="top3-step">\\s*Simple first step:\\s*(.*?)</p>',
+        html or '',
+        re.I | re.S,
+    ):
         text = re.sub(r'<[^>]+>', '', m.group(1)).strip()
         if text and text not in items:
             items.append('Would this first step fit my routine: ' + text)
@@ -113,55 +146,142 @@ def _extract_questions(html):
 
 
 def _extract_priority_titles(html):
-    titles = re.findall(r'<div class="top3-head">.*?<h3>(.*?)</h3>', html or '', re.I | re.S)
+    titles = re.findall(r'<div class="top3-head">\\s*<h3>(.*?)</h3>', html or '', re.I | re.S)
     clean = [re.sub(r'<[^>]+>', '', t).strip() for t in titles]
     return [t for t in clean if t][:3]
 
 
 def _section_ask(label, prompt):
-    return ('<p class="rc-section-ask"><button type="button" class="rc-ask-chip" data-ask="%s">Ask Grok about %s</button></p>' % (escape(prompt, quote=True), escape(label)))
+    return (
+        '<p class="rc-section-ask">'
+        '<button type="button" class="rc-ask-chip" data-ask="%s">Ask Grok about %s</button>'
+        '</p>' % (escape(prompt, quote=True), escape(label))
+    )
 
 
 def _questions_panel(html):
-    items = _extract_questions(html) or [
-        'Which of my top priorities is worth a standard lab check first?',
-        'How should I describe these scan patterns without treating them as a diagnosis?',
-    ]
-    lis = ''.join('<li><h3>Question %s</h3><p>%s</p></li>' % (i, escape(q)) for i, q in enumerate(items, start=1))
-    return ('<section class="rc-tab-panel" data-panel="questions" id="tab-questions" role="tabpanel"><h2>Questions for your practitioner</h2><p>Bring these talking points to a licensed clinician. They are not lab orders or a treatment plan.</p><ol class="rc-q-list">' + lis + '</ol>' + _section_ask('these talking points', 'Help me turn my wellness-report talking points into a short list I can bring to my practitioner. Remind me this is not a diagnosis.') + '</section>')
+    items = _extract_questions(html)
+    if not items:
+        items = [
+            'Which of my top priorities is worth a standard lab check first?',
+            'How should I describe these scan patterns without treating them as a diagnosis?',
+        ]
+    lis = ''.join(
+        '<li><h3>Question %s</h3><p>%s</p></li>' % (i, escape(q))
+        for i, q in enumerate(items, start=1)
+    )
+    return (
+        '<section class="rc-tab-panel" data-panel="questions" id="tab-questions" role="tabpanel">'
+        '<h2>Questions for your practitioner</h2>'
+        '<p>Bring these talking points to a licensed clinician. They are not lab orders or a treatment plan.</p>'
+        '<ol class="rc-q-list">' + lis + '</ol>'
+        + _section_ask(
+            'these talking points',
+            'Help me turn my wellness-report talking points into a short list I can bring to my practitioner. Remind me this is not a diagnosis.',
+        )
+        + '</section>'
+    )
 
 
 def _ask_panel(html, has_food=False, has_supp=False):
     titles = _extract_priority_titles(html)
     chips = [
-        ('How do I read this report?', 'How do I read this wellness report in plain English?'),
-        ('What is a Health Score?', 'What does a Health Score mean on my Root Cause report?'),
-        ('What should I tell my practitioner?', 'What talking points from this wellness report should I mention to my practitioner? Remind me this is not a diagnosis.'),
+        ('How do I read this report?',
+         'How do I read this wellness report in plain English?'),
+        ('What is a Health Score?',
+         'What does a Health Score mean on my Root Cause report?'),
+        ('What should I tell my practitioner?',
+         'What talking points from this wellness report should I mention to my practitioner? Remind me this is not a diagnosis.'),
     ]
     for title in titles:
-        chips.append(('Ask about ' + title, 'In plain English, what should I know about the %s pattern on my wellness scan?' % title))
+        chips.append((
+            'Ask about ' + title,
+            'In plain English, what should I know about the %s pattern on my wellness scan?' % title,
+        ))
     if has_food:
-        chips.append(('Is this an allergy test?', 'Explain that the Food and environment sensitivities section is an energetic pattern, not an allergy test or diagnosis.'))
+        chips.append((
+            'Is this an allergy test?',
+            'Explain that the Food & environment sensitivities section is an energetic pattern, not an allergy test or diagnosis.',
+        ))
     if has_supp:
-        chips.append(('What are support ideas?', 'Explain the Optional support ideas on my wellness report in everyday language. They are not prescriptions or dosing instructions.'))
-    chip_html = ''.join('<button type="button" class="rc-ask-chip" data-ask="%s">%s</button>' % (escape(q, quote=True), escape(label)) for label, q in chips[:8])
-    return ('<section class="rc-tab-panel" data-panel="ask" id="tab-ask" role="tabpanel"><div class="rc-ask-card"><h2>Ask Grok about this report</h2><p>Type a question about <em>this</em> report, or tap a chip. Answers are educational only — not medical advice.</p><div class="rc-ask-compose"><input type="text" data-ask-input maxlength="240" placeholder="e.g. What should I know about my top priority?"><button type="button" class="rc-ask-open" data-ask-submit>Ask Grok</button></div><div class="rc-ask-chips">' + chip_html + '</div><button type="button" class="rc-ask-open" data-ask="">Open chat</button></div></section>')
+        chips.append((
+            'What are support ideas?',
+            'Explain the Optional support ideas on my wellness report in everyday language. They are not prescriptions or dosing instructions.',
+        ))
+    chip_html = ''.join(
+        '<button type="button" class="rc-ask-chip" data-ask="%s">%s</button>'
+        % (escape(q, quote=True), escape(label))
+        for label, q in chips[:8]
+    )
+    return (
+        '<section class="rc-tab-panel" data-panel="ask" id="tab-ask" role="tabpanel">'
+        '<div class="rc-ask-card">'
+        '<h2>Ask Grok about this report</h2>'
+        '<p>Type a question about <em>this</em> report, or tap a chip. Answers are educational only — not medical advice.</p>'
+        '<div class="rc-ask-compose">'
+        '<input type="text" data-ask-input maxlength="240" '
+        'placeholder="e.g. What should I know about my top priority?">'
+        '<button type="button" class="rc-ask-open" data-ask-submit>Ask Grok</button>'
+        '</div>'
+        '<div class="rc-ask-chips">' + chip_html + '</div>'
+        '<button type="button" class="rc-ask-open" data-ask="">Open chat</button>'
+        '</div></section>'
+    )
 
 
 def _classify_chunk(chunk):
+    """Route a block into a tab. IDs win so a Systems card named Sensitivities
+    cannot steal the whole body-overview into the Food tab."""
     low = chunk.lower()
-    if 'sensitivit' in low or 'environmental' in low or '<h2>toxins</h2>' in low or 'energetic toxin' in low:
-        return 'food'
-    if 'optional support ideas' in low or 'scan-remedy-card' in low or 'balancing remed' in low or 'nutritional patterns' in low or 'nutritional imbalance' in low:
-        return 'supplements'
-    if 'id="body-overview"' in low or 'body-system-card' in low or 'hormonal' in low or 'metabolic' in low or 'sleep pattern' in low or 'sleep marker' in low:
+    if (
+        'id="body-overview"' in low
+        or 'id="body-system-' in low
+        or 'health-overall-card' in low
+        or 'body-system-card' in low
+    ):
         return 'systems'
+    if re.search(r'id="scan-(hormonal|metabolic|sleep)', low):
+        return 'systems'
+    if re.search(r'id="scan-(sensitivit|environmental|toxin)', low):
+        return 'food'
+    if re.search(r'id="scan-(nutritional-patterns|nutritional-imbalances|supplement-ideas)"', low):
+        return 'supplements'
+    if 'optional support ideas' in low or 'scan-remedy-card' in low or 'balancing remed' in low:
+        return 'supplements'
+    if 'id="scan-nutritional' in low:
+        return 'supplements'
+    if 'class="wellness-banner"' in low or 'class="top3"' in low or 'glossary-panel' in low:
+        return 'overview'
+    if 'class="scan-cover"' in low or 'id="your-top-priorities"' in low:
+        return 'overview'
+    if 'id="scan-client-summary"' in low or 'id="scan-next-steps"' in low:
+        return 'overview'
+    if 'hormonal patterns' in low or 'metabolic patterns' in low or 'sleep patterns' in low:
+        return 'systems'
+    if 'hormonal imbalance' in low or 'metabolic marker' in low or 'sleep marker' in low:
+        return 'systems'
+    if 'sensitivit' in low or 'environmental &amp; microbial' in low or 'environmental & microbial' in low:
+        return 'food'
+    if '<h2>toxins</h2>' in low or 'energetic toxin' in low:
+        return 'food'
+    if 'nutritional patterns' in low or 'nutritional imbalance' in low:
+        return 'supplements'
     return 'overview'
 
 
 def _split_inner(inner):
     buckets = {k: [] for k in ('overview', 'systems', 'food', 'supplements')}
-    pattern = re.compile(r'(<aside class="wellness-banner">.*?</aside>)|(<details class="glossary-panel".*?</details>)|(<section class="top3".*?</section>)|(<div class="wellness-theme-grid">.*?</div>)|(<section[^>]*id="body-overview".*?</section>)|(<section class="scan-section.*?</section>)|(<header class="scan-cover">.*?</header>)|(<footer class="scan-disclaimer">.*?</footer>)', re.I | re.S)
+    pattern = re.compile(
+        r'(<aside class="wellness-banner">.*?</aside>)'
+        r'|(<details class="glossary-panel".*?</details>)'
+        r'|(<section class="top3".*?</section>)'
+        r'|(<div class="wellness-theme-grid">.*?</div>)'
+        r'|(<section[^>]*id="body-overview".*?</section>)'
+        r'|(<section class="scan-section.*?</section>)'
+        r'|(<header class="scan-cover">.*?</header>)'
+        r'|(<footer class="scan-disclaimer">.*?</footer>)',
+        re.I | re.S,
+    )
     pos = 0
     leftover = []
     for m in pattern.finditer(inner):
@@ -175,9 +295,20 @@ def _split_inner(inner):
         pos = m.end()
     if pos < len(inner):
         leftover.append(inner[pos:])
-    extra = re.sub(r'</?article[^>]*>', '', ''.join(leftover)).strip()
+    extra = ''.join(leftover)
+    extra = re.sub(r'</?article[^>]*>', '', extra)
+    extra = extra.strip()
     if extra:
-        buckets['overview'].insert(0, extra)
+        buckets[_classify_chunk(extra)].insert(0, extra)
+    # Rescue: never leave Systems empty if the overview blob still holds scores.
+    if not ''.join(buckets['systems']).strip():
+        kept = []
+        for chunk in buckets['overview']:
+            if _classify_chunk(chunk) == 'systems' or 'id="body-overview"' in chunk.lower():
+                buckets['systems'].append(chunk)
+            else:
+                kept.append(chunk)
+        buckets['overview'] = kept
     return buckets
 
 
@@ -186,47 +317,114 @@ def apply_report_tabs(html):
         return html
     if 'wellness-report' not in html and 'body-overview' not in html and 'top3' not in html:
         return html
-    has_food = _has(html, 'Sensitivities', 'energetic sensitivity', 'Environmental', 'Toxins')
-    has_supp = _has(html, 'Optional support ideas', 'scan-remedy-card', 'Nutritional', 'Balancing Remedies')
-    buttons = [('overview', 'Overview', 'Overview'), ('systems', 'Systems', 'Systems')]
+
+    has_food = _has(
+        html,
+        'Sensitivities',
+        'energetic sensitivity',
+        'Environmental & microbial',
+        'id="scan-sensitivities"',
+        'id="scan-environmental-microbial-patterns"',
+        'id="scan-toxins"',
+        '>Toxins</h2>',
+    )
+    has_supp = _has(
+        html,
+        'Optional support ideas',
+        'scan-remedy-card',
+        'Nutritional patterns',
+        'id="scan-supplement-ideas"',
+        'id="scan-nutritional-patterns"',
+        'id="scan-nutritional-imbalances"',
+        'Balancing Remedies',
+    )
+
+    buttons = [
+        ('overview', 'Overview', 'Overview'),
+        ('systems', 'Systems', 'Systems'),
+    ]
     if has_food:
         buttons.append(('food', 'Food & environment sensitivities', 'Sensitivities'))
     if has_supp:
         buttons.append(('supplements', 'Supplement ideas', 'Supplements'))
-    buttons.extend([('questions', 'Questions for your practitioner', 'Questions'), ('ask', 'Ask Grok about this report', 'Ask Grok')])
-    tablist = '<div class="rc-tablist" role="tablist" aria-label="Report sections">' + ''.join('<button type="button" class="rc-tab%s" role="tab" data-tab="%s" aria-controls="tab-%s" aria-selected="%s" tabindex="%s"><span class="rc-tab-full">%s</span><span class="rc-tab-short">%s</span></button>' % (' is-active' if i == 0 else '', key, key, 'true' if i == 0 else 'false', '0' if i == 0 else '-1', escape(full), escape(short)) for i, (key, full, short) in enumerate(buttons)) + '</div>'
-    match = re.search(r'(<div class="wellness-report"[^>]*>)(.*)</div>', html, re.S)
+    buttons.extend([
+        ('questions', 'Questions for your practitioner', 'Questions'),
+        ('ask', 'Ask Grok about this report', 'Ask Grok'),
+    ])
+    tablist = '<div class="rc-tablist" role="tablist" aria-label="Report sections">' + ''.join(
+        '<button type="button" class="rc-tab%s" role="tab" data-tab="%s" '
+        'aria-controls="tab-%s" aria-selected="%s" tabindex="%s">'
+        '<span class="rc-tab-full">%s</span><span class="rc-tab-short">%s</span></button>'
+        % (
+            ' is-active' if i == 0 else '',
+            key,
+            key,
+            'true' if i == 0 else 'false',
+            '0' if i == 0 else '-1',
+            escape(full),
+            escape(short),
+        )
+        for i, (key, full, short) in enumerate(buttons)
+    ) + '</div>'
+
+    match = re.search(r'(<div class="wellness-report"[^>]*>)(.*)</div>\\s*$', html, re.S)
     if match:
         prefix, inner = match.group(1), match.group(2)
         styles = ''
-        sm = re.match(r'(<style>.*?</style>)', inner.strip()[:1] and inner, re.S)
-        if inner.lstrip().startswith('<style>'):
-            sm = re.match(r'(.*?<style>.*?</style>)', inner, re.S)
-            if sm:
-                styles = sm.group(1)
-                inner = inner[sm.end():]
+        sm = re.match(r'(\\s*<style>[\\s\\S]*?</style>)', inner)
+        if sm:
+            styles = sm.group(1)
+            inner = inner[sm.end():]
         buckets = _split_inner(inner)
         panels = []
         section_prompts = {
-            'systems': ('my body systems', 'In plain English, what should I notice in the Systems section of my wellness report?'),
-            'food': ('sensitivities', 'Explain the Food and environment sensitivities section. Remind me this is not an allergy test.'),
-            'supplements': ('support ideas', 'Explain the Supplement ideas on my wellness report. They are educational, not prescriptions.'),
+            'systems': (
+                'my body systems',
+                'In plain English, what should I notice in the Systems section of my wellness report?',
+            ),
+            'food': (
+                'sensitivities',
+                'Explain the Food & environment sensitivities section. Remind me this is not an allergy test.',
+            ),
+            'supplements': (
+                'support ideas',
+                'Explain the Supplement ideas on my wellness report. They are educational, not prescriptions.',
+            ),
         }
         for key in ('overview', 'systems', 'food', 'supplements'):
             if key == 'food' and not has_food:
                 continue
             if key == 'supplements' and not has_supp:
                 continue
-            body = ''.join(buckets.get(key) or []) or '<p>Nothing extra in this section. Use Overview or Ask Grok.</p>'
+            body = ''.join(buckets.get(key) or [])
+            if not body.strip():
+                body = '<p>Nothing extra in this section. Use Overview or Ask Grok.</p>'
             if key in section_prompts:
                 label, prompt = section_prompts[key]
                 body += _section_ask(label, prompt)
-            panels.append('<section class="rc-tab-panel%s" data-panel="%s" id="tab-%s" role="tabpanel"%s>%s</section>' % (' is-active' if key == 'overview' else '', key, key, '' if key == 'overview' else ' hidden', body))
+            active = ' is-active' if key == 'overview' else ''
+            hidden = '' if key == 'overview' else ' hidden'
+            panels.append(
+                '<section class="rc-tab-panel%s" data-panel="%s" id="tab-%s" role="tabpanel"%s>%s</section>'
+                % (active, key, key, hidden, body)
+            )
         panels.append(_questions_panel(html))
         panels.append(_ask_panel(html, has_food=has_food, has_supp=has_supp))
-        html = prefix + styles + '<div id="rc-report-tabs">' + tablist + ''.join(panels) + '</div>' + TAB_JS + '</div>'
+        html = (
+            prefix + styles
+            + '<div id="rc-report-tabs">' + tablist + ''.join(panels) + '</div>'
+            + TAB_JS + '</div>'
+        )
     else:
-        html = '<div id="rc-report-tabs">' + tablist + html + _questions_panel(html) + _ask_panel(html, has_food, has_supp) + '</div>' + TAB_JS
+        html = (
+            '<div id="rc-report-tabs">' + tablist + html
+            + _questions_panel(html) + _ask_panel(html, has_food, has_supp)
+            + '</div>' + TAB_JS
+        )
+
     if '.rc-tablist{' not in html:
-        html = html.replace('</style>', TAB_CSS + '</style>', 1) if '</style>' in html else ('<style>' + TAB_CSS + '</style>' + html)
+        if '</style>' in html:
+            html = html.replace('</style>', TAB_CSS + '</style>', 1)
+        else:
+            html = '<style>' + TAB_CSS + '</style>' + html
     return html

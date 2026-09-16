@@ -19,12 +19,25 @@
   <p style="color:var(--text-muted); font-size:.85rem; margin:1.5rem 0 .5rem;"><a href="{{ url_for('index') }}">Home</a> · Sample report</p>
   <div class="sample-page-lead">
     <h1>Sample wellness report</h1>
-    <p>This is the same reusable template used in the logged-in dashboard. Scores, names, and lists below are <strong>placeholder sample data</strong> for Alex Sample — not a real client scan and not your results.</p>
+    <p>This is the same reusable template used in the logged-in dashboard report view. Scores, names, and lists below are <strong>placeholder sample data</strong> for Alex Sample — not a real client scan and not your results.</p>
     <p style="font-size:.92rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.7rem .85rem;"><strong>Wellness information only.</strong> Not a medical diagnosis, not an allergy test, not treatment, not a prescription, not a DNA test, not HTMA, and not a tool for detecting or ruling out disease. It does not replace a licensed clinician. Do not change medication or care based on this page.</p>
   </div>
 
-  <div class="report-card-body card wellness-report-view" style="box-shadow:none;padding:1rem 1.15rem 1.5rem;">
-    {{ sample_html|default('')|safe }}
+  <div class="report-card" style="margin-top:1rem;">
+    <div class="report-card-header" style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-start;padding:0 .25rem 0.5rem;">
+      <div>
+        <h2 style="font-family:'Playfair Display',serif; color:var(--green-dark); margin:0; font-size:1.35rem;">Sample Full Scan (placeholder)</h2>
+        <span style="color:var(--text-muted);">January 15, 2026 · Alex Sample</span>
+      </div>
+      <span class="btn btn-outline" style="pointer-events:none;opacity:.7;padding:.35rem .75rem;font-size:.85rem;">PDF (clients only)</span>
+    </div>
+    <div class="scan-view-tabs" style="padding:0.35rem 0 0.75rem; display:flex; gap:0.5rem; flex-wrap:wrap;">
+      <span class="btn btn-primary" style="padding:0.35rem 0.75rem; font-size:0.85rem;">Scan Report</span>
+      <span class="btn btn-outline" style="padding:0.35rem 0.75rem; font-size:0.85rem;opacity:.65;pointer-events:none;">Original Scan Analysis</span>
+    </div>
+    <div class="report-card-body card wellness-report-view" style="box-shadow:none;padding:1rem 1.15rem 1.5rem;">
+      {{ sample_html|default('')|safe }}
+    </div>
   </div>
 
   <div style="text-align:center; margin:2.5rem 0;">
