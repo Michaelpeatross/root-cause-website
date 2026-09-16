@@ -1,35 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Sample Wellness Report | Root Cause Test{% endblock %}
-{% block meta_description %}See how a Root Cause wellness report is organized: Overview, Systems, optional Food & environment and Supplement idea tabs, practitioner questions, and Ask Grok. Informational only. $199 scan.{% endblock %}
-
+{% block meta_description %}Preview a Root Cause wellness report in the same template clients see: top 3 priorities, body-system scores, and optional food or supplement sections. Placeholder sample. Informational only. $199 scan.{% endblock %}
+{% block extra_head %}
+<style>
+.wellness-report-view{max-width:100%;overflow-wrap:anywhere}
+.rc-tablist{position:sticky;top:0;z-index:6}
+.sample-page-lead{max-width:820px;margin:0 auto 1.25rem}
+@media (max-width:720px){.container{padding-left:.75rem;padding-right:.75rem}h1{font-size:1.25rem!important;line-height:1.3}}
+</style>
+{% endblock %}
 {% block content %}
-<div class="container" style="max-width:800px;">
+<div class="container">
   <p style="color:var(--text-muted); font-size:.85rem; margin:1.5rem 0 .5rem;"><a href="{{ url_for('index') }}">Home</a> &middot; Sample report</p>
-  <h1>What a Root Cause wellness report looks like</h1>
-  <p>After hair and saliva samples are processed, the written report is meant to be easy to scan &mdash; not a raw marker dump. This page explains the layout. It is a description of the report format, not your personal results and not medical advice.</p>
-
-  <div class="card">
-    <h2>How the report is organized</h2>
-    <p>On screen, the report uses tabs: <strong>Overview</strong>, <strong>Systems</strong>, <strong>Food & environment sensitivities</strong> (only when that section exists), <strong>Supplement ideas</strong> (only when present), <strong>Questions for your practitioner</strong>, and <strong>Ask Grok about this report</strong>. Print and PDF still show the full page.</p>
+  <div class="sample-page-lead">
+    <h1>Sample wellness report</h1>
+    <p>This is the same reusable template used in the logged-in portal. The numbers and names below are <strong>placeholder sample data</strong> for Alex Sample &mdash; not a real client scan and not medical advice.</p>
+    <p style="font-size:.92rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.7rem .85rem;">Wellness information only. Not a medical diagnosis, allergy test, treatment plan, DNA test, HTMA, or tool for detecting disease. It does not replace a licensed clinician.</p>
   </div>
-  <div class="card">
-    <h2>Your top 3 priorities</h2>
-    <p>The report opens with a numbered list &mdash; <strong>Your top 3 priorities</strong> &mdash; written in everyday language. Color badges mark relative emphasis as High, Medium, or Low. Those badges are informational only. Each item includes a simple first step. Lower-priority notes stay available further down and are not the lead.</p>
+  <div class="report-card-body card wellness-report-view" style="box-shadow:none;padding:1rem 1.15rem 1.5rem;">
+    {{ sample_html|default('')|safe }}
   </div>
-  <div class="card">
-    <h2>Body-system sections</h2>
-    <p>Findings are grouped by body system. Open a card for two short sections: <strong>What this means in plain English</strong> and <strong>Ideas to discuss with your practitioner</strong>. Those talking points are educational, not a prescription or lab order.</p>
-  </div>
-  <div class="card">
-    <h2>Optional supplement and lifestyle ideas</h2>
-    <p>Some reports include educational product or lifestyle ideas tied to those themes. They are suggestions for discussion, not prescriptions, dosing instructions, or a treatment plan.</p>
-  </div>
-
-  <div class="card">
-    <h2>What this report is not</h2>
-    <p>A Root Cause report is informational wellness content. It is <strong>not</strong> a medical diagnosis, not treatment, not an allergy test, not a DNA test, not HTMA, and not a tool for detecting or ruling out disease. It does not replace a licensed clinician.</p>
-  </div>
-
   <div style="text-align:center; margin:2.5rem 0;">
     <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis &mdash; $199</a>
     <p style="margin-top:1rem;"><a href="/how-it-works">How it works</a> &middot; <a href="{{ url_for('contact') }}">Contact</a></p>
