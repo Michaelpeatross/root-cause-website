@@ -101,11 +101,11 @@ def _has(html, *needles):
 
 def _extract_questions(html):
     items = []
-    for m in re.finditer(r'<article class="sys-plain-card discuss">\\s*<h4>[^<]+</h4>\\s*<p>(.*?)</p>', html or '', re.I | re.S):
+    for m in re.finditer(r'<article class="sys-plain-card discuss">.*?<h4>[^<]+</h4>.*?<p>(.*?)</p>', html or '', re.I | re.S):
         text = re.sub(r'<[^>]+>', '', m.group(1)).strip()
         if text and text not in items:
             items.append(text)
-    for m in re.finditer(r'<p class="top3-step">\\s*Simple first step:\\s*(.*?)</p>', html or '', re.I | re.S):
+    for m in re.finditer(r'<p class="top3-step">.*?Simple first step:(.*?)</p>', html or '', re.I | re.S):
         text = re.sub(r'<[^>]+>', '', m.group(1)).strip()
         if text and text not in items:
             items.append('Would this first step fit my routine: ' + text)
@@ -113,7 +113,7 @@ def _extract_questions(html):
 
 
 def _extract_priority_titles(html):
-    titles = re.findall(r'<div class="top3-head">\\s*<h3>(.*?)</h3>', html or '', re.I | re.S)
+    titles = re.findall(r'<div class="top3-head">.*?<h3>(.*?)</h3>', html or '', re.I | re.S)
     clean = [re.sub(r'<[^>]+>', '', t).strip() for t in titles]
     return [t for t in clean if t][:3]
 
@@ -141,7 +141,7 @@ def _ask_panel(html, has_food=False, has_supp=False):
     for title in titles:
         chips.append(('Ask about ' + title, 'In plain English, what should I know about the %s pattern on my wellness scan?' % title))
     if has_food:
-        chips.append(('Is this an allergy test?', 'Explain that the Food & environment sensitivities section is an energetic pattern, not an allergy test or diagnosis.'))
+        chips.append(('Is this an allergy test?', 'Explain that the Food and environment sensitivities section is an energetic pattern, not an allergy test or diagnosis.'))
     if has_supp:
         chips.append(('What are support ideas?', 'Explain the Optional support ideas on my wellness report in everyday language. They are not prescriptions or dosing instructions.'))
     chip_html = ''.join('<button type="button" class="rc-ask-chip" data-ask="%s">%s</button>' % (escape(q, quote=True), escape(label)) for label, q in chips[:8])
@@ -150,13 +150,11 @@ def _ask_panel(html, has_food=False, has_supp=False):
 
 def _classify_chunk(chunk):
     low = chunk.lower()
-    if re.search(r'id="scan-(sensitivit|environmental|toxin)', low):
+    if 'sensitivit' in low or 'environmental' in low or '<h2>toxins</h2>' in low or 'energetic toxin' in low:
         return 'food'
-    if 'sensitivit' in low or 'environmental & microbial' in low or 'environmental & microbial' in low or '<h2>toxins</h2>' in low or 'energetic toxin' in low:
-        return 'food'
-    if re.search(r'id="scan-(nutritional-patterns|supplement-ideas)"', low) or 'optional support ideas' in low or 'scan-remedy-card' in low or 'balancing remed' in low or 'nutritional patterns' in low or 'nutritional imbalance' in low:
+    if 'optional support ideas' in low or 'scan-remedy-card' in low or 'balancing remed' in low or 'nutritional patterns' in low or 'nutritional imbalance' in low:
         return 'supplements'
-    if 'id="body-overview"' in low or 'body-system-card' in low or re.search(r'id="scan-(hormonal|metabolic|sleep)', low) or 'hormonal patterns' in low or 'metabolic patterns' in low or 'sleep patterns' in low or 'hormonal imbalance' in low or 'metabolic marker' in low or 'sleep marker' in low:
+    if 'id="body-overview"' in low or 'body-system-card' in low or 'hormonal' in low or 'metabolic' in low or 'sleep pattern' in low or 'sleep marker' in low:
         return 'systems'
     return 'overview'
 
@@ -188,8 +186,8 @@ def apply_report_tabs(html):
         return html
     if 'wellness-report' not in html and 'body-overview' not in html and 'top3' not in html:
         return html
-    has_food = _has(html, 'Sensitivities', 'energetic sensitivity', 'Environmental & microbial', 'id="scan-sensitivities"', 'id="scan-environmental-microbial-patterns"', 'id="scan-toxins"', '>Toxins</h2>')
-    has_supp = _has(html, 'Optional support ideas', 'scan-remedy-card', 'Nutritional patterns', 'id="scan-supplement-ideas"', 'id="scan-nutritional-patterns"', 'id="scan-nutritional-imbalances"', 'Balancing Remedies')
+    has_food = _has(html, 'Sensitivities', 'energetic sensitivity', 'Environmental', 'Toxins')
+    has_supp = _has(html, 'Optional support ideas', 'scan-remedy-card', 'Nutritional', 'Balancing Remedies')
     buttons = [('overview', 'Overview', 'Overview'), ('systems', 'Systems', 'Systems')]
     if has_food:
         buttons.append(('food', 'Food & environment sensitivities', 'Sensitivities'))
@@ -197,19 +195,21 @@ def apply_report_tabs(html):
         buttons.append(('supplements', 'Supplement ideas', 'Supplements'))
     buttons.extend([('questions', 'Questions for your practitioner', 'Questions'), ('ask', 'Ask Grok about this report', 'Ask Grok')])
     tablist = '<div class="rc-tablist" role="tablist" aria-label="Report sections">' + ''.join('<button type="button" class="rc-tab%s" role="tab" data-tab="%s" aria-controls="tab-%s" aria-selected="%s" tabindex="%s"><span class="rc-tab-full">%s</span><span class="rc-tab-short">%s</span></button>' % (' is-active' if i == 0 else '', key, key, 'true' if i == 0 else 'false', '0' if i == 0 else '-1', escape(full), escape(short)) for i, (key, full, short) in enumerate(buttons)) + '</div>'
-    match = re.search(r'(<div class="wellness-report"[^>]*>)(.*)</div>\\s*$', html, re.S)
+    match = re.search(r'(<div class="wellness-report"[^>]*>)(.*)</div>', html, re.S)
     if match:
         prefix, inner = match.group(1), match.group(2)
         styles = ''
-        sm = re.match(r'(\\s*<style>[\\s\\S]*?</style>)', inner)
-        if sm:
-            styles = sm.group(1)
-            inner = inner[sm.end():]
+        sm = re.match(r'(<style>.*?</style>)', inner.strip()[:1] and inner, re.S)
+        if inner.lstrip().startswith('<style>'):
+            sm = re.match(r'(.*?<style>.*?</style>)', inner, re.S)
+            if sm:
+                styles = sm.group(1)
+                inner = inner[sm.end():]
         buckets = _split_inner(inner)
         panels = []
         section_prompts = {
             'systems': ('my body systems', 'In plain English, what should I notice in the Systems section of my wellness report?'),
-            'food': ('sensitivities', 'Explain the Food & environment sensitivities section. Remind me this is not an allergy test.'),
+            'food': ('sensitivities', 'Explain the Food and environment sensitivities section. Remind me this is not an allergy test.'),
             'supplements': ('support ideas', 'Explain the Supplement ideas on my wellness report. They are educational, not prescriptions.'),
         }
         for key in ('overview', 'systems', 'food', 'supplements'):
