@@ -54,7 +54,7 @@
           "name": "How long until I get my report?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Typical turnaround is 7-14 days after your hair and saliva samples arrive at our lab address."
+            "text": "Typical turnaround is 7–14 days after your hair and saliva samples arrive at our lab address."
           }
         },
         {
@@ -109,7 +109,7 @@
         </div>
         <div class="card step-card">
             <h3>3. Ship</h3>
-            <p>Mail your samples to our Covington, LA address using the prepaid or labeled kit directions.</p>
+            <p>Mail your samples using the prepaid label and kit directions we send after your order.</p>
         </div>
         <div class="card step-card">
             <h3>4. Dashboard report</h3>
@@ -218,6 +218,12 @@
         </details>
     </div>
 
+    <div class="card" id="food-scanner-home" style="margin-top:2rem;">
+        <h2 style="margin-top:0;">Free Food Scanner</h2>
+        <p>Look up a barcode, search a food name, or photograph a label or plate for educational calorie and macro estimates. Guests can scan without an account.</p>
+        <p style="margin-bottom:0;"><a class="btn btn-primary" href="/scan-food">Open Food Scanner</a></p>
+    </div>
+
     <div class="card" id="optional-wearable" style="margin-top:2rem;">
         <p style="margin:0 0 .35rem; font-size:.78rem; letter-spacing:.04em; text-transform:uppercase; color:var(--text-muted);">Optional add-on</p>
         <h2 style="margin-top:0;">Wearable & file analysis</h2>
@@ -225,6 +231,17 @@
         <p style="margin-bottom:0;"><a href="{{ url_for('health_app') }}">Open the optional Health App uploader</a> · <a href="{{ url_for('contact') }}">Contact</a></p>
     </div>
 
+    <p style="text-align:center; margin:1.5rem 0 0;">
+        <a href="/scan-food">Food Scanner</a> ·
+        <a href="/how-it-works">How it works</a> ·
+        <a href="/sample-report">Sample report</a> ·
+        <a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is the scan</a> ·
+        <a href="/blog/bioenergetic-vs-food-allergy-test">Vs food allergy testing</a> ·
+        <a href="{{ url_for('contact') }}">Contact</a> ·
+        <a href="{{ url_for('privacy') }}">Privacy</a> ·
+        <a href="{{ url_for('terms') }}">Terms</a> ·
+        <a href="{{ url_for('refunds') }}">Refunds</a>
+    </p>
     <div style="text-align:center; margin:2.5rem 0 1rem;">
         <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis — $199</a>
     </div>
