@@ -1,5 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Sample Collection — Root Cause{% endblock %}
+{% block title %}Hair & Saliva Collection Instructions | Root Cause Test{% endblock %}
+{% block meta_description %}How to collect hair and saliva samples at home for the $199 Root Cause Bioenergetic Scan. Use the prepaid label and kit directions sent after your order.{% endblock %}
+
 
 {% block content %}
 <div class="container" style="max-width:800px;">
@@ -24,9 +26,13 @@
     <div class="card" style="border-left:4px solid var(--green);">
         <h3>Step 4 — Package &amp; Mail</h3>
         <p>Place hair (or nail clippings) and the used Q-tips in the zip-lock bag. Write your <strong>full name and birthday</strong> clearly on the outside of the bag. Place the bag in a regular envelope, add postage, and mail it.</p>
+        {% if current_user is defined and current_user.is_authenticated %}
         <p style="margin-top:1rem;"><strong>Mail to:</strong><br>
         743 Rue Bourdeaux<br>
         Covington, LA 70433</p>
+        {% else %}
+        <p style="margin-top:1rem;">Mail your samples using the prepaid label and kit directions we send after your order. The shipping address also appears in your post-purchase email and in this page after you log in.</p>
+        {% endif %}
     </div>
 
     <p style="text-align:center; margin-top:2rem;">
