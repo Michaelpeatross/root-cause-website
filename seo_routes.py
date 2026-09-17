@@ -51,6 +51,7 @@ def register_public_seo_routes(app):
             "Disallow: /checkout/success\n"
             "Disallow: /reports/\n"
             "Disallow: /documents/\n"
+            "Disallow: /instructions\n"
             f"Sitemap: {SITE}/sitemap.xml\n"
         )
         return Response(body, mimetype='text/plain')
@@ -60,7 +61,6 @@ def register_public_seo_routes(app):
             ('/', 'weekly', '1.0'),
             ('/buy', 'monthly', '0.9'),
             ('/contact', 'monthly', '0.7'),
-            ('/instructions', 'monthly', '0.6'),
             ('/how-it-works', 'monthly', '0.8'),
             ('/sample-report', 'monthly', '0.7'),
             ('/scan-food', 'weekly', '0.8'),
@@ -161,6 +161,7 @@ def register_public_seo_routes(app):
     NOINDEX_PREFIXES = (
         '/login', '/register', '/checkout/success', '/admin',
         '/dashboard', '/reports', '/documents', '/nutrition',
+        '/instructions',
     )
 
     @app.after_request
@@ -183,7 +184,7 @@ def register_public_seo_routes(app):
                 '/scan-food': 'Use the free Food Scanner to look up barcodes, search foods, or upload a nutrition label or plate photo for educational calorie and macro estimates. Not medical advice; nutrition data may be incomplete.',
                 '/blog': 'Short wellness articles about the $199 bioenergetic hair and saliva scan. Educational only — not medical advice.',
                 '/sample-report': 'Preview the same wellness report template clients see after a $199 hair and saliva scan: top 3 priorities, Health Scores, and optional food or supplement tabs. Placeholder sample. Not a diagnosis or allergy test.',
-                '/how-it-works': 'Order, collect hair and saliva at home, ship to Covington, LA, then view your wellness report. Typical turnaround 7-14 days after samples arrive. $199.',
+                '/how-it-works': 'Order, collect hair and saliva at home, mail samples with the prepaid label we send after your order, then view your wellness report. Typical turnaround 7-14 days after samples arrive. $199.',
                 '/blog/what-is-bioenergetic-hair-saliva-scan': 'What a bioenergetic hair and saliva wellness scan is and is not. Compared carefully with clinical allergy testing and HTMA. $199. Not a medical diagnosis.',
                 '/blog/bioenergetic-vs-food-allergy-test': 'Side-by-side look at a $199 bioenergetic hair and saliva wellness scan versus clinical food allergy testing. It does not diagnose or rule out food allergy.',
                 '/health-app': 'Optional add-on: upload wearable exports, lab PDFs, visit summaries, imaging reports, or medication lists for educational wellness context next to your $199 hair and saliva scan. Not a diagnosis. We never ask for portal passwords.',
@@ -255,7 +256,12 @@ def register_public_seo_routes(app):
                 html = html.replace('<body>', '<body>' + header, 1)
                 if 'class="site-header"' not in html:
                     import re as _re_hdr
-                    html = _re_hdr.sub(r'<body([^>]*)>', r'<body\\1>' + header, html, count=1)
+                    html = _re_hdr.sub(
+                        r'<body([^>]*)>',
+                        lambda m: '<body%s>%s' % (m.group(1), header),
+                        html,
+                        count=1,
+                    )
             if 'site-footer' in html:
                 import re
                 html = re.sub(
