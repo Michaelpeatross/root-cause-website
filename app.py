@@ -92,16 +92,16 @@ def _patch_scan_pdf_uploads():
                     print(f"[Root Cause] Scan TXT OK: {original} ({len(text):,} chars)")
                     continue
                 if ext != ".pdf":
-                    raise ValueError(f'"{original}" is not a PDF or TXT.')
+                    raise ValueError(f'\"{original}\" is not a PDF or TXT.')
 
                 file_storage.seek(0, os.SEEK_END)
                 size = file_storage.tell()
                 file_storage.seek(0)
                 if size <= 0:
-                    raise ValueError(f'"{original}" is empty.')
+                    raise ValueError(f'\"{original}\" is empty.')
                 if size > SCAN_PDF_MAX_BYTES:
                     raise ValueError(
-                        f'"{original}" is {size / (1024 * 1024):.1f} MB — max 12 MB. Save as .txt instead.'
+                        f'\"{original}\" is {size / (1024 * 1024):.1f} MB — max 12 MB. Save as .txt instead.'
                     )
 
                 os.makedirs(upload_dir, exist_ok=True)
@@ -127,7 +127,7 @@ def _patch_scan_pdf_uploads():
             except ValueError as exc:
                 errors.append(str(exc))
             except Exception as exc:
-                errors.append(f'Could not process "{original}": {type(exc).__name__}: {exc}.')
+                errors.append(f'Could not process \"{original}\": {type(exc).__name__}: {exc}.')
                 traceback.print_exc()
                 if path:
                     try:
@@ -179,6 +179,12 @@ except Exception as _upgrade_err:
     print(f"[Root Cause] Live upgrades not applied: {_upgrade_err}")
     import traceback
     traceback.print_exc()
+
+try:
+    from og_card import register_og_card
+    register_og_card(app)
+except Exception as _og_err:
+    print(f"[Root Cause] OG card routes not applied: {_og_err}")
 
 try:
     from seo_routes import register_public_seo_routes
