@@ -181,16 +181,16 @@ except Exception as _upgrade_err:
     traceback.print_exc()
 
 try:
-    from og_card import register_og_card
-    register_og_card(app)
-except Exception as _og_err:
-    print(f"[Root Cause] OG card routes not applied: {_og_err}")
-
-try:
     from seo_routes import register_public_seo_routes
     register_public_seo_routes(app)
 except Exception as _seo_err:
     print(f"[Root Cause] SEO routes not applied: {_seo_err}")
+
+try:
+    from og_card import register_og_card
+    register_og_card(app)
+except Exception as _og_err:
+    print(f"[Root Cause] OG card routes not applied: {_og_err}")
 
 try:
     from food_scan_routes import register_food_scan_routes
