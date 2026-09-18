@@ -15,37 +15,37 @@ SCAN_DESC = (
 )
 
 
-def _png_bytes():
-    import base64
+def _fallback_png():
+    """Always-valid 1200x630 PNG so social crawlers never get a 404."""
     import io
-    import os
+    from PIL import Image, ImageDraw, ImageFont
 
-    disk = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "og-food-scanner.png")
+    W, H = 1200, 630
+    im = Image.new("RGB", (W, H), "#0b3d2a")
+    draw = ImageDraw.Draw(im)
+    draw.rectangle((720, 0, W, H), fill="#f4ead8")
     try:
-        if os.path.isfile(disk) and os.path.getsize(disk) > 1000:
-            with open(disk, "rb") as fh:
-                data = fh.read()
-            if data[:8] == b"\\x89PNG\\r\\n\\x1a\\n":
-                return data, "image/png"
-            if data[:3] == b"\\xff\\xd8\\xff":
-                return data, "image/jpeg"
+        title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 64)
+        small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28)
+        brand = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 36)
     except Exception:
-        pass
-    raw = b""
-    try:
-        from og_food_image import OG_FOOD_JPG_B64
-        raw = base64.b64decode(OG_FOOD_JPG_B64)
-    except Exception:
-        raw = b""
-    if not raw:
-        try:
-            from og_image_data import OG_JPEG_B64
-            raw = base64.b64decode(OG_JPEG_B64)
-        except Exception:
-            raw = b""
-    if raw[:8] == b"\\x89PNG\\r\\n\\x1a\\n":
+        title_font = small = brand = ImageFont.load_default()
+    draw.text((64, 56), "Root Cause", fill="#f4ead8", font=brand)
+    draw.text((64, 108), "WELLNESS, ROOTED IN REALITY.", fill="#c5ddd4", font=small)
+    draw.text((64, 200), "FREE", fill="#f4ead8", font=title_font)
+    draw.text((64, 275), "FOOD SCANNER", fill="#f4ead8", font=title_font)
+    draw.text((64, 380), "Barcode  •  Label  •  Plate photo", fill="#d7efe8", font=small)
+    draw.text((64, 520), "SCAN. UNDERSTAND. NOURISH.", fill="#c5ddd4", font=small)
+    buf = io.BytesIO()
+    im.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
+def _as_png(raw):
+    import io
+    if raw[:8] == b"\x89PNG\r\n\x1a\n":
         return raw, "image/png"
-    if raw[:3] == b"\\xff\\xd8\\xff":
+    if raw[:3] == b"\xff\xd8\xff":
         try:
             from PIL import Image
             im = Image.open(io.BytesIO(raw)).convert("RGB")
@@ -56,7 +56,37 @@ def _png_bytes():
             return buf.getvalue(), "image/png"
         except Exception:
             return raw, "image/jpeg"
-    return raw, "application/octet-stream"
+    return None
+
+
+def _png_bytes():
+    import base64
+    import os
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    for name in ("og-food-scanner.png", "og-food-scanner.jpg"):
+        disk = os.path.join(here, "static", name)
+        try:
+            if os.path.isfile(disk) and os.path.getsize(disk) > 1000:
+                with open(disk, "rb") as fh:
+                    converted = _as_png(fh.read())
+                if converted:
+                    return converted
+        except Exception:
+            pass
+    for mod_name, attr in (("og_food_image", "OG_FOOD_JPG_B64"), ("og_image_data", "OG_JPEG_B64")):
+        try:
+            mod = __import__(mod_name)
+            raw = base64.b64decode("".join(getattr(mod, attr).split()))
+            converted = _as_png(raw)
+            if converted:
+                return converted
+        except Exception:
+            pass
+    try:
+        return _fallback_png(), "image/png"
+    except Exception:
+        return b"", "application/octet-stream"
 
 
 def register_og_card(app):
@@ -119,31 +149,31 @@ def register_og_card(app):
             html = html.replace('content="/og-scan.jpg"', f'content="{OG_IMG}"')
             html = html.replace('content="/static/og-scan.jpg"', f'content="{OG_IMG}"')
             html = re.sub(
-                r'<meta property="og:image" content="[^"]*"\\s*/?>',
+                r'<meta property="og:image" content="[^"]*"\s*/?>',
                 f'<meta property="og:image" content="{OG_IMG}">',
                 html,
                 flags=re.I,
             )
             html = re.sub(
-                r'<meta name="twitter:image" content="[^"]*"\\s*/?>',
+                r'<meta name="twitter:image" content="[^"]*"\s*/?>',
                 f'<meta name="twitter:image" content="{OG_IMG}">',
                 html,
                 flags=re.I,
             )
             html = re.sub(
-                r'<meta property="og:url" content="[^"]*"\\s*/?>',
+                r'<meta property="og:url" content="[^"]*"\s*/?>',
                 f'<meta property="og:url" content="{canon}">',
                 html,
                 flags=re.I,
             )
             html = re.sub(
-                r'<meta property="og:type" content="[^"]*"\\s*/?>',
+                r'<meta property="og:type" content="[^"]*"\s*/?>',
                 '<meta property="og:type" content="website">',
                 html,
                 flags=re.I,
             )
             html = re.sub(
-                r'<meta name="twitter:card" content="[^"]*"\\s*/?>',
+                r'<meta name="twitter:card" content="[^"]*"\s*/?>',
                 '<meta name="twitter:card" content="summary_large_image">',
                 html,
                 flags=re.I,
@@ -174,13 +204,13 @@ def register_og_card(app):
                 title, desc = None, None
             if title:
                 html = re.sub(
-                    r'<meta property="og:title" content="[^"]*"\\s*/?>',
+                    r'<meta property="og:title" content="[^"]*"\s*/?>',
                     f'<meta property="og:title" content="{title}">',
                     html,
                     flags=re.I,
                 )
                 html = re.sub(
-                    r'<meta name="twitter:title" content="[^"]*"\\s*/?>',
+                    r'<meta name="twitter:title" content="[^"]*"\s*/?>',
                     f'<meta name="twitter:title" content="{title}">',
                     html,
                     flags=re.I,
@@ -192,19 +222,19 @@ def register_og_card(app):
                     inject += f'<meta name="twitter:title" content="{title}">'
             if desc:
                 html = re.sub(
-                    r'<meta property="og:description" content="[^"]*"\\s*/?>',
+                    r'<meta property="og:description" content="[^"]*"\s*/?>',
                     f'<meta property="og:description" content="{desc}">',
                     html,
                     flags=re.I,
                 )
                 html = re.sub(
-                    r'<meta name="twitter:description" content="[^"]*"\\s*/?>',
+                    r'<meta name="twitter:description" content="[^"]*"\s*/?>',
                     f'<meta name="twitter:description" content="{desc}">',
                     html,
                     flags=re.I,
                 )
                 html = re.sub(
-                    r'<meta name="description" content="[^"]*"\\s*/?>',
+                    r'<meta name="description" content="[^"]*"\s*/?>',
                     f'<meta name="description" content="{desc}">',
                     html,
                     flags=re.I,
