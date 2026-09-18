@@ -25,8 +25,10 @@ def _png_bytes():
         if os.path.isfile(disk) and os.path.getsize(disk) > 1000:
             with open(disk, "rb") as fh:
                 data = fh.read()
-            if data[:8] == b"\x89PNG\r\n\x1a\n":
-                return data
+            if data[:8] == b"\\x89PNG\\r\\n\\x1a\\n":
+                return data, "image/png"
+            if data[:3] == b"\\xff\\xd8\\xff":
+                return data, "image/jpeg"
     except Exception:
         pass
     raw = b""
@@ -35,18 +37,26 @@ def _png_bytes():
         raw = base64.b64decode(OG_FOOD_JPG_B64)
     except Exception:
         raw = b""
-    if raw[:8] == b"\x89PNG\r\n\x1a\n":
-        return raw
-    if raw[:3] == b"\xff\xd8\xff":
+    if not raw:
+        try:
+            from og_image_data import OG_JPEG_B64
+            raw = base64.b64decode(OG_JPEG_B64)
+        except Exception:
+            raw = b""
+    if raw[:8] == b"\\x89PNG\\r\\n\\x1a\\n":
+        return raw, "image/png"
+    if raw[:3] == b"\\xff\\xd8\\xff":
         try:
             from PIL import Image
             im = Image.open(io.BytesIO(raw)).convert("RGB")
+            if im.size != (1200, 630):
+                im = im.resize((1200, 630))
             buf = io.BytesIO()
             im.save(buf, format="PNG", optimize=True)
-            return buf.getvalue()
+            return buf.getvalue(), "image/png"
         except Exception:
-            return raw
-    return raw
+            return raw, "image/jpeg"
+    return raw, "application/octet-stream"
 
 
 def register_og_card(app):
@@ -54,18 +64,18 @@ def register_og_card(app):
     import re
 
     def og_food_scanner_png():
-        data = _png_bytes()
+        data, mime = _png_bytes()
         if not data:
             return Response(b"", status=404)
-        mime = "image/png" if data[:8] == b"\x89PNG\r\n\x1a\n" else "image/jpeg"
-        resp = Response(data, mimetype=mime)
-        resp.headers["Cache-Control"] = "public, max-age=86400"
+        resp = Response(data, mimetype=mime or "image/png")
+        resp.headers["Cache-Control"] = "public, max-age=3600"
+        resp.headers["X-Content-Type-Options"] = "nosniff"
         return resp
 
     orig_static = app.view_functions.get("static")
 
     def static_with_og(filename):
-        if filename == "og-food-scanner.png":
+        if filename in ("og-food-scanner.png", "og-scan.jpg"):
             return og_food_scanner_png()
         if orig_static is not None:
             return orig_static(filename)
@@ -73,15 +83,25 @@ def register_og_card(app):
 
     app.view_functions["static"] = static_with_og
     app.view_functions["og_food_scanner_png"] = og_food_scanner_png
+    app.view_functions["og_scan_jpg"] = og_food_scanner_png
     app.view_functions["og_scan_jpg_card"] = og_food_scanner_png
-    try:
-        app.add_url_rule("/static/og-food-scanner.png", "og_food_scanner_png", og_food_scanner_png)
-    except Exception:
-        pass
-    try:
-        app.add_url_rule("/og-scan.jpg", "og_scan_jpg_card", og_food_scanner_png)
-    except Exception:
-        pass
+
+    for path, endpoint in (
+        ("/static/og-food-scanner.png", "og_food_scanner_png"),
+        ("/og-scan.jpg", "og_scan_jpg_card"),
+        ("/og-scan.jpg", "og_scan_jpg"),
+    ):
+        try:
+            app.add_url_rule(path, endpoint, og_food_scanner_png)
+        except Exception:
+            pass
+
+    @app.before_request
+    def _og_card_before():
+        path = request.path or ""
+        if path in ("/static/og-food-scanner.png", "/og-scan.jpg", "/static/og-scan.jpg"):
+            return og_food_scanner_png()
+        return None
 
     @app.after_request
     def _og_card_touch(response):
@@ -95,28 +115,36 @@ def register_og_card(app):
             path = request.path or "/"
             canon = SITE + ("/" if path == "/" else path)
             html = html.replace("https://www.root-cause-test.com/og-scan.jpg", OG_IMG)
+            html = html.replace("http://www.root-cause-test.com/og-scan.jpg", OG_IMG)
             html = html.replace('content="/og-scan.jpg"', f'content="{OG_IMG}"')
+            html = html.replace('content="/static/og-scan.jpg"', f'content="{OG_IMG}"')
             html = re.sub(
-                r'<meta property="og:image" content="[^"]*"\s*/?>',
+                r'<meta property="og:image" content="[^"]*"\\s*/?>',
                 f'<meta property="og:image" content="{OG_IMG}">',
                 html,
                 flags=re.I,
             )
             html = re.sub(
-                r'<meta name="twitter:image" content="[^"]*"\s*/?>',
+                r'<meta name="twitter:image" content="[^"]*"\\s*/?>',
                 f'<meta name="twitter:image" content="{OG_IMG}">',
                 html,
                 flags=re.I,
             )
             html = re.sub(
-                r'<meta property="og:url" content="[^"]*"\s*/?>',
+                r'<meta property="og:url" content="[^"]*"\\s*/?>',
                 f'<meta property="og:url" content="{canon}">',
                 html,
                 flags=re.I,
             )
             html = re.sub(
-                r'<meta property="og:type" content="[^"]*"\s*/?>',
+                r'<meta property="og:type" content="[^"]*"\\s*/?>',
                 '<meta property="og:type" content="website">',
+                html,
+                flags=re.I,
+            )
+            html = re.sub(
+                r'<meta name="twitter:card" content="[^"]*"\\s*/?>',
+                '<meta name="twitter:card" content="summary_large_image">',
                 html,
                 flags=re.I,
             )
@@ -146,13 +174,13 @@ def register_og_card(app):
                 title, desc = None, None
             if title:
                 html = re.sub(
-                    r'<meta property="og:title" content="[^"]*"\s*/?>',
+                    r'<meta property="og:title" content="[^"]*"\\s*/?>',
                     f'<meta property="og:title" content="{title}">',
                     html,
                     flags=re.I,
                 )
                 html = re.sub(
-                    r'<meta name="twitter:title" content="[^"]*"\s*/?>',
+                    r'<meta name="twitter:title" content="[^"]*"\\s*/?>',
                     f'<meta name="twitter:title" content="{title}">',
                     html,
                     flags=re.I,
@@ -164,24 +192,23 @@ def register_og_card(app):
                     inject += f'<meta name="twitter:title" content="{title}">'
             if desc:
                 html = re.sub(
-                    r'<meta property="og:description" content="[^"]*"\s*/?>',
+                    r'<meta property="og:description" content="[^"]*"\\s*/?>',
                     f'<meta property="og:description" content="{desc}">',
                     html,
                     flags=re.I,
                 )
                 html = re.sub(
-                    r'<meta name="twitter:description" content="[^"]*"\s*/?>',
+                    r'<meta name="twitter:description" content="[^"]*"\\s*/?>',
                     f'<meta name="twitter:description" content="{desc}">',
                     html,
                     flags=re.I,
                 )
-                if path == "/scan-food":
-                    html = re.sub(
-                        r'<meta name="description" content="[^"]*"\s*/?>',
-                        f'<meta name="description" content="{desc}">',
-                        html,
-                        flags=re.I,
-                    )
+                html = re.sub(
+                    r'<meta name="description" content="[^"]*"\\s*/?>',
+                    f'<meta name="description" content="{desc}">',
+                    html,
+                    flags=re.I,
+                )
                 if 'property="og:description"' not in html:
                     inject += f'<meta property="og:description" content="{desc}">'
                 if 'name="twitter:description"' not in html:
