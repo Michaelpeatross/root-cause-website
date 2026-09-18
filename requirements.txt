@@ -11,3 +11,4 @@ stripe
 twilio
 tweepy
 requests
+Pillow
