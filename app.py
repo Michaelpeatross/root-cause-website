@@ -193,6 +193,12 @@ except Exception as _seo_err:
     print(f"[Root Cause] SEO routes not applied: {_seo_err}")
 
 try:
+    from agency_routes import register_agency_routes
+    register_agency_routes(app)
+except Exception as _agency_err:
+    print(f"[Root Cause] Agency routes not applied: {_agency_err}")
+
+try:
     from food_scan_routes import register_food_scan_routes
     register_food_scan_routes(app, db=db, Report=Report)
 except Exception as _food_err:
