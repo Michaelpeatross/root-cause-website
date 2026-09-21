@@ -4,16 +4,25 @@ import os
 
 
 def register_agency_routes(app):
-    """Serve /agency and /apexforge from templates/agency.html. Does not touch Stripe/scan."""
+    """Serve /agency and /apexforge. Does not touch Stripe/scan checkout."""
     from flask import Response, request
 
-    def _agency_page():
+    def _load_html():
         path = os.path.join(app.root_path, "templates", "agency.html")
-        try:
+        if os.path.isfile(path):
             with open(path, "r", encoding="utf-8") as fh:
-                html = fh.read()
-        except OSError as exc:
-            print(f"[ApexForge] agency.html missing: {exc}")
+                return fh.read()
+        try:
+            from agency_page_data import agency_html
+            return agency_html()
+        except Exception as exc:
+            raise FileNotFoundError(f"agency.html missing and decode failed: {exc}") from exc
+
+    def _agency_page():
+        try:
+            html = _load_html()
+        except Exception as exc:
+            print(f"[ApexForge] agency page unavailable: {exc}")
             return Response(
                 "<!DOCTYPE html><html><body><h1>ApexForge</h1>"
                 "<p>Landing page temporarily unavailable.</p>"
@@ -35,7 +44,6 @@ def register_agency_routes(app):
             app.add_url_rule(path, endpoint, view, methods=["GET", "HEAD"])
 
     # Root Cause seo_routes injects footer/nav into all HTML. Skip that for ApexForge pages.
-    # Wrap any already-registered after_request named _seo_html_touch.
     agency_paths = {"/agency", "/apexforge"}
 
     def _wrap_seo_processors():
@@ -51,7 +59,6 @@ def register_agency_routes(app):
                 def _guard(response, _orig=fn):
                     try:
                         path = (request.path or "/").rstrip("/") or "/"
-                        # /agency and /agency/ both skip; alias /apexforge too
                         if path in agency_paths or path.startswith("/agency"):
                             return response
                     except Exception:
