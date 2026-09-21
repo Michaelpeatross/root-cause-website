@@ -3,6 +3,19 @@
 import os
 
 
+def _decode_agency_html():
+    """Decode compressed landing HTML; repair known one-char base64 corruption if present."""
+    import base64
+    import zlib
+    from agency_page_data import _B64
+
+    raw = "".join(_B64)
+    # Transit typo in initial publish: HYOdEqmJn should be HYOfEqmJn
+    if "HYOdEqmJn" in raw:
+        raw = raw.replace("HYOdEqmJn", "HYOfEqmJn")
+    return zlib.decompress(base64.b64decode(raw)).decode("utf-8")
+
+
 def register_agency_routes(app):
     """Serve /agency and /apexforge. Does not touch Stripe/scan checkout."""
     from flask import Response, request
@@ -13,8 +26,7 @@ def register_agency_routes(app):
             with open(path, "r", encoding="utf-8") as fh:
                 return fh.read()
         try:
-            from agency_page_data import agency_html
-            return agency_html()
+            return _decode_agency_html()
         except Exception as exc:
             raise FileNotFoundError(f"agency.html missing and decode failed: {exc}") from exc
 
