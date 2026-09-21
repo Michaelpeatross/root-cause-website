@@ -85,14 +85,23 @@ def register_public_seo_routes(app):
         xml.append('</urlset>')
         return Response('\n'.join(xml), mimetype='application/xml')
 
+    OG_IMG = f'{SITE}/static/og-food-scanner.png'
+
     def og_scan_jpg():
         try:
-            from og_image_data import OG_JPEG_B64
+            from og_card import _png_bytes
+            data, mime = _png_bytes()
+            if data:
+                return Response(data, mimetype=mime or 'image/png')
+        except Exception:
+            pass
+        try:
+            from og_food_image import OG_FOOD_JPG_B64
             import base64
-            data = base64.b64decode(OG_JPEG_B64)
+            data = base64.b64decode(OG_FOOD_JPG_B64)
+            return Response(data, mimetype='image/jpeg')
         except Exception:
             return Response(b'', status=404)
-        return Response(data, mimetype='image/jpeg')
 
     routes = [
         ('/privacy', 'privacy', privacy),
@@ -112,6 +121,12 @@ def register_public_seo_routes(app):
 
     app.view_functions['robots_txt'] = robots_txt
     app.view_functions['sitemap'] = sitemap
+
+    def buy_page():
+        """Public $199 landing page with shipping copy. Checkout stays POST /create-checkout-session."""
+        return render_template('buy.html')
+
+    app.view_functions['buy'] = buy_page
 
     FOOTER = (
         '<footer class="site-footer">'
@@ -181,22 +196,25 @@ def register_public_seo_routes(app):
             ) or response.status_code == 404
             robots = 'noindex, nofollow' if noindex else 'index, follow'
             DESCS = {
-                '/scan-food': 'Use the free Food Scanner to look up barcodes, search foods, or upload a nutrition label or plate photo for educational calorie and macro estimates. Not medical advice; nutrition data may be incomplete.',
+                '/scan-food': 'Free Food Scanner from Root Cause Test. Scan a barcode, nutrition label, or plate photo for educational wellness calorie and macro estimates. Not medical advice.',
                 '/blog': 'Short wellness articles about the $199 bioenergetic hair and saliva scan. Educational only — not medical advice.',
                 '/sample-report': 'Preview the same wellness report template clients see after a $199 hair and saliva scan: top 3 priorities, Health Scores, and optional food or supplement tabs. Placeholder sample. Not a diagnosis or allergy test.',
-                '/how-it-works': 'Order, collect hair and saliva at home, mail samples with the prepaid label we send after your order, then view your wellness report. Typical turnaround 7-14 days after samples arrive. $199.',
-                '/blog/what-is-bioenergetic-hair-saliva-scan': 'What a bioenergetic hair and saliva wellness scan is and is not. Compared carefully with clinical allergy testing and HTMA. $199. Not a medical diagnosis.',
+                '/how-it-works': 'Order the $199 scan, collect hair and saliva at home, then ship samples. Standard letter mail is free (envelope + stamp). Optional prepaid collection kit $15. Fastest turnaround: overnight the envelope to the collection site.',
+                '/buy': 'Buy the $199 Root Cause Bioenergetic Scan. Mail samples free in a regular envelope with a postage stamp, or optional $15 prepaid collection kit. Overnight the envelope for the fastest turnaround.',
+                '/blog/what-is-bioenergetic-hair-saliva-scan': 'What a bioenergetic hair and saliva wellness scan is and is not. Compared carefully with clinical allergy testing and HTMA. $199. Mail samples free in a regular envelope, or optional $15 prepaid collection kit. Not a medical diagnosis.',
                 '/blog/bioenergetic-vs-food-allergy-test': 'Side-by-side look at a $199 bioenergetic hair and saliva wellness scan versus clinical food allergy testing. It does not diagnose or rule out food allergy.',
                 '/health-app': 'Optional add-on: upload wearable exports, lab PDFs, visit summaries, imaging reports, or medication lists for educational wellness context next to your $199 hair and saliva scan. Not a diagnosis. We never ask for portal passwords.',
                 '/export-records': 'Download your own MyChart, Labcorp, or Quest files, then upload them for optional wellness context next to the $199 hair and saliva scan. We never ask for portal passwords. Not a medical diagnosis.',
             }
+            html = html.replace('https://www.root-cause-test.com/og-scan.jpg', OG_IMG)
+            html = html.replace('http://www.root-cause-test.com/og-scan.jpg', OG_IMG)
             extra = (
                 f'<link rel="canonical" href="{canon}">'
                 f'<meta name="robots" content="{robots}">'
                 f'<meta property="og:url" content="{canon}">'
-                f'<meta property="og:image" content="{SITE}/og-scan.jpg">'
+                f'<meta property="og:image" content="{SITE}/static/og-food-scanner.png">'
                 f'<meta name="twitter:card" content="summary_large_image">'
-                f'<meta name="twitter:image" content="{SITE}/og-scan.jpg">'
+                f'<meta name="twitter:image" content="{SITE}/static/og-food-scanner.png">'
             )
             if path in DESCS:
                 import re as _re_desc
@@ -222,13 +240,22 @@ def register_public_seo_routes(app):
                 extra += f'<meta name="description" content="{_d}">'
                 extra += f'<meta property="og:description" content="{_d}">'
             if path == '/':
+                _home_ship = (
+                    'At-home bioenergetic hair + saliva wellness scan. $199. '
+                    'Mail samples free in a regular envelope with a postage stamp, '
+                    'or optional $15 prepaid collection kit. Not a medical diagnosis or allergy test.'
+                )
                 html = html.replace(
                     'Root Cause Test: Bioenergetic scanning combined with Grok AI analysis of your wearable health data, blood work, and medical records. Personalized reports and recommendations.',
-                    'At-home bioenergetic hair + saliva wellness scan with a clear report and supplement ideas. $199. Not a medical diagnosis or allergy test.',
+                    _home_ship,
                 )
                 html = html.replace(
                     'Upload your Apple Watch, Fitbit, blood work and medical records. Grok analyzes everything for deep health insights.',
+                    _home_ship,
+                )
+                html = html.replace(
                     'At-home bioenergetic hair + saliva wellness scan with a clear report and supplement ideas. $199. Not a medical diagnosis or allergy test.',
+                    _home_ship,
                 )
             if path in ('/login', '/register', '/buy', '/contact', '/checkout/success'):
                 html = html.replace('<body>', '<body class="rc-form-page">', 1)

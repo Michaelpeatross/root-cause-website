@@ -4,8 +4,9 @@ SITE = "https://www.root-cause-test.com"
 OG_IMG = f"{SITE}/static/og-food-scanner.png"
 HOME_TITLE = "Root Cause Test | At-Home Wellness Scan"
 HOME_DESC = (
-    "At-home bioenergetic hair + saliva wellness scan with a clear report "
-    "and supplement ideas. $199. Not a medical diagnosis or allergy test."
+    "At-home bioenergetic hair + saliva wellness scan. $199. "
+    "Mail samples free in a regular envelope with a postage stamp, "
+    "or optional $15 prepaid collection kit. Not a medical diagnosis or allergy test."
 )
 SCAN_TITLE = "Food Scanner | Root Cause Test"
 SCAN_DESC = (

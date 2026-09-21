@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Payment Successful | Root Cause Test{% endblock %}
-{% block meta_description %}Your $199 Root Cause Bioenergetic Scan order is confirmed. You can create your free account after purchase.{% endblock %}
+{% block meta_description %}Your $199 Root Cause Bioenergetic Scan order is confirmed. Mail samples free in a regular envelope with a postage stamp, or optional $15 prepaid collection kit.{% endblock %}
 {% block robots %}noindex, nofollow{% endblock %}
 
 {% block content %}
@@ -13,7 +13,12 @@
         <a href="{{ url_for('register') }}" class="btn btn-primary" style="margin:0.5rem;">Create free account after purchase</a>
         <p style="margin-top:1rem; font-size:0.9rem; color:var(--text-muted);">Already have an account?</p>
         <a href="{{ url_for('login') }}" class="btn btn-outline" style="margin:0.35rem;">Sign in</a>
-        <p style="margin-top:1.25rem; font-size:0.85rem; color:var(--text-muted);">Questions: <a href="mailto:test@root-cause-test.com">test@root-cause-test.com</a></p>
     </div>
+    <div class="card" style="margin-top:1.25rem; text-align:left;">
+        <h2 style="font-family:'Playfair Display',serif; color:var(--green-dark); font-size:1.15rem; margin-top:0;">Shipping your samples</h2>
+        <p>Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
+        <p style="margin-bottom:0; color:var(--text-muted);">Standard letter mail is <strong>free</strong>: put samples in a regular envelope, add a postage stamp, and mail them. You do not pay the $15 unless you want the optional prepaid collection kit. The collection-site address is in your post-purchase email and in the instructions page after you log in.</p>
+    </div>
+    <p style="margin-top:1.25rem; font-size:0.85rem; color:var(--text-muted);">Questions: <a href="mailto:test@root-cause-test.com">test@root-cause-test.com</a></p>
 </div>
 {% endblock %}

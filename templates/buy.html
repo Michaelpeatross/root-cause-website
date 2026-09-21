@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Buy the $199 Bioenergetic Scan | Root Cause Test{% endblock %}
-{% block meta_description %}Order the Root Cause Bioenergetic Scan for $199. At-home hair and saliva wellness scan with a clear report and supplement ideas. Not a medical diagnosis.{% endblock %}
+{% block meta_description %}Buy the $199 Root Cause Bioenergetic Scan. Mail samples free in a regular envelope with a postage stamp, or optional $15 prepaid collection kit. Overnight the envelope for the fastest turnaround.{% endblock %}
 
 {% block content %}
 <section class="hero" style="padding:3rem 2rem;">
@@ -8,7 +8,7 @@
     <p class="tagline">At-home bioenergetic hair + saliva wellness scan. $199.</p>
 </section>
 
-<div class="container" style="max-width:520px;">
+<div class="container" style="max-width:560px;">
     <div class="card purchase-card checkout-single-card" style="margin-top:-2rem;">
         <p class="purchase-now" style="margin:0 0 0.5rem;">$199</p>
         <p style="color:var(--text-muted); margin:0 0 1.5rem;">One Root Cause Bioenergetic Scan — wellness report and supplement ideas</p>
@@ -21,6 +21,12 @@
         <p style="margin-top:0.75rem; font-size:0.85rem; color:var(--text-muted); text-align:center;">
             Not a medical diagnosis or allergy test. See <a href="{{ url_for('refunds') }}">refunds</a> and <a href="{{ url_for('terms') }}">terms</a>.
         </p>
+    </div>
+
+    <div class="card" style="margin-top:1.25rem;">
+        <h2 style="font-family:'Playfair Display',serif; color:var(--green-dark); font-size:1.15rem; margin-top:0;">Shipping your samples</h2>
+        <p>Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
+        <p style="margin-bottom:0; color:var(--text-muted);">Standard letter mail is <strong>free</strong>: put your samples in a regular envelope, add a postage stamp, and mail them. You do not pay the $15. The $15 is only for the optional prepaid collection kit / convenience. The collection-site address is in your post-purchase email and in the instructions page after you log in.</p>
     </div>
 </div>
 {% endblock %}

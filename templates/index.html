@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Root Cause Test | At-Home Wellness Scan{% endblock %}
 {% block og_title %}Root Cause Test | At-Home Wellness Scan{% endblock %}
-{% block meta_description %}At-home bioenergetic hair + saliva wellness scan with a clear report and supplement ideas. $199. Not a medical diagnosis or allergy test.{% endblock %}
+{% block meta_description %}At-home bioenergetic hair + saliva wellness scan. $199. Mail samples free in a regular envelope with a postage stamp, or optional $15 prepaid collection kit. Not a medical diagnosis or allergy test.{% endblock %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -52,10 +52,18 @@
         },
         {
           "@type": "Question",
+          "name": "How do I ship my samples?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Shipping your samples: Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site. Standard letter mail is free — you put samples in a regular envelope, add a postage stamp, and mail without paying the $15. The $15 is only for the optional prepaid collection kit."
+          }
+        },
+        {
+          "@type": "Question",
           "name": "How long until I get my report?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Typical turnaround is 7–14 days after your hair and saliva samples arrive at our lab address."
+            "text": "Typical turnaround is 7–14 days after your hair and saliva samples arrive. For the fastest turnaround, place samples in an envelope and overnight it to the collection site."
           }
         },
         {
@@ -71,7 +79,7 @@
           "name": "How much does it cost?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "The Root Cause Bioenergetic Scan is $199, paid securely through Stripe checkout."
+            "text": "The Root Cause Bioenergetic Scan is $199, paid securely through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required."
           }
         }
       ]
@@ -95,7 +103,7 @@
 <div class="container">
     <div class="trust-banner">
         <p><strong>Non-invasive · Prioritized wellness report · Supplement ideas</strong></p>
-        <p><span style="color:var(--green); font-weight:700; font-size:1.2rem;">$199</span> · At-home hair + saliva collection</p>
+        <p><span style="color:var(--green); font-weight:700; font-size:1.2rem;">$199</span> · At-home hair + saliva collection · Standard letter mail is free</p>
     </div>
 
     <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">How it works</h2>
@@ -110,12 +118,18 @@
         </div>
         <div class="card step-card">
             <h3>3. Ship</h3>
-            <p>Mail your samples using the prepaid label and kit directions we send after your order.</p>
+            <p>Shipping your samples: Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
         </div>
         <div class="card step-card">
             <h3>4. Dashboard report</h3>
             <p>When processing is complete, your prioritized wellness report appears in your client portal.</p>
         </div>
+    </div>
+
+    <div class="card" style="margin-bottom:2rem;">
+        <h2 style="margin-top:0;">Shipping your samples</h2>
+        <p>Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
+        <p style="margin-bottom:0;">Standard letter mail is <strong>free</strong>: put your samples in a regular envelope, add a postage stamp, and mail them. You do not pay $15 unless you want the optional prepaid collection kit for convenience. The collection-site address is in your post-purchase email and in the instructions page after you log in.</p>
     </div>
 
     <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">What’s included</h2>
@@ -205,9 +219,14 @@
             <summary>How is this different from bloodwork?</summary>
             <p>Bloodwork is a clinical lab service ordered with a licensed clinician. This is an at-home bioenergetic hair and saliva wellness scan that produces a prioritized wellness report and supplement ideas. It does not replace bloodwork or a doctor visit.</p>
         </details>
+        <details open>
+            <summary>How do I ship my samples?</summary>
+            <p>Shipping your samples: Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
+            <p>Standard letter mail is <strong>free</strong>: put samples in a regular envelope, add a postage stamp, and mail them. You do not pay the $15. The $15 is only for the optional prepaid collection kit / convenience.</p>
+        </details>
         <details>
             <summary>How long until I get my report?</summary>
-            <p>Typical turnaround is 7–14 days after your hair and saliva samples arrive at our lab address.</p>
+            <p>Typical turnaround is 7–14 days after your hair and saliva samples arrive. For the fastest turnaround, place samples in an envelope and overnight it to the collection site.</p>
         </details>
         <details>
             <summary>Will this replace my doctor?</summary>
@@ -215,7 +234,7 @@
         </details>
         <details>
             <summary>How much does it cost?</summary>
-            <p>The Root Cause Bioenergetic Scan is $199, paid securely through Stripe checkout.</p>
+            <p>The Root Cause Bioenergetic Scan is $199, paid securely through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required.</p>
         </details>
     </div>
 

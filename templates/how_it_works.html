@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}How the $199 At-Home Scan Works | Root Cause Test{% endblock %}
-{% block meta_description %}Order, collect hair and saliva at home, mail samples with the prepaid label we send after your order, then view your wellness report. Typical turnaround 7–14 days after samples arrive. $199.{% endblock %}
+{% block meta_description %}Order the $199 scan, collect hair and saliva at home, then ship samples. Standard letter mail is free (envelope + stamp). Optional prepaid collection kit $15. Fastest turnaround: overnight the envelope to the collection site.{% endblock %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -8,10 +8,11 @@
   "@context": "https://schema.org",
   "@type": "FAQPage",
   "mainEntity": [
-    {"@type":"Question","name":"How long does the report take?","acceptedAnswer":{"@type":"Answer","text":"Typical turnaround is 7-14 days after hair and saliva samples arrive."}},
+    {"@type":"Question","name":"How do I ship my samples?","acceptedAnswer":{"@type":"Answer","text":"Shipping your samples: Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site. Standard letter mail is free — you do not pay $15 unless you want the optional kit."}},
+    {"@type":"Question","name":"How long does the report take?","acceptedAnswer":{"@type":"Answer","text":"Typical turnaround is 7-14 days after hair and saliva samples arrive. For the fastest turnaround, place samples in an envelope and overnight it to the collection site."}},
     {"@type":"Question","name":"Do I need a clinic visit?","acceptedAnswer":{"@type":"Answer","text":"No. You collect hair and saliva at home and ship the samples."}},
     {"@type":"Question","name":"Is this a medical or allergy test?","acceptedAnswer":{"@type":"Answer","text":"No. This is a wellness scan. It is not a medical diagnosis, not an allergy test, and not intended to detect or treat disease."}},
-    {"@type":"Question","name":"How much does it cost?","acceptedAnswer":{"@type":"Answer","text":"The Root Cause Bioenergetic Scan is $199 through Stripe checkout."}}
+    {"@type":"Question","name":"How much does it cost?","acceptedAnswer":{"@type":"Answer","text":"The Root Cause Bioenergetic Scan is $199 through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required."}}
   ]
 }
 </script>
@@ -28,7 +29,9 @@
   <div class="card"><h2>2. Collect hair + saliva</h2>
     <p>Use the instructions in your portal. Take hair from a clean, product-light area and collect saliva as directed. Do not send extra items that are not requested. Keep samples labeled with the name that matches your order.</p></div>
   <div class="card"><h2>3. Ship</h2>
-    <p>Mail your samples using the prepaid label and kit directions we send after your order. Typical reporting time starts when the package arrives — not on the day you check out.</p></div>
+    <p><strong>Shipping your samples:</strong> Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
+    <p>Standard letter mail is <strong>free</strong>: put your samples in a regular envelope, add a postage stamp, and mail them. You do not pay the $15. The $15 is only for the optional prepaid collection kit / convenience.</p>
+    <p>Typical reporting time starts when samples arrive — not on the day you check out. The collection-site address is in your post-purchase email and in the instructions page after you log in.</p></div>
   <div class="card"><h2>4. Dashboard report</h2>
     <p>When processing finishes, the prioritized wellness report appears in your client portal. You can read it there and download a PDF when that option is available.</p></div>
 
@@ -36,6 +39,7 @@
     <h2>What to expect</h2>
     <ul>
       <li>Turnaround is typically <strong>7–14 days after samples arrive</strong>.</li>
+      <li>Fastest turnaround: overnight a regular envelope to the collection site.</li>
       <li>The report is wellness information, not a diagnosis.</li>
       <li>Questions: <a href="mailto:test@root-cause-test.com">test@root-cause-test.com</a> or <a href="{{ url_for('contact') }}">Contact</a>.</li>
     </ul>
@@ -43,10 +47,15 @@
 
   <h2>FAQ</h2>
   <div class="faq">
-    <details><summary>How long does the report take?</summary><p>Typical turnaround is 7–14 days after hair and saliva samples arrive.</p></details>
+    <details open>
+      <summary>How do I ship my samples?</summary>
+      <p>Shipping your samples: Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
+      <p>Standard letter mail is free. The $15 is only if you want the optional prepaid collection kit.</p>
+    </details>
+    <details><summary>How long does the report take?</summary><p>Typical turnaround is 7–14 days after hair and saliva samples arrive. For the fastest turnaround, place samples in an envelope and overnight it to the collection site.</p></details>
     <details><summary>Do I need a clinic visit?</summary><p>No. You collect hair and saliva at home and ship the samples.</p></details>
     <details><summary>Is this a medical or allergy test?</summary><p>No. This is a wellness scan. It is not a medical diagnosis, not an allergy test, and not intended to detect or treat disease.</p></details>
-    <details><summary>How much does it cost?</summary><p>The Root Cause Bioenergetic Scan is $199 through Stripe checkout.</p></details>
+    <details><summary>How much does it cost?</summary><p>The Root Cause Bioenergetic Scan is $199 through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required.</p></details>
   </div>
 
   <div style="text-align:center; margin:2.5rem 0;">

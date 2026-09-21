@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Hair & Saliva Collection Instructions | Root Cause Test{% endblock %}
-{% block meta_description %}How to collect hair and saliva samples at home for the $199 Root Cause Bioenergetic Scan. Use the prepaid label and kit directions sent after your order.{% endblock %}
+{% block meta_description %}How to collect hair and saliva at home. Mail samples free in a regular envelope with a postage stamp, or optional $15 prepaid collection kit. Fastest turnaround: overnight the envelope.{% endblock %}
 
 
 {% block content %}
 <div class="container" style="max-width:800px;">
-    <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark);">Hair &amp; Saliva Collection</h1>
+    <h1 style="font-family:'Playfair Display',serif; color:var(--green-dark);">Hair & Saliva Collection</h1>
     <p style="color:var(--text-muted);">Follow these steps carefully for accurate bioenergetic results.</p>
 
     <div class="card" style="border-left:4px solid var(--green);">
@@ -20,18 +20,20 @@
 
     <div class="card" style="border-left:4px solid var(--green);">
         <h3>Step 3 — Collect Saliva</h3>
-        <p>Rub 2 Q-tips inside your mouth (under tongue and cheeks) for 30 seconds each. Wait at least 20 minutes after eating, brushing teeth, or using mint products.</p>
+        <p>Rub 2 Q-tips inside your mouth (under tongue, cheeks) for 30 seconds each. Wait at least 20 minutes after eating, brushing teeth, or using mint products.</p>
     </div>
 
     <div class="card" style="border-left:4px solid var(--green);">
-        <h3>Step 4 — Package &amp; Mail</h3>
-        <p>Place hair (or nail clippings) and the used Q-tips in the zip-lock bag. Write your <strong>full name and birthday</strong> clearly on the outside of the bag. Place the bag in a regular envelope, add postage, and mail it.</p>
+        <h3>Step 4 — Package & Mail</h3>
+        <p>Place hair (or nail clippings) and the used Q-tips in the zip-lock bag. Write your <strong>full name and birthday</strong> clearly on the outside of the bag.</p>
+        <p><strong>Shipping your samples:</strong> Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
+        <p>Standard letter mail is <strong>free</strong>: put the bag in a regular envelope, add a postage stamp, and mail it. You do not pay the $15. The $15 is only for the optional prepaid collection kit / convenience.</p>
         {% if current_user is defined and current_user.is_authenticated %}
         <p style="margin-top:1rem;"><strong>Mail to:</strong><br>
         743 Rue Bourdeaux<br>
         Covington, LA 70433</p>
         {% else %}
-        <p style="margin-top:1rem;">Mail your samples using the prepaid label and kit directions we send after your order. The shipping address also appears in your post-purchase email and in this page after you log in.</p>
+        <p style="margin-top:1rem;">The collection-site address appears in your post-purchase email and on this page after you log in.</p>
         {% endif %}
     </div>
 
