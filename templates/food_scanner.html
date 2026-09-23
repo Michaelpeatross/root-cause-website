@@ -4,12 +4,15 @@
 {% block meta_description %}Free Food Scanner from Root Cause Test. Scan a barcode, nutrition label, or plate photo for educational wellness calorie and macro estimates. Not medical advice.{% endblock %}
 {% block extra_head %}
 <style>
-  .scan-wrap { max-width: 760px; margin: 0 auto; padding-bottom: 3rem; }
+  .scan-wrap { max-width: 760px; margin: 0 auto; padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
   .scan-tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1rem 0; }
-  .scan-tabs button { border: 1px solid #cfe3d8; background: #fff; padding: .5rem .85rem; border-radius: 999px; cursor: pointer; }
+  .scan-tabs button { border: 1px solid #cfe3d8; background: #fff; color: #0b3d2a; padding: .55rem .9rem; border-radius: 999px; cursor: pointer; font: inherit; min-height: 44px; }
   .scan-tabs button.active { background: #0b3d2a; color: #fff; }
   .scan-panel { display: none; } .scan-panel.active { display: block; }
-  #reader { width: 100%; min-height: 240px; background: #111; border-radius: 12px; overflow: hidden; }
+  .cam-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin: 0 0 .75rem; }
+  .cam-actions .btn { min-height: 48px; flex: 1 1 140px; text-align: center; }
+  #reader { position: relative; width: 100%; height: min(42vh, 280px); min-height: 180px; background: #111; border-radius: 12px; overflow: hidden; }
+  #reader video, #reader canvas { width: 100% !important; height: 100% !important; object-fit: cover; }
   .preview-wrap img { max-width: 100%; max-height: 240px; border-radius: 10px; display: block; }
   .hint { font-size: .85rem; color: var(--text-muted); }
   .score-ring { width: 132px; height: 132px; border-radius: 50%; display:flex; flex-direction:column; align-items:center; justify-content:center; margin: 0 auto 1rem; color:#fff; }
@@ -46,11 +49,13 @@
     <button type="button" data-tab="plate">Plate photo</button>
   </div>
   <div id="tab-barcode" class="scan-panel active card">
-    <p>Fill the frame with the barcode bars, then start the camera.</p>
+    <p>Point the camera at the barcode bars. If the camera stays black, use Type barcode or a close photo instead.</p>
+    <div class="cam-actions">
+      <button type="button" class="btn btn-primary" id="start-cam">Start camera</button>
+      <button type="button" class="btn btn-outline" id="stop-cam">Stop</button>
+    </div>
     <div id="reader" aria-label="Live barcode camera preview"></div>
-    <p><button type="button" class="btn btn-primary" id="start-cam">Start camera</button>
-       <button type="button" class="btn btn-outline" id="stop-cam">Stop</button></p>
-    <p id="cam-status" class="hint"></p>
+    <p id="cam-status" class="hint">Camera is off until you tap Start camera.</p>
     <p><strong>Camera missed?</strong> Upload or capture a close photo of the bars only.</p>
     <label for="barcode-photo">Barcode photo (JPEG, PNG, WEBP)</label>
     <input type="file" id="barcode-photo" accept="image/jpeg,image/png,image/webp,image/*" capture="environment">

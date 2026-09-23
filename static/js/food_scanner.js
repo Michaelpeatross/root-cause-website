@@ -15,7 +15,11 @@
   var camStatus = document.getElementById('cam-status');
   var lastCode = ''; var lastAt = 0; var running = false;
   function escapeHtml(text) {
-    return String(text == null ? '' : text).replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+    return String(text == null ? '' : text)
+      .replace(/&/g, '&')
+      .replace(/</g, '<')
+      .replace(/>/g, '>')
+      .replace(/"/g, '"');
   }
   function showError(msg) {
     resultEl.hidden = false;
@@ -162,19 +166,54 @@
   function onDetected(result) {
     if (result && result.codeResult && result.codeResult.code) scoreBarcode(result.codeResult.code);
   }
+  function enableInlineVideo() {
+    var video = document.querySelector('#reader video');
+    if (!video) return;
+    video.setAttribute('playsinline', 'true');
+    video.setAttribute('webkit-playsinline', 'true');
+    video.muted = true;
+    video.setAttribute('muted', '');
+    video.setAttribute('autoplay', '');
+    video.playsInline = true;
+    var play = video.play && video.play();
+    if (play && play.catch) play.catch(function () {});
+  }
+  function cameraErrorText(err) {
+    var name = (err && (err.name || err.message)) || '';
+    if (/NotAllowed|Permission/i.test(name)) return 'Camera permission was blocked. Allow camera for this site, or use Type barcode / a photo.';
+    if (/NotFound|DevicesNotFound/i.test(name)) return 'No camera was found. Use Type barcode or a photo instead.';
+    return 'Camera failed on this phone. Use Type barcode or a close photo of the bars.';
+  }
   var startCam = document.getElementById('start-cam');
   if (startCam) startCam.addEventListener('click', function () {
-    if (typeof Quagga === 'undefined') { if (camStatus) camStatus.textContent = 'Scanner library not ready.'; return; }
+    if (typeof Quagga === 'undefined') { if (camStatus) camStatus.textContent = 'Scanner library not ready. Refresh the page.'; return; }
     if (running) return;
     running = true;
+    if (camStatus) camStatus.textContent = 'Starting camera… allow access if the phone asks.';
     Quagga.init({
-      inputStream: { type: 'LiveStream', target: document.getElementById('reader'), constraints: { facingMode: 'environment' } },
-      locator: { patchSize: 'large', halfSample: false }, numOfWorkers: 0, frequency: 15,
-      decoder: { readers: ['upc_reader', 'upc_e_reader', 'ean_reader', 'ean_8_reader'] }, locate: true
+      inputStream: {
+        type: 'LiveStream',
+        target: document.getElementById('reader'),
+        constraints: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      },
+      locator: { patchSize: 'large', halfSample: false }, numOfWorkers: 0, frequency: 10,
+      decoder: { readers: ['upc_reader', 'upc_e_reader', 'ean_reader', 'ean_8_reader', 'code_128_reader'] },
+      locate: true
     }, function (err) {
-      if (err) { running = false; if (camStatus) camStatus.textContent = 'Camera failed. Use Type barcode or a photo instead.'; return; }
+      if (err) {
+        running = false;
+        if (camStatus) camStatus.textContent = cameraErrorText(err);
+        return;
+      }
       Quagga.start();
-      if (camStatus) camStatus.textContent = 'Hold 4–6 inches from the bars.';
+      enableInlineVideo();
+      setTimeout(enableInlineVideo, 250);
+      setTimeout(enableInlineVideo, 800);
+      if (camStatus) camStatus.textContent = 'Hold the bars steady, about 4–6 inches from the camera.';
     });
     Quagga.offDetected(onDetected); Quagga.onDetected(onDetected);
   });

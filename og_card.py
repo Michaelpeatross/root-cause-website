@@ -108,9 +108,18 @@ def register_og_card(app):
     def static_with_og(filename):
         if filename in ("og-food-scanner.png", "og-scan.jpg"):
             return og_food_scanner_png()
+        # Flask 3.1 stores the static view as a lambda that accepts keyword
+        # arguments only. A positional call raises TypeError and 500s every
+        # CSS/JS file, which leaves the site unstyled and the scanner dead.
         if orig_static is not None:
-            return orig_static(filename)
-        return Response(b"", status=404)
+            try:
+                return orig_static(filename=filename)
+            except TypeError:
+                return orig_static(filename)
+        from flask import send_from_directory
+        import os
+        folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+        return send_from_directory(folder, filename)
 
     app.view_functions["static"] = static_with_og
     app.view_functions["og_food_scanner_png"] = og_food_scanner_png

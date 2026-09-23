@@ -159,7 +159,8 @@ def register_public_seo_routes(app):
         '.compare-table{width:100%;border-collapse:collapse;font-size:.95rem}'
         '.compare-table th,.compare-table td{border:1px solid #dfe6e9;padding:.7rem .8rem;text-align:left}'
         '.compare-table th{background:#0b3d2a;color:#fff}.compare-table tr:nth-child(even) td{background:#f3faf7}'
-        '.step-grid,.include-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem}'
+        '.step-grid,.include-grid{display:grid;grid-template-columns:1fr;gap:1rem}'
+        '@media(min-width:760px){.step-grid,.include-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}}'
         '.faq details{background:#fff;border-radius:12px;padding:1rem 1.15rem;margin:0 0 .75rem;box-shadow:0 4px 24px rgba(11,61,42,.08)}'
         '.faq summary{cursor:pointer;font-weight:600;color:#0b3d2a}'
         'body{padding-bottom:72px}'
@@ -263,9 +264,9 @@ def register_public_seo_routes(app):
             if '</head>' in html and 'rel="canonical"' not in html:
                 html = html.replace('</head>', extra + '</head>', 1)
             NAV = (
-                '<a href="/scan-food">Scan Food</a>'
-                '<a href="/how-it-works">How it works</a>'
-                '<a href="/sample-report">Sample Report</a>'
+                '<a href="/scan-food">Scan Food</a> '
+                '<a href="/how-it-works">How it works</a> '
+                '<a href="/sample-report">Sample Report</a> '
             )
             if 'href="/scan-food"' not in html:
                 if 'Get Analysis</a>' in html:
@@ -275,9 +276,9 @@ def register_public_seo_routes(app):
             if 'class="site-header"' not in html:
                 header = (
                     '<header class="site-header"><a href="/" class="logo">Root Cause</a><nav>'
-                    '<a href="/scan-food">Scan Food</a>'
-                    '<a href="/how-it-works">How it works</a>'
-                    '<a href="/buy">Get Analysis</a>'
+                    '<a href="/scan-food">Scan Food</a> '
+                    '<a href="/how-it-works">How it works</a> '
+                    '<a href="/buy">Get Analysis</a> '
                     '<a href="/login">Log In</a></nav></header>'
                 )
                 html = html.replace('<body>', '<body>' + header, 1)
