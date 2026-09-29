@@ -23,6 +23,7 @@
   .status-banner.err { background:#fdecea; color:#7a1f16; }
   .status-banner.load { background:#eef6f2; }
   .guest-cta { background:#f7f3e8; border-radius:12px; padding:1rem 1.1rem; }
+  .score-reasons { margin:.25rem 0 .5rem 1.1rem; padding:0; font-size:.92rem; }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 {% endblock %}
@@ -41,11 +42,15 @@
     <p style="margin:.6rem 0 0;"><a class="btn btn-primary" href="{{ url_for('register') }}">Create a free account</a> <a class="btn btn-outline" href="{{ url_for('login') }}">Log in</a></p>
   </div>
   {% endif %}
+  <details class="hint" style="margin:.5rem 0 0;"><summary>How scores work</summary>
+    <p>Scores run 1&ndash;100 and are driven mainly by how processed a food is. Whole, unprocessed foods (fresh produce, eggs, plain meat and fish, beans, nuts, whole grains) score 90&ndash;100. Foods with only kitchen basics added (salt, olive oil, vinegar, spices) score 85&ndash;96. Processed foods land in the middle. Ultra-processed foods (artificial sweeteners or colors, emulsifiers, flavor enhancers, refined syrups, hydrogenated oils) stay below 40 no matter what the nutrition panel says. Nutrition values only adjust a score within its group.</p>
+    <p>Scores are general educational information about food processing. They are not medical or dietary advice and do not diagnose, treat, or prevent any condition.</p>
+  </details>
   <div class="scan-tabs" role="tablist">
     <button type="button" class="active" data-tab="barcode">Barcode camera</button>
     <button type="button" data-tab="type">Type barcode</button>
     <button type="button" data-tab="search">Search name</button>
-    <button type="button" data-tab="photo">Label photo</button>
+    <button type="button" data-tab="photo">Label / food photo</button>
     <button type="button" data-tab="plate">Plate photo</button>
   </div>
   <div id="tab-barcode" class="scan-panel active card">
@@ -73,7 +78,7 @@
     <div id="search-results" style="margin-top:1rem;"></div>
   </div>
   <div id="tab-photo" class="scan-panel card">
-    <p>Photograph the Nutrition Facts panel and ingredient list.</p>
+    <p>Photograph the ingredient list and Nutrition Facts panel. For fresh food with no label (an apple, eggs, a fillet), photograph the food itself.</p>
     <label for="photo">Label photo — upload or use camera</label>
     <input type="file" id="photo" accept="image/jpeg,image/png,image/webp,image/*" capture="environment">
     <p class="hint">Accepted: JPEG, PNG, WEBP. Keep the file under 8 MB.</p>
@@ -104,7 +109,7 @@
     <a class="btn btn-primary" href="{{ url_for('register') }}">Create a free account to save personal filters & nutrition history</a>
   </div>
   {% endif %}
-  <p class="hint" style="margin-top:1.5rem;">Barcode and nutrition-database values may be incomplete. Photo results are estimates. Not medical advice.</p>
+  <p class="hint" style="margin-top:1.5rem;">Barcode and nutrition-database values may be incomplete. Photo results are estimates. Not medical advice. <a href="/privacy">Privacy</a> · <a href="/contact">Support</a>{% if logged_in %} · <a href="/account/delete">Delete account</a>{% endif %}</p>
 </div>
 <script>window.RC_FOOD = { loggedIn: {{ 'true' if logged_in else 'false' }} };</script>
 <script src="{{ url_for('static', filename='js/food_scanner.js') }}"></script>

@@ -47,6 +47,8 @@
     resultEl.innerHTML = '<div class="card">' +
       (r.score != null ? '<div class="score-ring" style="background:' + escapeHtml(r.color || '#555') + '"><div class="num">' + escapeHtml(r.score) + '</div><div>' + escapeHtml(r.label || '') + '</div></div>' : '') +
       '<h2>' + escapeHtml(p.name || 'Food') + '</h2>' +
+      (r.processing_label ? '<p><strong>' + escapeHtml(r.processing_label) + '</strong></p>' : '') +
+      ((r.reasons || []).length ? '<ul class="score-reasons">' + r.reasons.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>' : '') +
       '<p>' + escapeHtml(p.brands || '') + (p.code ? ' · ' + escapeHtml(p.code) : '') + '</p>' +
       '<div class="macro-grid">' +
         '<div><strong>' + fmt(m.calories) + '</strong><div class="hint">kcal</div></div>' +
@@ -135,6 +137,13 @@
     if (!file) { showError('Choose or capture a barcode photo first.'); return; }
     decodeFromFile(file);
   });
+  // App Store Guideline 5.1.2(i): ask before sending personal data (photos) to a third-party AI.
+  function aiConsentOk() {
+    try { if (window.localStorage.getItem('rc_ai_photo_consent') === 'yes') return true; } catch (e) {}
+    var ok = window.confirm('To read this photo, it is sent to Root Cause and our AI provider (xAI) for analysis. The photo is not stored after the result comes back. See our Privacy Policy for details. Continue?');
+    if (ok) { try { window.localStorage.setItem('rc_ai_photo_consent', 'yes'); } catch (e) {} }
+    return ok;
+  }
   function bindPhoto(inputId, previewId, buttonId, clearId, url, loadingText) {
     var input = document.getElementById(inputId);
     var preview = document.getElementById(previewId);
@@ -152,6 +161,7 @@
     if (button) button.addEventListener('click', function () {
       var file = input && input.files && input.files[0];
       if (!file) { showError('Choose or capture a photo first.'); return; }
+      if (!aiConsentOk()) { showError('Photo analysis needs your OK to send the photo to our AI provider. You can still scan barcodes or search by name.'); return; }
       showLoad(loadingText);
       var reader = new FileReader();
       reader.onerror = function () { showError('Could not read that file.'); };

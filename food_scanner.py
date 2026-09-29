@@ -1,4 +1,4 @@
-"""Yuka-style food scanner: barcode, label photo, score 1-100."""
+"""Food scanner: barcode, label photo, whole-food-first score 1-100."""
 import json, re, urllib.parse, urllib.request
 try:
     from report_generator import _parse_lines
@@ -7,13 +7,16 @@ except Exception:
         return []
 
 OFF_UA = 'RootCauseBioenergetics/1.0 (https://www.root-cause-test.com)'
+# Legacy table (pre whole-food-v2); scoring now lives in food_score_v2.py.
 ADDITIVE_PENALTY = {'e621':12,'e627':10,'e631':10,'e102':10,'e110':10,'e129':10,'e211':8,'e320':12,'e321':12,'e951':10,'e950':8,'e955':8,'e250':12,'e251':12,'e150d':6}
+# Personal filters come from the user's own wellness scan. Wording stays
+# preference-based (no diagnosis or treatment claims).
 PERSONAL_TRIGGERS = {
-    'candida': {'keywords':('candida','yeast','fung','sugar','thrush'),'penalize':('sugar','glucose','fructose','sucrose','corn syrup','dextrose','maltodextrin','yeast','soda','juice'),'reason':'Sugar and yeast-heavy foods clash with a candida pattern.'},
-    'dairy': {'keywords':('dairy','milk','lactose','casein','whey'),'penalize':('milk','cream','cheese','butter','whey','casein','lactose','yogurt'),'reason':'Dairy ingredients match a dairy sensitivity pattern.'},
-    'gluten': {'keywords':('gluten','wheat','celiac','gliadin'),'penalize':('wheat','barley','rye','malt','gluten','flour'),'reason':'Gluten grains showed as a sensitivity pattern.'},
-    'gut': {'keywords':('gut','intestin','digest','ibs','bloating','colon'),'penalize':('emulsifier','carrageenan','polysorbate','artificial','hydrogenated'),'reason':'Ultra-processed additives are harder on a stressed gut.'},
-    'liver': {'keywords':('liver','detox','alcohol','hepat'),'penalize':('alcohol','beer','wine','high fructose'),'reason':'Alcohol and heavy additives add detox load.'},
+    'candida': {'keywords':('candida','yeast','fung','sugar','thrush'),'penalize':('sugar','glucose','fructose','sucrose','corn syrup','dextrose','maltodextrin','yeast','soda','juice'),'reason':'Your sugar & yeast filter (from your wellness scan) flags this item.'},
+    'dairy': {'keywords':('dairy','milk','lactose','casein','whey'),'penalize':('milk','cream','cheese','butter','whey','casein','lactose','yogurt'),'reason':'Your dairy filter flags this item.'},
+    'gluten': {'keywords':('gluten','wheat','celiac','gliadin'),'penalize':('wheat','barley','rye','malt','gluten','flour'),'reason':'Your gluten filter flags this item.'},
+    'gut': {'keywords':('gut','intestin','digest','ibs','bloating','colon'),'penalize':('emulsifier','carrageenan','polysorbate','artificial','hydrogenated'),'reason':'Your gut-comfort filter flags these additives.'},
+    'liver': {'keywords':('liver','detox','alcohol','hepat'),'penalize':('alcohol','beer','wine','high fructose'),'reason':'Your alcohol & additive filter flags this item.'},
 }
 
 def _http_get_json(url, timeout=10):
@@ -117,67 +120,22 @@ def client_flags_from_scan(raw_data):
     return sorted(flags)
 
 def score_product(product, personal_flags=None):
-    personal_flags = set(personal_flags or [])
-    nutrients = product.get('nutrients') or {}
-    ingredients = (product.get('ingredients') or '').lower()
-    labels = ' '.join(str(x) for x in (product.get('labels') or [])).lower()
-    additives = product.get('additives') or []
-    nutrition = 70
-    sugars = nutrients.get('sugars')
-    if sugars is not None:
-        nutrition -= 28 if sugars >= 22 else 16 if sugars >= 12 else 8 if sugars >= 5 else 0
-    sat = nutrients.get('sat_fat')
-    if sat is not None:
-        nutrition -= 16 if sat >= 10 else 8 if sat >= 5 else 0
-    salt = nutrients.get('salt')
-    if salt is None and nutrients.get('sodium') is not None:
-        salt = nutrients['sodium'] * 2.5
-    if salt is not None:
-        nutrition -= 14 if salt >= 1.5 else 7 if salt >= 0.8 else 0
-    fiber = nutrients.get('fiber') or 0
-    protein = nutrients.get('protein') or 0
-    if fiber >= 6: nutrition += 6
-    elif fiber >= 3: nutrition += 3
-    if protein >= 10: nutrition += 4
-    nutrition = max(5, min(100, nutrition))
-    additive_score = 80
-    additive_hits = []
-    for tag in additives:
-        c = tag.replace('en:', '')
-        penalty = ADDITIVE_PENALTY.get(c, 3)
-        additive_score -= penalty
-        if penalty >= 8:
-            additive_hits.append(c.upper())
-    nova = product.get('nova')
-    if nova == 4: additive_score -= 18
-    elif nova == 3: additive_score -= 8
-    additive_score = max(5, min(100, additive_score))
-    organic_bonus = 8 if ('organic' in labels or 'en:organic' in labels) else 0
-    personal = 80
-    personal_notes = []
-    haystack = ('%s %s %s' % (ingredients, product.get('name',''), product.get('categories',''))).lower()
-    for flag in personal_flags:
-        spec = PERSONAL_TRIGGERS.get(flag)
-        if not spec:
-            continue
-        hits = [word for word in spec['penalize'] if word in haystack]
-        if hits:
-            personal -= min(28, 8 * len(hits))
-            personal_notes.append(spec['reason'] + ' Flagged: ' + ', '.join(hits[:4]) + '.')
-    personal = max(5, min(100, personal))
-    overall = int(round(max(1, min(100, 0.50*nutrition + 0.30*additive_score + 0.20*personal + organic_bonus*0.4))))
-    if overall >= 75: band, label, color = 'good', 'Good match', '#1b7f4e'
-    elif overall >= 50: band, label, color = 'ok', 'Okay in moderation', '#c9a227'
-    elif overall >= 25: band, label, color = 'poor', 'Poor match', '#d35400'
-    else: band, label, color = 'avoid', 'Better to skip', '#b03a2e'
-    return {'score': overall, 'band': band, 'label': label, 'color': color, 'nutrition_score': int(nutrition), 'additive_score': int(additive_score), 'personal_score': int(personal), 'organic_bonus': organic_bonus, 'additive_hits': additive_hits[:8], 'personal_notes': personal_notes, 'personal_flags': sorted(personal_flags), 'nova': nova, 'nutriscore': product.get('nutriscore') or ''}
+    """Whole-food-first 1-100 score (see food_score_v2.py / SPEC.md)."""
+    from food_score_v2 import score_product_v2
+    return score_product_v2(product, personal_flags, PERSONAL_TRIGGERS)
 
 def extract_label_from_image(image_b64, mime='image/jpeg'):
     try:
         from health_advisor import _grok_vision_chat
     except Exception:
         return None
-    prompt = 'Extract grocery label JSON only: {"barcode":"digits or null","name":"","brand":"","ingredients":"","energy_kcal":null,"carbs_100g":null,"sugars_100g":null,"salt_100g":null,"sat_fat_100g":null,"fiber_100g":null,"protein_100g":null,"sodium_mg":null,"additives":[],"organic":false}'
+    prompt = ('Read this food photo. It may be a packaged label OR an unpackaged food (fruit, vegetable, egg, meat, fish, nuts, grains). '
+              'Copy the ingredient list exactly as printed (empty string if there is no label). Nutrition values per 100 g when shown. '
+              'Return JSON only: {"barcode":"digits or null","name":"","brand":"","ingredients":"","energy_kcal":null,"carbs_100g":null,'
+              '"sugars_100g":null,"salt_100g":null,"sat_fat_100g":null,"fiber_100g":null,"protein_100g":null,"sodium_mg":null,'
+              '"additives":[],"organic":false,"has_label":true,"whole_food":false,'
+              '"food_type":"packaged|produce|egg|meat_fish|legume|nut_seed|whole_grain|dairy|other","nova_estimate":null}. '
+              'Set whole_food true only for a single unprocessed food with nothing added. nova_estimate is 1-4 or null.')
     raw = _grok_vision_chat([{'type':'text','text':prompt},{'type':'image_url','image_url':{'url':'data:%s;base64,%s' % (mime, image_b64),'detail':'high'}}], system='Return valid JSON only.', temperature=0.1, timeout=50)
     if not raw:
         return None
@@ -208,7 +166,21 @@ def product_from_label_extract(extracted):
         text = str(item).lower()
         m = re.search(r'e\s*(\d{3,4}[a-z]?)', text)
         additives.append('e' + m.group(1) if m else text)
-    return {'source':'label-photo','code': re.sub(r'\D+','', str(extracted.get('barcode') or '')),'name': (extracted.get('name') or 'Label photo').strip(),'brands': extracted.get('brand') or '','image':'','ingredients': extracted.get('ingredients') or '','additives': additives,'additives_n': len(additives),'nova': 4 if additives else None,'nutriscore':'','labels': ['en:organic'] if extracted.get('organic') else [],'allergens':[],'categories':'','quantity':'','nutrients': nutrients}
+    ingredients = (extracted.get('ingredients') or '').strip()
+    name = (extracted.get('name') or '').strip()
+    if not (name or ingredients or any(v is not None for v in nutrients.values())):
+        return None
+    # NOVA is derived from the ingredient list by the scorer. The model's
+    # estimate is only used when there is no ingredient list at all.
+    nova = None
+    if not ingredients:
+        try:
+            est = int(extracted.get('nova_estimate')) if extracted.get('nova_estimate') is not None else None
+            nova = est if est in (1, 2, 3, 4) else None
+        except (TypeError, ValueError):
+            nova = None
+    whole_hint = bool(extracted.get('whole_food')) and not ingredients and not additives
+    return {'source':'label-photo','code': re.sub(r'\D+','', str(extracted.get('barcode') or '')),'name': name or 'Food photo','brands': extracted.get('brand') or '','image':'','ingredients': ingredients,'additives': additives,'additives_n': len(additives),'nova': nova,'whole_food_hint': whole_hint,'nutriscore':'','labels': ['en:organic'] if extracted.get('organic') else [],'allergens':[],'categories': extracted.get('food_type') or '','quantity':'','nutrients': nutrients}
 
 def scan_barcode_for_client(code, scan_raw=''):
     digits = re.sub(r'\D+', '', code or '')

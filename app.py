@@ -207,6 +207,15 @@ except Exception as _food_err:
     traceback.print_exc()
 
 try:
+    from account_deletion import register_account_deletion_routes
+    register_account_deletion_routes(
+        app, db, User, Report=Report, ClientDocument=ClientDocument, ReportScanPdf=ReportScanPdf,
+        documents_dir=documents_dir, reports_dir=reports_dir,
+    )
+except Exception as _del_err:
+    print(f"[Root Cause] Account deletion routes not applied: {_del_err}")
+
+try:
     from health_records import register_health_record_routes
     register_health_record_routes(app, db=db)
 except Exception as _hr_err:
