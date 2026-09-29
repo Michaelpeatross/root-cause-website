@@ -12,6 +12,7 @@ natural fat in nuts, eggs, meat or fish are never penalized. Educational
 wellness information only; this is not medical advice.
 """
 import re
+import unicodedata
 
 RUBRIC_VERSION = 'whole-food-v2'
 
@@ -51,6 +52,177 @@ WHOLE_FOODS = (
     'water', 'spring water', 'mineral water', 'sparkling water', 'carbonated water', 'coffee', 'green tea', 'tea',
     'plain yogurt', 'plain greek yogurt',
 )
+
+# French / Spanish names for the same foods. Matched after accent-folding, so
+# "Bananes" and "Plátanos" hit these. Kept separate so English tests stay stable.
+_WHOLE_FOOD_ALIASES = (
+    'banane', 'bananes', 'platano', 'platanos', 'plantain', 'plantains',
+    'pomme', 'pommes', 'manzana', 'manzanas',
+    'naranja', 'naranjas', 'mandarine', 'mandarines', 'clementines',
+    'citron', 'citrons', 'citron vert', 'limon', 'limones', 'lima', 'limas',
+    'raisin', 'raisins', 'uva', 'uvas',
+    'fraise', 'fraises', 'fresa', 'fresas',
+    'myrtille', 'myrtilles', 'arandano', 'arandanos',
+    'framboise', 'framboises', 'frambuesa', 'frambuesas',
+    'mure', 'mures', 'mora', 'moras',
+    'cerise', 'cerises', 'cereza', 'cerezas',
+    'canneberge', 'canneberges',
+    'peche', 'peches', 'melocoton', 'melocotones', 'durazno', 'duraznos',
+    'poire', 'poires', 'pera', 'peras',
+    'prune', 'prunes', 'ciruela', 'ciruelas',
+    'abricot', 'abricots', 'albaricoque', 'albaricoques',
+    'mangue', 'mangues', 'ananas', 'pina', 'papaye',
+    'pasteque', 'sandia', 'grenade', 'granada',
+    'figue', 'figues', 'higo', 'higos',
+    'datte', 'dattes', 'datil', 'datiles',
+    'avocat', 'avocats', 'aguacate', 'aguacates', 'palta', 'paltas',
+    'noix de coco', 'coco', 'olive', 'aceituna', 'aceitunas',
+    'epinard', 'epinards', 'espinaca', 'espinacas',
+    'laitue', 'lechuga', 'roquette', 'rucula', 'chou', 'repollo',
+    'brocoli', 'brocolis', 'chou-fleur', 'chou fleur', 'coliflor',
+    'chou de bruxelles',
+    'carotte', 'carottes', 'zanahoria', 'zanahorias',
+    'celeri', 'apio', 'concombre', 'concombres', 'pepino', 'pepinos',
+    'tomate', 'tomates', 'poivron', 'poivrons', 'pimiento', 'pimientos',
+    'oignon', 'oignons', 'cebolla', 'cebollas', 'ail', 'ajo',
+    'pomme de terre', 'pommes de terre', 'patata', 'patatas', 'papa', 'papas',
+    'patate douce', 'patates douces', 'batata', 'batatas', 'boniato', 'boniatos', 'camote',
+    'betterave', 'betteraves', 'remolacha',
+    'courgette', 'courgettes', 'calabacin', 'calabacines',
+    'courge', 'potiron', 'calabaza',
+    'asperge', 'asperges', 'esparrago', 'esparragos',
+    'haricot vert', 'haricots verts', 'ejote', 'ejotes', 'judia verde', 'judias verdes',
+    'petit pois', 'petits pois', 'guisante', 'guisantes',
+    'mais', 'maiz',
+    'champignon', 'champignons', 'champinon', 'champinones', 'seta', 'setas',
+    'aubergine', 'aubergines', 'berenjena', 'berenjenas',
+    'radis', 'rabano', 'navet', 'nabo', 'poireau', 'poireaux', 'puerro', 'puerros',
+    'artichaut', 'alcachofa', 'gingembre', 'jengibre',
+    'oeuf', 'oeufs', 'huevo', 'huevos',
+    'boeuf', 'carne de res', 'ternera', 'poulet', 'pollo', 'dinde', 'pavo',
+    'porc', 'cerdo', 'agneau', 'cordero',
+    'saumon', 'thon', 'atun', 'cabillaud', 'morue', 'bacalao', 'truite', 'trucha',
+    'sardine', 'sardines', 'sardina', 'sardinas',
+    'crevette', 'crevettes', 'camaron', 'camarones', 'gamba', 'gambas',
+    'poisson', 'pescado', 'lait', 'leche', 'foie', 'higado',
+    'haricots noirs', 'frijoles negros', 'frijoles', 'judias negras',
+    'lentille', 'lentilles', 'lenteja', 'lentejas',
+    'pois chiche', 'pois chiches', 'garbanzo', 'garbanzos',
+    'amande', 'amandes', 'almendra', 'almendras',
+    'noix de cajou', 'cajou', 'anacardo', 'anacardos', 'noix', 'nuez', 'nueces',
+    'noisette', 'noisettes', 'avellana', 'avellanas',
+    'pistache', 'pistaches', 'pistacho', 'pistachos',
+    'cacahuete', 'cacahuetes', 'cacahuate', 'cacahuates', 'mani',
+    'avoine', 'flocons d avoine', 'flocons avoine', 'avena', 'copos de avena',
+    'riz complet', 'riz', 'arroz integral', 'arroz',
+    'sarrasin', 'trigo sarraceno', 'millet', 'mijo', 'orge', 'cebada',
+    'eau', 'agua', 'cafe', 'the vert', 'te verde',
+    'yaourt nature', 'yaourt grec', 'yogur natural', 'yogur griego',
+)
+# Variety, size, grade, and origin words that may sit next to one food name
+# without making it a second ingredient. Not a license to ignore unknown words.
+_DESCRIPTOR_PHRASES = (
+    'granny smith', 'costa rica', 'south africa', 'afrique du sud', 'cote d ivoire', 'ivory coast',
+    'new zealand', 'nouvelle zelande', 'united states', 'etats unis', 'pays bas', 'el salvador',
+    'sri lanka', 'puerto rico', 'dominican republic', 'republique dominicaine',
+    'canary islands', 'iles canaries', 'iles canaries',
+)
+_DESCRIPTOR_TOKENS = frozenset({
+    'variety', 'variete', 'varietal', 'variedad', 'cultivar', 'variedad',
+    'grade', 'classe', 'clase', 'class', 'categorie', 'categoria', 'category', 'cat', 'calidad', 'qualite', 'quality',
+    'calibre', 'caliber', 'cal', 'taille', 'size', 'diametre', 'diametro',
+    'origin', 'origine', 'origen', 'produit', 'producto', 'product', 'produce',
+    'mini', 'maxi', 'small', 'medium', 'large', 'xl', 'extra', 'baby', 'bunch', 'cluster', 'vrac', 'loose', 'bulk',
+    'premium', 'select', 'selection', 'superieure', 'superior', 'premiere', 'premier', 'primera', 'primero', 'first', 'choice',
+    'type', 'tipo', 'sorte', 'kind', 'style',
+    'bio', 'biologique', 'biologico', 'ecologique', 'ecologico', 'fairtrade', 'fair', 'trade', 'equitable',
+    'frais', 'fraiche', 'fraiches', 'fraicheur', 'fresco', 'fresca', 'fresh',
+    'imported', 'import', 'importe', 'importee',
+    'cavendish', 'fuji', 'gala', 'braeburn', 'honeycrisp', 'pink', 'lady', 'golden', 'delicious', 'granny',
+    'williams', 'lacatan', 'latundan', 'burro', 'manzano', 'nain', 'grand',
+    'grenaille', 'charlotte', 'ratte', 'bintje', 'yukon', 'russet',
+    'de', 'du', 'des', 'la', 'le', 'les', 'el', 'los', 'las', 'un', 'une', 'et', 'and', 'y', 'au', 'aux', 'en',
+    'of', 'from', 'avec', 'with', 'dans', 'sur', 'pour', 'par', 'al', 'del',
+    'ecuador', 'equateur', 'colombia', 'colombie', 'peru', 'perou', 'mexico', 'mexique', 'espagne', 'spain',
+    'france', 'italia', 'italy', 'italie', 'maroc', 'morocco', 'bresil', 'brazil', 'brasil',
+    'honduras', 'guatemala', 'panama', 'philippines', 'inde', 'india', 'china', 'chine',
+    'kenya', 'ghana', 'cameroun', 'cameroon', 'madagascar', 'vietnam', 'thailande', 'thailand',
+    'chili', 'chile', 'argentine', 'argentina', 'portugal', 'grece', 'greece', 'turquie', 'turkey',
+    'belgique', 'belgium', 'allemagne', 'germany', 'israel', 'dominique', 'martinique', 'guadeloupe',
+    'canada', 'australia', 'australie', 'japan', 'japon',
+    'environ', 'approx', 'about', 'env', 'no', 'nr', 'num', 'numero', 'n',
+})
+_MEASURE_RE = re.compile(r'^\d+([.,]\d+)?(cm|mm|kg|g|mg|lb|lbs|oz|ml|cl|l|in|pcs|pc|mm)?$')
+_FOOD_PHRASES = tuple(sorted(
+    {f for f in (WHOLE_FOODS + _WHOLE_FOOD_ALIASES) if f},
+    key=lambda s: (len(s.split()), len(s)),
+    reverse=True,
+))
+_FOOD_SET = frozenset(_FOOD_PHRASES)
+_DESC_PHRASES = tuple(sorted({p for p in _DESCRIPTOR_PHRASES if p}, key=lambda s: len(s.split()), reverse=True))
+
+
+def _descriptor_span(tokens, i):
+    for phrase in _DESC_PHRASES:
+        parts = phrase.split()
+        if tokens[i:i + len(parts)] == parts:
+            return len(parts)
+    tok = tokens[i]
+    if _MEASURE_RE.fullmatch(tok) or tok in _DESCRIPTOR_TOKENS or len(tok) == 1:
+        return 1
+    return 0
+
+
+def _food_span(tokens, i):
+    """Longest whole-food phrase starting at i, including simple plurals."""
+    best = 0
+    for phrase in _FOOD_PHRASES:
+        parts = phrase.split()
+        n = len(parts)
+        if n <= best:
+            continue
+        if tokens[i:i + n] == parts:
+            best = n
+    if best:
+        return best
+    if _matches(tokens[i], _FOOD_SET):
+        return 1
+    return 0
+
+
+def _analyze_food_phrase(text):
+    """Return (matched_foods, clean). clean means every token is one food, a descriptor, or a measure."""
+    tokens = _norm(text).split()
+    foods = []
+    i = 0
+    while i < len(tokens):
+        span = _food_span(tokens, i)
+        if span:
+            foods.append(' '.join(tokens[i:i + span]))
+            i += span
+            continue
+        span = _descriptor_span(tokens, i)
+        if span:
+            i += span
+            continue
+        return foods, False
+    return foods, True
+
+
+def _phrase_is_single_whole_food(text):
+    """One known food plus variety/size/grade/origin words, in English, French, or Spanish."""
+    foods, clean = _analyze_food_phrase(text)
+    return clean and len(foods) == 1
+
+
+def _compatible_single_ingredient(text):
+    """True when text does not add a second food or any non-descriptor word."""
+    if not (text or '').strip():
+        return True
+    foods, clean = _analyze_food_phrase(text)
+    return clean and len(foods) <= 1
+
+
 # Items that may appear next to whole foods without leaving "minimally processed".
 KITCHEN_BASICS = (
     'salt', 'sea salt', 'kosher salt', 'himalayan salt', 'water', 'filtered water', 'vinegar', 'apple cider vinegar',
@@ -136,8 +308,14 @@ PLATE_LEVEL_SCORE = {'whole': 100, 'minimal': 92, 'processed': 60, 'ultra': 25}
 
 
 # ---------------------------------------------------------------- helpers
+def _fold_accents(text):
+    text = (text or '').replace('œ', 'oe').replace('Œ', 'oe').replace('æ', 'ae').replace('Æ', 'ae')
+    text = unicodedata.normalize('NFKD', text)
+    return ''.join(ch for ch in text if not unicodedata.combining(ch))
+
+
 def _norm(text):
-    text = (text or '').lower()
+    text = _fold_accents(text).lower()
     text = re.sub(r'100%|\bwhole grain\b|\bwhole wheat\b', ' ', text)
     text = re.sub(r'\b(organic|raw|fresh|frozen|dry|dried|whole|natural|pure|unsalted|roasted|dry roasted|plain|wild[- ]caught|grass[- ]fed|pasture[- ]raised|free[- ]range|cage[- ]free|sprouted|shelled|in shell|unsweetened|filtered|cooked|canned|pasteurized|ultra-pasteurized|cultured|nonfat|non-fat|lowfat|low-fat|reduced fat|skim|grade a)\b', ' ', text)
     text = re.sub(r'[^a-z0-9 \-]+', ' ', text)
@@ -232,15 +410,17 @@ def _band(score):
 
 
 def _looks_whole(product):
+    if _phrase_is_single_whole_food(product.get('name') or ''):
+        return True
     name = _norm(product.get('name'))
     cats = ' '.join(str(c) for c in (product.get('categories_tags') or [])) + ' ' + str(product.get('categories') or '')
     cats = cats.lower()
-    if _matches(name, WHOLE_FOODS):
+    if _matches(name, _FOOD_SET):
         return True
     words = name.split()
     # "Hass avocados", "Large brown eggs", "Organic baby spinach"
     for n in (3, 2, 1):
-        if len(words) >= n and _matches(' '.join(words[-n:]), WHOLE_FOODS):
+        if len(words) >= n and _matches(' '.join(words[-n:]), _FOOD_SET):
             if not re.search(r'\b(bar|bars|chips|crisps|cookie|cookies|cereal|drink|soda|candy|sauce|dressing|mix|flavored|flavoured|snack|juice|butter|jam|jelly|spread|pie|cake|muffin|nuggets|sticks)\b', name):
                 return True
     return any(('en:' + tag) in cats or tag.replace('-', ' ') in cats for tag in ('fresh-vegetables', 'fresh-fruits', 'eggs', 'fresh-meats', 'fishes'))
@@ -279,7 +459,7 @@ def classify_processing(product):
 
     for item in items:
         name = _base_name(item)
-        if _matches(name, WHOLE_FOODS):
+        if _matches(name, _FOOD_SET) or _phrase_is_single_whole_food(name):
             details['whole'].append(name)
         elif name in KITCHEN_BASICS or _is_benign(name):
             details['basics'].append(name)
@@ -299,6 +479,11 @@ def classify_processing(product):
         return '1', 'Open Food Facts NOVA', details
     if nova == 2 and len(items) <= 2:
         return '2', 'Open Food Facts NOVA', details
+    # Product name is one whole food, and the only ingredient text is that food
+    # or variety/size/grade/origin words. Unknown extra words do not count.
+    if len(items) <= 1 and (_phrase_is_single_whole_food(product.get('name') or '') or _looks_whole(product)):
+        if all(_compatible_single_ingredient(it) for it in items):
+            return '1', 'whole-food name', details
     return '3', 'ingredient analysis', details
 
 

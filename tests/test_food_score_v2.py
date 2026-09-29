@@ -140,3 +140,34 @@ def test_real_open_food_facts_products():
         if code in data:
             r = score_product(normalize_off_product(data[code], code))
             assert rng[0] <= r['score'] <= rng[1], (code, r)
+
+
+def test_french_banana_variety_line_is_whole_food_not_processed():
+    """OFF 3192340348960: one French food plus grade/size words, and nova_group is empty."""
+    ingredient = 'Bananes variété Cavendish Cat 1 calibre 14cm mini'
+    named = score_product(P('Bananes', ingredient, sugars=11.9, fiber=2.6))
+    assert named['processing_tier'] == '1', named
+    assert 90 <= named['score'] <= 100, named
+    # The ingredient phrase itself is enough, even if the product name is not a food.
+    phrase_only = score_product(P('Product', ingredient))
+    assert phrase_only['processing_tier'] == '1' and phrase_only['score'] >= 90
+    # Grade/origin text with no second ingredient, when the name is the food.
+    grade_only = score_product(P('Bananes', 'Cavendish Cat 1 calibre 14cm mini'))
+    assert grade_only['processing_tier'] == '1' and grade_only['score'] >= 90
+
+
+def test_spanish_produce_variety_line_is_whole_food():
+    r = score_product(P('Manzanas', 'Manzanas variedad Fuji categoría extra calibre 80'))
+    assert r['processing_tier'] == '1' and 90 <= r['score'] <= 100
+
+
+def test_short_unknown_ingredient_is_not_scored_as_whole_food():
+    mystery = score_product(P('Snack bits', 'xqzblend'))
+    assert mystery['processing_tier'] != '1' and mystery['score'] < 90
+    # A known whole-food name does not rescue a non-food ingredient blob.
+    assert score_product(P('Bananes', 'xqzblend'))['processing_tier'] != '1'
+    # Descriptor-only text is not a whole food unless the name is one.
+    assert score_product(P('Snack', 'mini'))['processing_tier'] != '1'
+    # A second ingredient still keeps it out of tier 1.
+    assert score_product(P('Bananes', 'bananes, sucre'))['processing_tier'] != '1'
+    assert score_product(P('Bananas', 'banana chips'))['score'] < 90
