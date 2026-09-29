@@ -16,10 +16,10 @@
   var lastCode = ''; var lastAt = 0; var running = false;
   function escapeHtml(text) {
     return String(text == null ? '' : text)
-      .replace(/&/g, '&')
-      .replace(/</g, '<')
-      .replace(/>/g, '>')
-      .replace(/"/g, '"');
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
   function showError(msg) {
     resultEl.hidden = false;
