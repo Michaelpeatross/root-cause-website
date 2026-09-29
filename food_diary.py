@@ -1,6 +1,10 @@
 """Meal photo diary and daily macro totals."""
 import json, os, re
 from datetime import datetime
+try:
+    from central_time import central_now
+except Exception:  # pragma: no cover
+    central_now = datetime.now
 
 try:
     from persistent_storage import setup_persistent_paths
@@ -32,10 +36,11 @@ def save_meal(email, meal):
     thumb = meal.get('thumbnail') or ''
     if not (str(thumb).startswith('http://') or str(thumb).startswith('https://')):
         thumb = ''
+    now = central_now()  # site convention: America/Chicago, so "today" matches the user's day
     entry = {
-        'id': datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
-        'eaten_at': meal.get('eaten_at') or datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC'),
-        'day': (meal.get('eaten_at') or datetime.utcnow().strftime('%Y-%m-%d'))[:10],
+        'id': now.strftime('%Y%m%d%H%M%S%f'),
+        'eaten_at': meal.get('eaten_at') or now.strftime('%Y-%m-%d %H:%M ') + (now.tzname() or 'CT'),
+        'day': (meal.get('eaten_at') or now.strftime('%Y-%m-%d'))[:10],
         'name': meal.get('name') or 'Meal photo',
         'portion': meal.get('portion') or '',
         'calories': meal.get('calories'),
@@ -84,6 +89,14 @@ def daily_summary(email, days=14):
         for key in ('calories', 'protein', 'carbs', 'fat', 'sugar'):
             bucket[key] = int(round(bucket[key]))
         out.append(bucket)
-    today = datetime.utcnow().strftime('%Y-%m-%d')
+    today = central_now().strftime('%Y-%m-%d')
     today_row = next((r for r in out if r['day'] == today), {'day': today, 'meals': 0, 'calories': 0, 'protein': 0, 'carbs': 0, 'fat': 0, 'sugar': 0, 'avg_score': None})
     return {'today': today_row, 'days': out, 'meals': rows[:80]}
+
+def delete_meals(email):
+    """Remove the whole nutrition log for this account (used by account deletion)."""
+    path = os.path.join(DIARY_DIR, _safe(email) + '.json')
+    if os.path.isfile(path):
+        os.remove(path)
+        return True
+    return False

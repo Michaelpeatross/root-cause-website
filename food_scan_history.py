@@ -2,6 +2,10 @@
 import json, os, re
 from datetime import datetime
 try:
+    from central_time import central_now
+except Exception:  # pragma: no cover
+    central_now = datetime.now
+try:
     from persistent_storage import setup_persistent_paths
     _PATHS = setup_persistent_paths(os.path.dirname(os.path.abspath(__file__)))
     HISTORY_DIR = os.path.join(_PATHS.get('data_dir') or os.path.dirname(os.path.abspath(__file__)), 'food_scans')
@@ -29,9 +33,10 @@ def load_history(email):
 def save_scan(email, payload):
     product = (payload or {}).get('product') or {}
     rating = (payload or {}).get('rating') or {}
+    now = central_now()
     entry = {
-        'id': datetime.utcnow().strftime('%Y%m%d%H%M%S%f'),
-        'scanned_at': datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC'),
+        'id': now.strftime('%Y%m%d%H%M%S%f'),
+        'scanned_at': now.strftime('%Y-%m-%d %H:%M ') + (now.tzname() or 'CT'),
         'code': product.get('code') or '',
         'name': product.get('name') or 'Unknown product',
         'brands': product.get('brands') or '',
@@ -42,6 +47,8 @@ def save_scan(email, payload):
         'nutrition_score': rating.get('nutrition_score'),
         'additive_score': rating.get('additive_score'),
         'personal_score': rating.get('personal_score'),
+        'processing_label': rating.get('processing_label') or '',
+        'rubric_version': rating.get('rubric_version') or 'v1',
     }
     rows = load_history(email)
     rows.insert(0, entry)
@@ -60,3 +67,11 @@ def sorted_history(email, sort='date_desc'):
     else:
         rows.sort(key=lambda r: r.get('scanned_at') or '', reverse=True)
     return rows
+
+def delete_history(email):
+    """Remove all saved food scans for this account (used by account deletion)."""
+    path = os.path.join(HISTORY_DIR, _safe_email(email) + '.json')
+    if os.path.isfile(path):
+        os.remove(path)
+        return True
+    return False

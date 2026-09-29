@@ -1,0 +1,214 @@
+{
+ "0016000275287": {
+  "additives_tags": [
+   "en:e340",
+   "en:e340iii"
+  ],
+  "brands": "Cheerios",
+  "categories": "Breakfast cereals",
+  "ingredients_text": "Whole grain oats, corn starch, sugar, salt, tripotassium phosphate, vitamin e (mixed tocopherols) added to preserve freshness,vitamins and minerals: calcium carbonate, iron and zinc (mineral nutrients), vitamin c (sodium ascorbate), a b vitamin (niacinamide), vitamin b6 (pyridoxine hydrochloride), vitamin a (palmitate), vitamin b1 (thiamin mononitrate), a b vitamin (folic acid), vitamin b12, vitamin d3",
+  "ingredients_text_en": "Whole Grain Oats, Corn Starch, Sugar, Salt, Tripotassium Phosphate, Vitamin E (mixed tocopherols), Calcium Carbonate, Iron, Zinc, Vitamin C (sodium ascorbate), A B Vitamin (niacinamide), Vitamin B6 (pyridoxine hydrochloride), Vitamin A (palmitate), Vitamin B1 (thiamin mononitrate), A B Vitamin (folic acid), Vitamin B12, Vitamin D3",
+  "labels_tags": [
+   "en:kosher",
+   "en:orthodox-union-kosher",
+   "en:vitamin-b12-source"
+  ],
+  "nutriments": {
+   "carbohydrates_100g": 74.3589743589744,
+   "energy-kcal_100g": 358.974358974359,
+   "fat_100g": 6.41025641025641,
+   "fiber_100g": 10.2564102564103,
+   "proteins_100g": 12.8205128205128,
+   "salt_100g": 1.21794871794872,
+   "saturated-fat_100g": 1.28205128205128,
+   "sodium_100g": 0.487179487179487,
+   "sugars_100g": 5.12820512820513
+  },
+  "nutriscore_grade": "c",
+  "product_name": "Cheerios"
+ },
+ "0028400064057": {
+  "categories": "Corn chips",
+  "ingredients_text": "corn, vegetable oil (corn, canola, and/or sunflower oil), and salt,",
+  "ingredients_text_en": "corn, vegetable oil (corn, canola, and/or sunflower oil), and salt,",
+  "nova_group": 3,
+  "nutriments": {
+   "carbohydrates_100g": 64.29,
+   "energy-kcal_100g": 536,
+   "fat_100g": 25,
+   "fiber_100g": 3.6,
+   "proteins_100g": 7.14,
+   "salt_100g": 1.0275,
+   "saturated-fat_100g": 3.57,
+   "sodium_100g": 0.411,
+   "sugars_100g": 0
+  },
+  "nutriscore_grade": "d",
+  "product_name": "Tostitos Bite Size Tortilla Chips 13 Ounce Plastic Bag"
+ },
+ "0028400090858": {
+  "brands": "Lay's",
+  "categories": "Cheeses, Potato crisps",
+  "ingredients_text": "pasteurized milk, cheese cultures, salt, microbial enzymes, annatto color",
+  "ingredients_text_en": "pasteurized milk, cheese cultures, salt, microbial enzymes, annatto color",
+  "labels_tags": [
+   "en:no-gluten",
+   "en:kosher",
+   "en:no-artificial-flavors",
+   "en:no-preservatives",
+   "en:certified-gluten-free",
+   "en:orthodox-union-kosher"
+  ],
+  "nova_group": 3,
+  "nutriments": {
+   "carbohydrates_100g": 53.0035335689046,
+   "energy-kcal_100g": 565.371024734982,
+   "fat_100g": 35.3356890459364,
+   "fiber_100g": 3.53356890459364,
+   "proteins_100g": 7.06713780918728,
+   "salt_100g": 1.23674911660777,
+   "saturated-fat_100g": 5.30035335689046,
+   "sodium_100g": 0.49469964664311,
+   "sugars_100g": 3.53356890459364
+  },
+  "nutriscore_grade": "d",
+  "product_name": "Classic Potato Chips"
+ },
+ "0038000138416": {
+  "additives_tags": [
+   "en:e471"
+  ],
+  "brands": "Pringles",
+  "categories": "Stacked extruded potato crisps",
+  "ingredients_text": "DRIED POTATOES, VEGETABLE OIL (CORN, COTTONSEED, HIGH OLEIC SOYBEAN, SUNFLOWER OIL), DEGERMINATED YELLOW CORN FLOUR, CORNSTARCH, RICE FLOUR, MALTODEXTRIN, MONO -  AND DIGLYCERIDES, SALT, WHEAT STARCH.",
+  "ingredients_text_en": "DRIED POTATOES, VEGETABLE OIL (CORN, COTTONSEED, HIGH OLEIC SOYBEAN, SUNFLOWER OIL), DEGERMINATED YELLOW CORN FLOUR, CORNSTARCH, RICE FLOUR, MALTODEXTRIN, MONO -  AND DIGLYCERIDES, SALT, WHEAT STARCH.",
+  "labels_tags": [
+   "en:kosher",
+   "en:contains-gmos",
+   "en:orthodox-union-kosher"
+  ],
+  "nova_group": 4,
+  "nutriments": {
+   "carbohydrates_100g": 57,
+   "energy-kcal_100g": 536,
+   "fat_100g": 32,
+   "fiber_100g": 4,
+   "proteins_100g": 3.5,
+   "salt_100g": 1.34,
+   "saturated-fat_100g": 9,
+   "sodium_100g": 0.536,
+   "sugars_100g": 1
+  },
+  "nutriscore_grade": "e",
+  "product_name": "Original Potato Crisps"
+ },
+ "0070038640431": {
+  "brands": "Clearly Organic",
+  "categories": "Canned common beans",
+  "ingredients_text": "Water, organic black beans, organic chili pepper, sea salt, organic tomato paste, organic cane sugar, organic corn starch, organic expeller pressed canola oil, organic onion powder, organic brown rice flour, organic cumin, organic distilled vinegar, organic garlic powder, organic cayenne pepper, organic coriander.",
+  "ingredients_text_en": "Water, organic black beans, organic chili pepper, sea salt, organic tomato paste, organic cane sugar, organic corn starch, organic expeller pressed canola oil, organic onion powder, organic brown rice flour, organic cumin, organic distilled vinegar, organic garlic powder, organic cayenne pepper, organic coriander.",
+  "labels_tags": [
+   "en:organic"
+  ],
+  "nova_group": 3,
+  "nutriments": {
+   "carbohydrates_100g": 15.38,
+   "energy-kcal_100g": 85,
+   "fat_100g": 0.77,
+   "fiber_100g": 3.8,
+   "proteins_100g": 5.38,
+   "salt_100g": 0.5775,
+   "saturated-fat_100g": 0,
+   "sodium_100g": 0.231,
+   "sugars_100g": 0.77
+  },
+  "nutriscore_grade": "a",
+  "product_name": "Organic Spicy Black Beans"
+ },
+ "0850015600111": {
+  "brands": "CoJack",
+  "categories": "Black beans, Dry beans",
+  "ingredients_text": "Black Beans",
+  "ingredients_text_en": "Black Beans",
+  "nova_group": 1,
+  "nutriments": {},
+  "nutriscore_grade": "unknown",
+  "product_name": "Black Beans"
+ },
+ "3017620422003": {
+  "additives_tags": [
+   "en:e322",
+   "en:e322i"
+  ],
+  "brands": "Nutella, Ferrero",
+  "categories": "Confectionary based spreads, Petit-d\u00e9jeuners, Produits \u00e0 tartiner, Produits \u00e0 tartiner sucr\u00e9s, P\u00e2tes \u00e0 tartiner, fr:Nutella, fr:Nuttela",
+  "ingredients_text": "Sucre, huile de palme, NOISETTES 13%, cacao maigre 7,4%, LAIT \u00e9cr\u00e9m\u00e9 en poudre 6,6%, LACTOSERUM en poudre, \u00e9mulsifiants: l\u00e9cithines [SOJA), vanilline. Sans gluten.",
+  "ingredients_text_en": "Sugar, vegetable fat (palm), hazelnuts (13%), skimmed milk powder (8.7%), fat-reduced cocoa powder (7.4%), emulsifier: lecithins (soya), flavouring (vanillin).",
+  "labels_tags": [
+   "en:vegetarian",
+   "en:no-gluten",
+   "fr:triman"
+  ],
+  "nova_group": 4,
+  "nutriments": {
+   "carbohydrates_100g": 57.5,
+   "energy-kcal_100g": 539,
+   "fat_100g": 30.9,
+   "fiber_100g": 0,
+   "proteins_100g": 6.3,
+   "salt_100g": 0.107,
+   "saturated-fat_100g": 10.6,
+   "sodium_100g": 0.0428,
+   "sugars_100g": 56.3
+  },
+  "nutriscore_grade": "e",
+  "product_name": "Nutella"
+ },
+ "5000306004240": {
+  "brands": "Clarence Court",
+  "categories": "Free-range chicken eggs",
+  "ingredients_text": "Free range eggs.",
+  "ingredients_text_en": "Free range eggs.",
+  "nova_group": 1,
+  "nutriments": {
+   "carbohydrates_100g": 0,
+   "energy-kcal_100g": 131,
+   "fat_100g": 9,
+   "fiber_100g": 0,
+   "proteins_100g": 12.6,
+   "salt_100g": 0.3825,
+   "saturated-fat_100g": 2.5,
+   "sodium_100g": 0.156,
+   "sugars_100g": 0
+  },
+  "nutriscore_grade": "a",
+  "product_name": "Burford Browns 6 Large Eggs"
+ },
+ "5449000000996": {
+  "additives_tags": [
+   "en:e150d",
+   "en:e338"
+  ],
+  "brands": "COCA-COLA SERVICES SA/NV",
+  "categories": "Colas, pt:bebidas cafe\u00edna",
+  "ingredients_text": "Agua carbonatada, az\u00facar, colorante (E-150d), acidulante (\u00e1cido fosf\u00f3rico), aromas naturales (contiene cafe\u00edna).",
+  "ingredients_text_en": "carbonated water, sugar, colour (caramel e150d), acid (phosphoric acid), natural flavourings, caffeine flavouring,",
+  "labels_tags": [
+   "en:made-in-the-eu",
+   "fr:triman"
+  ],
+  "nova_group": 4,
+  "nutriments": {
+   "carbohydrates_100g": 10.6,
+   "energy-kcal_100g": 42,
+   "fat_100g": 0,
+   "proteins_100g": 0,
+   "salt_100g": 0,
+   "saturated-fat_100g": 0,
+   "sodium_100g": 0,
+   "sugars_100g": 10.6
+  },
+  "nutriscore_grade": "e",
+  "product_name": "Coca-Cola Original"
+ }
+}
