@@ -16,8 +16,40 @@ def _decode_agency_html():
     return zlib.decompress(base64.b64decode(raw)).decode("utf-8")
 
 
+_BUSINESS_NAV = (
+    '<span style="display:flex;align-items:center;gap:1.1rem;">'
+    '<a href="/business" style="font-size:0.875rem;color:var(--text-muted);">Business</a>'
+)
+_BUSINESS_FOOTER = (
+    ' · <a href="/business" style="color:var(--text-dim);text-decoration:underline;'
+    'text-underline-offset:2px;">Business services</a>'
+    ' · <a href="/ai-transformation" style="color:var(--text-dim);text-decoration:underline;'
+    'text-underline-offset:2px;">AI Transformation</a>'
+)
+
+
+def _add_business_links(html):
+    """Add a small /business nav + footer link to the ApexForge agency page (idempotent)."""
+    if 'href="/business"' in html:
+        return html
+    import re
+
+    html = re.sub(
+        r'(<a class="nav-cta"[^>]*>[^<]*</a>)',
+        lambda m: _BUSINESS_NAV + m.group(1) + "</span>",
+        html,
+        count=1,
+    )
+    html = html.replace(
+        "Separate from Root Cause Test.</p>",
+        "Separate from Root Cause Test." + _BUSINESS_FOOTER + "</p>",
+        1,
+    )
+    return html
+
+
 def register_agency_routes(app):
-    """Serve /agency and /apexforge. Does not touch Stripe/scan checkout."""
+    """Serve /agency, /apexforge, /business, /ai-transformation. Does not touch Stripe/scan checkout."""
     from flask import Response, request
 
     def _load_html():
@@ -43,11 +75,36 @@ def register_agency_routes(app):
                 status=503,
                 mimetype="text/html",
             )
-        return Response(html, mimetype="text/html; charset=utf-8")
+        return Response(_add_business_links(html), mimetype="text/html; charset=utf-8")
+
+    def _static_agency_page(filename, title):
+        def _view():
+            path = os.path.join(app.root_path, "templates", filename)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    html = fh.read()
+            except Exception as exc:
+                print(f"[ApexForge] {filename} unavailable: {exc}")
+                return Response(
+                    f"<!DOCTYPE html><html><body><h1>ApexForge {title}</h1>"
+                    "<p>Page temporarily unavailable.</p>"
+                    '<p><a href="/agency">ApexForge</a></p>'
+                    "</body></html>",
+                    status=503,
+                    mimetype="text/html",
+                )
+            return Response(html, mimetype="text/html; charset=utf-8")
+
+        return _view
+
+    _business_page = _static_agency_page("business.html", "Business")
+    _ai_page = _static_agency_page("ai_transformation.html", "AI Transformation")
 
     routes = [
         ("/agency", "apexforge_agency", _agency_page),
         ("/apexforge", "apexforge_alias", _agency_page),
+        ("/business", "apexforge_business", _business_page),
+        ("/ai-transformation", "apexforge_ai_transformation", _ai_page),
     ]
     existing = {rule.endpoint for rule in app.url_map.iter_rules()}
     for path, endpoint, view in routes:
@@ -56,7 +113,7 @@ def register_agency_routes(app):
             app.add_url_rule(path, endpoint, view, methods=["GET", "HEAD"])
 
     # Root Cause seo_routes injects footer/nav into all HTML. Skip that for ApexForge pages.
-    agency_paths = {"/agency", "/apexforge"}
+    agency_paths = {"/agency", "/apexforge", "/business", "/ai-transformation"}
 
     def _wrap_seo_processors():
         wrapped = 0
@@ -85,6 +142,6 @@ def register_agency_routes(app):
 
     n = _wrap_seo_processors()
     print(
-        "[ApexForge] Registered /agency and /apexforge "
+        "[ApexForge] Registered /agency, /apexforge, /business, /ai-transformation "
         f"(marketing agency landing; SEO chrome wrappers={n})"
     )
