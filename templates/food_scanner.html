@@ -25,7 +25,6 @@
   .guest-cta { background:#f7f3e8; border-radius:12px; padding:1rem 1.1rem; }
   .score-reasons { margin:.25rem 0 .5rem 1.1rem; padding:0; font-size:.92rem; }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 {% endblock %}
 {% block content %}
 <div class="container scan-wrap">
@@ -61,9 +60,11 @@
     </div>
     <div id="reader" aria-label="Live barcode camera preview"></div>
     <p id="cam-status" class="hint">Camera is off until you tap Start camera.</p>
-    <p><strong>Camera missed?</strong> Upload or capture a close photo of the bars only.</p>
-    <label for="barcode-photo">Barcode photo (JPEG, PNG, WEBP)</label>
-    <input type="file" id="barcode-photo" accept="image/jpeg,image/png,image/webp,image/*" capture="environment">
+    <p><strong>Camera missed?</strong> Take a photo or choose one from your library. Fill the frame with the bars only.</p>
+    <label for="barcode-photo">Barcode photo (JPEG, PNG, WEBP, HEIC)</label>
+    <input type="file" id="barcode-photo" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,image/*">
+    <div class="preview-wrap"><img id="barcode-preview" alt="Barcode photo preview" hidden></div>
+    <p class="hint">Choosing a photo starts the read. iPhone HEIC is accepted. If the live camera is on, it pauses so the photo is what gets read.</p>
     <p><button type="button" class="btn btn-primary" id="decode-barcode-photo">Read barcode from photo</button></p>
   </div>
   <div id="tab-type" class="scan-panel card">
@@ -80,8 +81,8 @@
   <div id="tab-photo" class="scan-panel card">
     <p>Photograph the ingredient list and Nutrition Facts panel. For fresh food with no label (an apple, eggs, a fillet), photograph the food itself.</p>
     <label for="photo">Label photo — upload or use camera</label>
-    <input type="file" id="photo" accept="image/jpeg,image/png,image/webp,image/*" capture="environment">
-    <p class="hint">Accepted: JPEG, PNG, WEBP. Keep the file under 8 MB.</p>
+    <input type="file" id="photo" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,image/*">
+    <p class="hint">Accepted: JPEG, PNG, WEBP, or iPhone HEIC. Keep the file under 8 MB.</p>
     <div class="preview-wrap"><img id="preview" alt="Label preview" hidden></div>
     <p><button type="button" class="btn btn-primary" id="score-photo">Estimate from label</button>
        <button type="button" class="btn btn-outline" id="clear-photo">Remove photo</button></p>
@@ -89,8 +90,8 @@
   <div id="tab-plate" class="scan-panel card">
     <p>Photograph the meal on the plate in good light.</p>
     <label for="plate">Plate photo — upload or use camera</label>
-    <input type="file" id="plate" accept="image/jpeg,image/png,image/webp,image/*" capture="environment">
-    <p class="hint">Accepted: JPEG, PNG, WEBP. Keep the file under 8 MB.</p>
+    <input type="file" id="plate" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,image/*">
+    <p class="hint">Accepted: JPEG, PNG, WEBP, or iPhone HEIC. Keep the file under 8 MB.</p>
     <div class="preview-wrap"><img id="plate-preview" alt="Plate preview" hidden></div>
     <p><button type="button" class="btn btn-primary" id="score-plate">Estimate this meal</button>
        <button type="button" class="btn btn-outline" id="clear-plate">Remove photo</button></p>
@@ -112,5 +113,7 @@
   <p class="hint" style="margin-top:1.5rem;">Barcode and nutrition-database values may be incomplete. Photo results are estimates. Not medical advice. <a href="/privacy">Privacy</a> · <a href="/contact">Support</a>{% if logged_in %} · <a href="/account/delete">Delete account</a>{% endif %}</p>
 </div>
 <script>window.RC_FOOD = { loggedIn: {{ 'true' if logged_in else 'false' }} };</script>
-<script src="{{ url_for('static', filename='js/food_scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/vendor/quagga.min.js') }}?v=20260929iphone" onerror="window.RC_QUAGGA_FAILED=true"></script>
+<script src="{{ url_for('static', filename='js/barcode_photo_logic.js') }}?v=20260929iphone"></script>
+<script src="{{ url_for('static', filename='js/food_scanner.js') }}?v=20260929iphone"></script>
 {% endblock %}
