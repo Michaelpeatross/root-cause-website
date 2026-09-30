@@ -118,24 +118,215 @@
       });
     });
   });
-  function decodeFromFile(file) {
-    if (!file || typeof Quagga === 'undefined') { showError('Scanner library not ready. Refresh the page.'); return; }
-    if (file.size > 8 * 1024 * 1024) { showError('That photo is larger than 8 MB.'); return; }
-    showLoad('Reading barcode from photo…');
-    Quagga.decodeSingle({
-      src: URL.createObjectURL(file), numOfWorkers: 0, inputStream: { size: 1600 },
-      decoder: { readers: ['upc_reader', 'upc_e_reader', 'ean_reader', 'ean_8_reader', 'code_128_reader'] }, locate: true
-    }, function (result) {
-      if (result && result.codeResult && result.codeResult.code) scoreBarcode(result.codeResult.code);
-      else showError('Could not read bars in that photo. Fill the frame with only the barcode.');
+  function photoMessages() {
+    return (window.RCBarcodePhoto && window.RCBarcodePhoto.MESSAGES) || {
+      missing: 'No photo was uploaded. Choose a barcode photo and try again.',
+      unreadable: 'The photo uploaded but could not be opened. Use a JPEG, PNG, WEBP, or HEIC image.',
+      libMissing: 'Barcode scanner library failed to load. Refresh the page. You can still type the barcode.',
+      cameraLib: 'Barcode scanner library failed to load, so the live camera cannot start. Refresh the page, or type the barcode.'
+    };
+  }
+  function readArrayBuffer(file) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onerror = function () { reject(new Error('read')); };
+      reader.onload = function () { resolve(reader.result); };
+      reader.readAsArrayBuffer(file);
     });
+  }
+  function bufferToDataUrl(buf, mime) {
+    return new Promise(function (resolve, reject) {
+      var blob = new Blob([buf], { type: mime || 'image/jpeg' });
+      var reader = new FileReader();
+      reader.onerror = function () { reject(new Error('read')); };
+      reader.onload = function () { resolve(String(reader.result || '')); };
+      reader.readAsDataURL(blob);
+    });
+  }
+  function loadImageElement(blob) {
+    return new Promise(function (resolve, reject) {
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function () {
+        URL.revokeObjectURL(url);
+        if (!img.naturalWidth || !img.naturalHeight) reject(new Error('unreadable'));
+        else resolve(img);
+      };
+      img.onerror = function () {
+        URL.revokeObjectURL(url);
+        reject(new Error('unreadable'));
+      };
+      img.src = url;
+    });
+  }
+  function imageToJpegDataUrl(img) {
+    var maxSide = 1600;
+    var scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    var w = Math.max(1, Math.round(img.naturalWidth * scale));
+    var h = Math.max(1, Math.round(img.naturalHeight * scale));
+    var canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0, w, h);
+    var dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    if (!dataUrl || dataUrl.indexOf('data:image') !== 0) throw new Error('unreadable');
+    return dataUrl;
+  }
+  function nativeDetect(img) {
+    if (typeof window.BarcodeDetector !== 'function') return Promise.resolve('');
+    var detector;
+    try { detector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39'] }); }
+    catch (e1) {
+      try { detector = new window.BarcodeDetector(); }
+      catch (e2) { return Promise.resolve(''); }
+    }
+    return detector.detect(img).then(function (codes) {
+      var raw = codes && codes[0] && (codes[0].rawValue || '');
+      return String(raw || '');
+    }).catch(function () { return ''; });
+  }
+  function runQuaggaOnDataUrl(dataUrl) {
+    return new Promise(function (resolve, reject) {
+      var settled = false;
+      function finish(result, isErr) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (isErr) reject(result instanceof Error ? result : new Error('decode'));
+        else resolve(result);
+      }
+      var timer = setTimeout(function () { finish(new Error('timeout'), true); }, 12000);
+      try {
+        var pending = Quagga.decodeSingle({
+          src: dataUrl,
+          numOfWorkers: 0,
+          inputStream: { size: 1600 },
+          decoder: { readers: ['upc_reader', 'upc_e_reader', 'ean_reader', 'ean_8_reader', 'code_128_reader'] },
+          locate: true
+        }, function (result) { finish(result, false); });
+        if (pending && typeof pending.then === 'function') {
+          pending.then(function (result) { finish(result, false); }).catch(function (err) { finish(err, true); });
+        }
+      } catch (err) {
+        finish(err, true);
+      }
+    });
+  }
+  /* Live camera and decodeSingle share Quagga's global "processed" bus.
+     Stop the camera before a still photo or the next camera frame (often not
+     the barcode) is what gets reported. */
+  function stopLiveCameraForPhoto() {
+    var wasRunning = running;
+    running = false;
+    if (typeof Quagga === 'undefined') return Promise.resolve(wasRunning);
+    try { Quagga.offDetected(onDetected); } catch (e) {}
+    try {
+      var stopped = Quagga.stop();
+      if (stopped && typeof stopped.then === 'function') {
+        return stopped.then(function () { return wasRunning; }, function () { return wasRunning; });
+      }
+    } catch (e2) {}
+    return Promise.resolve(wasRunning);
+  }
+  var pendingBarcodeFile = null;
+  function showBarcodePreview(blob) {
+    var preview = document.getElementById('barcode-preview');
+    if (!preview) return;
+    if (preview._rcUrl) URL.revokeObjectURL(preview._rcUrl);
+    var url = URL.createObjectURL(blob);
+    preview._rcUrl = url;
+    preview.src = url;
+    preview.hidden = false;
+  }
+  function decodeFromFile(file) {
+    var Photo = window.RCBarcodePhoto;
+    if (!Photo) { showError(photoMessages().libMissing); return; }
+    var gate = Photo.barcodePhotoOutcome({ fileMeta: file || null });
+    if (!gate.ok) { showError(gate.message); return; }
+    showLoad('Reading barcode from photo…');
+    var handled = function (err) { err.handled = true; return Promise.reject(err); };
+    // Start the read in this turn. iOS can drop the file if the input is cleared first.
+    var readPromise = readArrayBuffer(file);
+    stopLiveCameraForPhoto().then(function (wasRunning) {
+      if (wasRunning && camStatus) camStatus.textContent = 'Camera paused to read the photo.';
+      return readPromise;
+    }).then(function (buf) {
+      var bytes = new Uint8Array(buf || new ArrayBuffer(0));
+      var kind = Photo.sniffImageKind(bytes);
+      var afterRead = Photo.barcodePhotoOutcome({ fileMeta: file, byteLength: bytes.length, kind: kind });
+      if (!afterRead.ok) { showError(afterRead.message); return handled(new Error('read')); }
+      var mime = kind === 'png' ? 'image/png' : (kind === 'webp' ? 'image/webp' : (kind === 'jpeg' ? 'image/jpeg' : (file.type || 'image/jpeg')));
+      var blob = new Blob([buf], { type: mime });
+      showBarcodePreview(blob);
+      return loadImageElement(blob).then(function (img) {
+        return { img: img, buf: buf, kind: kind, mime: mime };
+      }, function () {
+        var fail = Photo.barcodePhotoOutcome({ fileMeta: file, byteLength: bytes.length, kind: kind, imageOpened: false });
+        showError(fail.message);
+        return handled(new Error('open'));
+      });
+    }).then(function (info) {
+      return nativeDetect(info.img).then(function (nativeCode) {
+        if (nativeCode) return { code: nativeCode, quaggaLoaded: typeof Quagga !== 'undefined' };
+        if (typeof Quagga === 'undefined') return { code: '', quaggaLoaded: false };
+        var dataPromise = (info.kind === 'heic' || Photo.isHeic(file))
+          ? Promise.resolve().then(function () { return imageToJpegDataUrl(info.img); })
+          : bufferToDataUrl(info.buf, info.mime);
+        return dataPromise.then(function (dataUrl) {
+          return runQuaggaOnDataUrl(dataUrl).then(function (result) {
+            var code = result && result.codeResult && result.codeResult.code;
+            return { code: code || '', quaggaLoaded: true };
+          }, function (err) {
+            var timedOut = !!(err && err.message === 'timeout');
+            return { code: '', quaggaLoaded: true, timedOut: timedOut, decodeError: !timedOut };
+          });
+        });
+      });
+    }).then(function (decoded) {
+      var outcome = Photo.barcodePhotoOutcome({
+        fileMeta: file,
+        stage: 'decode',
+        imageOpened: true,
+        quaggaLoaded: decoded.quaggaLoaded !== false,
+        code: decoded.code,
+        decodeError: !!decoded.decodeError,
+        timedOut: !!decoded.timedOut
+      });
+      if (outcome.ok) scoreBarcode(outcome.barcode);
+      else showError(outcome.message);
+    }).catch(function (err) {
+      if (err && err.handled) return;
+      showError(photoMessages().unreadable);
+    });
+  }
+  function takeChosenFile(input) {
+    var file = input.files && input.files[0];
+    if (!file) return null;
+    var stamp = [file.name, file.size, file.lastModified, file.type].join(':');
+    if (input._rcStamp === stamp) return null;
+    input._rcStamp = stamp;
+    setTimeout(function () {
+      try { input.value = ''; } catch (e) {}
+    }, 0);
+    setTimeout(function () { if (input._rcStamp === stamp) input._rcStamp = ''; }, 1500);
+    return file;
   }
   var snapBtn = document.getElementById('decode-barcode-photo');
   var snapInput = document.getElementById('barcode-photo');
-  if (snapBtn && snapInput) snapBtn.addEventListener('click', function () {
-    var file = snapInput.files && snapInput.files[0];
-    if (!file) { showError('Choose or capture a barcode photo first.'); return; }
+  function onBarcodePicked() {
+    var file = takeChosenFile(snapInput);
+    if (!file) return;
+    pendingBarcodeFile = file;
     decodeFromFile(file);
+  }
+  if (snapInput) {
+    snapInput.addEventListener('change', onBarcodePicked);
+    snapInput.addEventListener('input', onBarcodePicked);
+  }
+  if (snapBtn) snapBtn.addEventListener('click', function () {
+    if (!pendingBarcodeFile) { showError(photoMessages().missing); return; }
+    decodeFromFile(pendingBarcodeFile);
   });
   // App Store Guideline 5.1.2(i): ask before sending personal data (photos) to a third-party AI.
   function aiConsentOk() {
@@ -144,31 +335,77 @@
     if (ok) { try { window.localStorage.setItem('rc_ai_photo_consent', 'yes'); } catch (e) {} }
     return ok;
   }
+  var pickedFiles = {};
+  function payloadFromFile(file) {
+    var Photo = window.RCBarcodePhoto;
+    if (Photo && Photo.isHeic(file)) {
+      return readArrayBuffer(file).then(function (buf) {
+        var bytes = new Uint8Array(buf || new ArrayBuffer(0));
+        var kind = Photo.sniffImageKind(bytes);
+        if (!bytes.length) {
+          var emptyErr = new Error('empty');
+          emptyErr.userMessage = Photo.MESSAGES.empty;
+          throw emptyErr;
+        }
+        var blob = new Blob([buf], { type: file.type || 'image/heic' });
+        return loadImageElement(blob).then(imageToJpegDataUrl).then(function (dataUrl) {
+          return { b64: String(dataUrl).split(',')[1] || '', mime: 'image/jpeg' };
+        }).catch(function (err) {
+          if (err && err.userMessage) throw err;
+          var heicErr = new Error('heic');
+          heicErr.userMessage = Photo.messageForUndecodable(file, kind === 'heic' ? 'heic' : 'heic');
+          throw heicErr;
+        });
+      });
+    }
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+      reader.onerror = function () { reject(new Error('read')); };
+      reader.onload = function () {
+        resolve({ b64: String(reader.result || '').split(',')[1] || '', mime: file.type || 'image/jpeg' });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
   function bindPhoto(inputId, previewId, buttonId, clearId, url, loadingText) {
     var input = document.getElementById(inputId);
     var preview = document.getElementById(previewId);
     var button = document.getElementById(buttonId);
     var clearBtn = document.getElementById(clearId);
-    if (input && preview) input.addEventListener('change', function () {
-      var file = input.files && input.files[0];
+    function onPick() {
+      var file = takeChosenFile(input);
       if (!file) return;
-      if (file.size > 8 * 1024 * 1024) { showError('That photo is larger than 8 MB.'); input.value = ''; return; }
-      preview.src = URL.createObjectURL(file); preview.hidden = false;
-    });
+      var Photo = window.RCBarcodePhoto;
+      var verdict = Photo ? Photo.classifyPhotoFile(file) : { ok: file.size > 0 && file.size <= 8 * 1024 * 1024, message: 'That photo is larger than 8 MB.' };
+      if (!verdict.ok) {
+        showError(verdict.message || photoMessages().unreadable);
+        pickedFiles[inputId] = null;
+        return;
+      }
+      pickedFiles[inputId] = file;
+      if (preview) { preview.src = URL.createObjectURL(file); preview.hidden = false; }
+    }
+    if (input) {
+      input.addEventListener('change', onPick);
+      input.addEventListener('input', onPick);
+    }
     if (clearBtn && input && preview) clearBtn.addEventListener('click', function () {
-      input.value = ''; preview.removeAttribute('src'); preview.hidden = true;
+      input.value = '';
+      pickedFiles[inputId] = null;
+      preview.removeAttribute('src');
+      preview.hidden = true;
     });
     if (button) button.addEventListener('click', function () {
-      var file = input && input.files && input.files[0];
-      if (!file) { showError('Choose or capture a photo first.'); return; }
+      var file = pickedFiles[inputId];
+      if (!file) { showError(photoMessages().missing); return; }
       if (!aiConsentOk()) { showError('Photo analysis needs your OK to send the photo to our AI provider. You can still scan barcodes or search by name.'); return; }
       showLoad(loadingText);
-      var reader = new FileReader();
-      reader.onerror = function () { showError('Could not read that file.'); };
-      reader.onload = function () {
-        postJSON(url, { image_b64: String(reader.result || '').split(',')[1] || '', mime: file.type || 'image/jpeg' }).then(renderResult);
-      };
-      reader.readAsDataURL(file);
+      payloadFromFile(file).then(function (payload) {
+        if (!payload.b64) { showError(photoMessages().unreadable); return; }
+        postJSON(url, { image_b64: payload.b64, mime: payload.mime || 'image/jpeg' }).then(renderResult);
+      }).catch(function (err) {
+        showError((err && err.userMessage) || photoMessages().unreadable);
+      });
     });
   }
   bindPhoto('photo', 'preview', 'score-photo', 'clear-photo', '/api/food-scan/photo', 'Reading the label…');
@@ -194,13 +431,20 @@
     if (/NotFound|DevicesNotFound/i.test(name)) return 'No camera was found. Use Type barcode or a photo instead.';
     return 'Camera failed on this phone. Use Type barcode or a close photo of the bars.';
   }
+  function noteCamera(msg, asError) {
+    if (camStatus) camStatus.textContent = msg;
+    if (asError) showError(msg);
+  }
+  if (window.RC_QUAGGA_FAILED || typeof Quagga === 'undefined') {
+    noteCamera(photoMessages().cameraLib, true);
+  }
   var startCam = document.getElementById('start-cam');
   if (startCam) startCam.addEventListener('click', function () {
-    if (typeof Quagga === 'undefined') { if (camStatus) camStatus.textContent = 'Scanner library not ready. Refresh the page.'; return; }
+    if (typeof Quagga === 'undefined') { noteCamera(photoMessages().cameraLib, true); return; }
     if (running) return;
     running = true;
     if (camStatus) camStatus.textContent = 'Starting camera… allow access if the phone asks.';
-    Quagga.init({
+    try { Quagga.init({
       inputStream: {
         type: 'LiveStream',
         target: document.getElementById('reader'),
@@ -216,7 +460,7 @@
     }, function (err) {
       if (err) {
         running = false;
-        if (camStatus) camStatus.textContent = cameraErrorText(err);
+        noteCamera(cameraErrorText(err), true);
         return;
       }
       Quagga.start();
@@ -226,6 +470,10 @@
       if (camStatus) camStatus.textContent = 'Hold the bars steady, about 4–6 inches from the camera.';
     });
     Quagga.offDetected(onDetected); Quagga.onDetected(onDetected);
+    } catch (err) {
+      running = false;
+      noteCamera(cameraErrorText(err), true);
+    }
   });
   var stopCam = document.getElementById('stop-cam');
   if (stopCam) stopCam.addEventListener('click', function () { running = false; try { Quagga.stop(); } catch (e) {} });
