@@ -491,7 +491,7 @@ def _age_section(calendar_age, biometric_age, client_name):
     ) % (int(calendar_age), int(biometric_age), diff, summary, first)
 
 
-def place_findings_first(html, raw_data, client_name='Client', calendar_age=None, biometric_age=None):
+def place_findings_first(html, raw_data, client_name='Client', calendar_age=None, biometric_age=None, previous_scans=None):
     """Findings and organ ratings first. Teas, labs, and supplements after."""
     html = html or ''
     calendar_age, biometric_age = _kept_age(html, calendar_age, biometric_age)
@@ -506,7 +506,13 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
     html = re.sub(r'<section class="report-section biometric-age-block"[\s\S]*?</section>', '', html, count=1)
     try:
         from organ_ratings import organ_board_html
-        board = organ_board_html(raw_data, calendar_age=calendar_age, biometric_age=biometric_age, client_name=client_name)
+        board = organ_board_html(
+            raw_data,
+            calendar_age=calendar_age,
+            biometric_age=biometric_age,
+            client_name=client_name,
+            previous_scans=previous_scans,
+        )
     except Exception:
         board = ''
     first = escape(((client_name or 'Client').split() or ['there'])[0])

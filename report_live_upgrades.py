@@ -75,6 +75,50 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         with open(_override_path(), 'w', encoding='utf-8') as fh:
             json.dump(data, fh)
 
+    def _scan_label(row):
+        title = getattr(row, 'title', None) or ''
+        match = re.search(
+            r'(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{1,2},?\s+\d{4}',
+            title,
+            re.I,
+        )
+        if match:
+            return match.group(0)
+        stamp = getattr(row, 'date', None)
+        if stamp:
+            return str(stamp)[:10]
+        return 'Earlier scan'
+
+    def _earlier_scans(report):
+        """Older scans for this client, oldest first, so the report can show change."""
+        try:
+            from organ_ratings import organ_signals
+        except Exception:
+            return []
+        email = _normalize_email(getattr(report, 'user_email', ''))
+        if not email:
+            return []
+        found = []
+        try:
+            rows = Report.query.order_by(Report.id.asc()).all()
+        except Exception:
+            return []
+        for row in rows:
+            if getattr(row, 'id', None) == getattr(report, 'id', None):
+                continue
+            if _normalize_email(getattr(row, 'user_email', '')) != email:
+                continue
+            if int(getattr(row, 'id', 0) or 0) > int(getattr(report, 'id', 0) or 0):
+                continue
+            raw = getattr(row, 'raw_data', None) or ''
+            if len(raw.strip()) < 40:
+                continue
+            signals = organ_signals(raw)
+            if not signals:
+                continue
+            found.append({'label': _scan_label(row), 'signals': signals})
+        return found
+
     def _apply_plan(report):
         name = _client_display_name(report.user_email)
         html = report.generated_report or report.original_generated_report or ''
@@ -132,6 +176,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             html = place_findings_first(
                 html, raw, client_name=name,
                 calendar_age=calendar_age, biometric_age=biometric_age,
+                previous_scans=_earlier_scans(report),
             )
         except Exception as exc:
             print('[Root Cause] findings-first layout failed: %s' % exc)

@@ -133,6 +133,7 @@ def rate_organs(raw_data, calendar_age=None, biometric_age=None):
             'rating': rating,
             'band': band,
             'organ_age': organ_age,
+            'signal': avg,
             'why': why,
             'step': step,
             'question': question,
@@ -147,33 +148,101 @@ def priority_items(raw_data, limit=3, calendar_age=None, biometric_age=None):
     return [(row['title'], row['why'], row['step']) for row in loud[:limit]]
 
 
-def organ_board_html(raw_data, calendar_age=None, biometric_age=None, client_name='Client'):
+def organ_signals(raw_data):
+    """Comparable loudness per organ. Higher means more load. Not shown to the client."""
+    lines = _scan_lines(raw_data)
+    found = {}
+    for title, keys, _why, _step, _question in ORGANS:
+        vals = _values_for(lines, keys)
+        if len(vals) < 3:
+            continue
+        top = sorted(vals, reverse=True)[:12]
+        found[title] = sum(top) / len(top)
+    return found
+
+
+def _change_label(delta, band):
+    still = band in ('Higher load', 'Moderate load')
+    if delta is None:
+        return 'No earlier scan' if not still else 'Still work to do'
+    if delta <= -1.5:
+        return 'Quieter, still work to do' if still else 'Improved'
+    if delta >= 1.5:
+        return 'Louder — needs work'
+    if still:
+        return 'About the same — still work to do'
+    return 'About the same'
+
+
+def organ_board_html(raw_data, calendar_age=None, biometric_age=None, client_name='Client', previous_scans=None):
     rows = rate_organs(raw_data, calendar_age=calendar_age, biometric_age=biometric_age)
     if not rows:
         return ''
     first = escape(((client_name or 'Client').split() or ['there'])[0])
+    priors = [scan for scan in (previous_scans or []) if scan.get('signals')]
+    prior = priors[-1] if priors else None
+    prior_signals = (prior or {}).get('signals') or {}
+    prior_label = (prior or {}).get('label') or 'your last scan'
     age_note = ''
     if calendar_age:
         age_note = ' Calendar age on this scan is %s.' % int(calendar_age)
+    history = ''
+    if priors:
+        labels = []
+        for scan in priors:
+            label = scan.get('label') or 'Earlier scan'
+            if label not in labels:
+                labels.append(label)
+        history = (
+            '<p class="rec-note">Earlier scans for reference: ' + escape(', '.join(labels))
+            + '. The change column compares this scan with ' + escape(prior_label)
+            + '. Quieter means that organ improved. Louder, or still in a higher load, is work still to do.</p>'
+        )
     head = (
         '<h3>Major organs</h3>'
         '<p>' + first + ', every major organ is listed below, loudest first. '
         'The rating is higher when that organ was quieter. The age is a bioenergetic estimate beside calendar age, '
         'not a clinical organ test and not a diagnosis.' + age_note + '</p>'
+        + history
     )
+    improved, needs = [], []
     body = []
+    change_head = '<th>Since ' + escape(prior_label) + '</th>' if prior else ''
     for row in rows:
         age = str(row['organ_age']) if row['organ_age'] else '—'
+        change_cell = ''
+        if prior:
+            old = prior_signals.get(row['title'])
+            new = row.get('signal')
+            delta = None if old is None or new is None else new - old
+            label = _change_label(delta, row['band'])
+            change_cell = '<td>' + escape(label) + '</td>'
+            if label.startswith('Improved') or label.startswith('Quieter'):
+                improved.append(row['title'])
+            if 'work' in label.lower() or label.startswith('Louder'):
+                needs.append(row['title'])
         body.append(
             '<tr><td><strong>' + escape(row['title']) + '</strong></td>'
             '<td>' + str(row['rating']) + ' · ' + escape(row['band']) + '</td>'
             '<td>' + age + '</td>'
-            '<td>' + escape(row['why']) + '</td></tr>'
+            + change_cell
+            + '<td>' + escape(row['why']) + '</td></tr>'
+        )
+    summary = ''
+    if prior:
+        improved_line = ', '.join(improved) if improved else 'None this time'
+        needs_line = ', '.join(needs) if needs else 'None standing out'
+        summary = (
+            '<p><strong>Improved since ' + escape(prior_label) + ':</strong> ' + escape(improved_line) + '</p>'
+            '<p><strong>Still work to do:</strong> ' + escape(needs_line) + '</p>'
         )
     return (
         head
-        + '<table class="organ-board"><thead><tr><th>Organ</th><th>Rating</th><th>Age</th><th>What stood out</th></tr></thead><tbody>'
+        + '<table class="organ-board"><thead><tr><th>Organ</th><th>Rating</th><th>Age</th>'
+        + change_head
+        + '<th>What stood out</th></tr></thead><tbody>'
         + ''.join(body)
         + '</tbody></table>'
-        '<p class="rec-note">Higher rating means quieter on this scan. Organ age is not a lab result.</p>'
+        + summary
+        + '<p class="rec-note">Higher rating means quieter on this scan. Organ age is not a lab result.</p>'
     )
