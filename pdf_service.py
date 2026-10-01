@@ -79,22 +79,38 @@ ul { margin: 6px 0; padding-left: 18px; }
 
 
 def _sanitize_html_for_pdf(html):
-    """Strip tags/styles that break xhtml2pdf while keeping content readable."""
+    """Strip tags/styles that break xhtml2pdf while keeping the client summary."""
     if not html:
         return ''
-    html = re.sub(r'<style[^>]*>.*?</style>', '', html, flags=re.I | re.S)
-    html = re.sub(r'<details([^>]*)>', r'<div class="body-system-card"\1>', html, flags=re.I)
+    try:
+        from wellness_template import clean_client_report
+        html = clean_client_report(html)
+    except Exception:
+        pass
+    html = re.sub(r'<script[^>]*>[\s\S]*?</script>', '', html, flags=re.I)
+    html = re.sub(r'<style[^>]*>[\s\S]*?</style>', '', html, flags=re.I | re.S)
+    html = re.sub(r'<div class="rc-tablist"[\s\S]*?</div>', '', html, count=1, flags=re.I)
+    html = re.sub(r'<section[^>]*data-panel="ask"[\s\S]*?</section>', '', html, flags=re.I)
+    html = re.sub(r'<p class="rc-section-ask">[\s\S]*?</p>', '', html, flags=re.I)
+    html = re.sub(r'<div id="grok-float"[\s\S]*?</div>\s*</div>\s*</div>', '', html, count=1, flags=re.I)
+    html = re.sub(
+        r'<details class="glossary-panel"[\s\S]*?</details>',
+        lambda m: m.group(0) if 'your-top-priorities' in m.group(0) else '',
+        html,
+        flags=re.I,
+    )
+    html = re.sub(r'<p>Nothing extra in this section\. Use Overview or Ask Grok\.</p>', '', html)
+    html = re.sub(r'\sstyle="[^"]*"', '', html, flags=re.I)
+    html = re.sub(
+        r'<details class="jargon"><summary class="jargon-term">(.*?)</summary>[\s\S]*?</details>',
+        r'\1',
+        html,
+        flags=re.I,
+    )
+    html = re.sub(r'<details([^>]*)>', r'<div\1>', html, flags=re.I)
     html = re.sub(r'</details>', '</div>', html, flags=re.I)
-    html = re.sub(r'<summary([^>]*)>', r'<div class="body-system-summary"\1>', html, flags=re.I)
+    html = re.sub(r'<summary([^>]*)>', r'<div\1>', html, flags=re.I)
     html = re.sub(r'</summary>', '</div>', html, flags=re.I)
-
-    def _clean_style(m):
-        style = m.group(1) or ''
-        widths = re.findall(r'width\s*:\s*[\d.]+%', style, flags=re.I)
-        if widths:
-            return f' style="{widths[0]}"'
-        return ''
-    html = re.sub(r'\sstyle="([^"]*)"', _clean_style, html, flags=re.I)
     return html
 
 

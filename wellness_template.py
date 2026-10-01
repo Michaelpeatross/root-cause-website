@@ -88,6 +88,52 @@ SYSTEM_PLAIN = {
     'blood': ('Blood-quality signals', 'Blood-related markers were noted. This is a scan pattern, not a laboratory blood panel.', 'If you have not had recent bloodwork with a clinician, that is the usual next clinical step.'),
 }
 
+PRIORITY_STEPS = {
+    'Gallbladder and bile flow': 'Smaller meals, and a bitter green such as arugula with lunch, for one week.',
+    'Lymph and drainage': 'A daily walk, and water spread through the day instead of a large glass at night.',
+    'Kidneys and fluid balance': 'Sip water evenly through the day and notice afternoon energy versus late-night fluids.',
+    'Liver and processing load': 'Skip alcohol and late heavy dinners for a week and see how mornings feel.',
+    'Digestion': 'Simpler meals, chew well, and cut constant snacking for a week.',
+    'Yeast / sugar load': 'No soda, juice, or dessert for a week as a short experiment.',
+    'Lower gut': 'Vegetables plus water each day, and notice how the lower gut feels.',
+    'Immune load': 'Protect sleep and skip sweet drinks for a week.',
+    'Thyroid and energy': 'Ask your clinician whether a standard thyroid panel is due.',
+    'Stress reserve': 'An earlier bedtime and caffeine only in the morning for several days.',
+    'Sleep rhythm': 'A consistent bedtime and a darker room this week.',
+    'Hormonal rhythm': 'Steady meal and sleep times, then share symptoms with your clinician.',
+    'Energy and metabolism': 'Protein at breakfast and a 10-minute walk after the largest meal.',
+}
+
+PRACTITIONER_QUESTIONS = {
+    'Gallbladder and bile flow': 'Fatty meals sit heavy. Is a standard liver panel (ALT, AST, GGT, bilirubin) worth ordering, separate from this wellness scan?',
+    'Lymph and drainage': 'I feel puffy or slow to recover. What symptoms should make me come in, versus walking and drinking more water?',
+    'Kidneys and fluid balance': 'Fluid balance showed up as a scan pattern. Should I have a basic kidney panel (creatinine, eGFR) if I have not had one this year?',
+    'Liver and processing load': 'Which liver labs, if any, match late heavy meals or alcohol, separate from this wellness scan?',
+    'Digestion': 'Meals feel heavy. What symptoms would make a stool test or H. pylori check reasonable, versus a simpler-meals trial first?',
+    'Yeast / sugar load': 'If I cut sweet drinks for a few weeks, which symptoms should I report back to you?',
+    'Stress reserve': 'Sleep and caffeine seem to drive how I feel. What should I track before we talk about more testing?',
+    'Thyroid and energy': 'Is a standard thyroid panel due, separate from this wellness scan?',
+}
+
+
+def _step_for(title):
+    return PRIORITY_STEPS.get(title) or 'Try the suggestion in this theme for one week and notice how you feel.'
+
+
+def practitioner_questions_for(titles):
+    items, seen = [], set()
+    for title in titles or []:
+        q = PRACTITIONER_QUESTIONS.get(title) or (
+            'What should I tell my clinician about %s, without treating this scan as a diagnosis?' % title
+        )
+        if q not in seen:
+            seen.add(q)
+            items.append(q)
+    if not items:
+        items.append('Which of these wellness patterns is worth a standard lab check first, separate from this scan?')
+    return items[:3]
+
+
 PRIORITY_BADGES = (('high', 'High'), ('medium', 'Medium'), ('low', 'Low'))
 
 
@@ -154,7 +200,7 @@ def _priorities_from_themes(raw_data):
     for key, title, blurb in THEME_HINTS:
         if key in text and title not in seen:
             seen.add(title)
-            found.append((title, blurb, 'Try one small change from this theme for a week and notice how you feel.'))
+            found.append((title, blurb, _step_for(title)))
         if len(found) >= 3:
             break
     return found
@@ -208,7 +254,7 @@ def _banner_html(client_name=None):
         '<aside class="wellness-banner" aria-label="How to read this wellness report">'
         '<h2>Your wellness report</h2>'
         '<p>Hi ' + first + '. This page is written in everyday language. Health Scores (0-100, higher is better) summarize how balanced each body system looked on this scan.</p>'
-        '<p><strong>Your top 3 priorities</strong> come first, with High / Medium / Low color badges for relative emphasis. Long item lists from the scanner file are folded up.</p>'
+        '<p><strong>Your top 3 priorities</strong> come first, with High / Medium / Low color badges for relative emphasis. Scanner item names stay with your practitioner.</p>'
         '<div class="wellness-pill-row">'
         '<span class="wellness-pill">Informational only</span>'
         '<span class="wellness-pill">Not a diagnosis</span>'
@@ -287,3 +333,97 @@ def wrap_wellness_report(html, client_name=None, title=None, raw_data=None):
     themes = theme_cards_html(raw_data) if raw_data else ''
     wrapped = '<div class="wellness-report" ' + WELLNESS_MARKER + '>' + WELLNESS_STYLES + _banner_html(client_name) + priorities + themes + html + '</div>'
     return inject_emphasis_badges(wrapped)
+
+
+def _priority_titles(html):
+    titles = re.findall(r'<div class="top3-head">\s*<h3>(.*?)</h3>', html or '', flags=re.I | re.S)
+    clean = []
+    for title in titles:
+        text = re.sub(r'<[^>]+>', '', title).strip()
+        if text and text not in clean:
+            clean.append(text)
+    return clean[:3]
+
+
+def _rewrite_priority_steps(html):
+    def repl(match):
+        title = re.sub(r'<[^>]+>', '', match.group(1)).strip()
+        step = _step_for(title)
+        return match.group(0).split('<p class="top3-step">')[0] + '<p class="top3-step">Simple first step: ' + escape(step) + '</p>'
+    return re.sub(
+        r'<div class="top3-head">\s*<h3>(.*?)</h3>[\s\S]*?<p class="top3-step">[\s\S]*?</p>',
+        repl,
+        html or '',
+        flags=re.I,
+    )
+
+
+def _rewrite_questions(html):
+    if 'rc-q-list' not in (html or ''):
+        return html
+    questions = practitioner_questions_for(_priority_titles(html))
+    lis = ''.join(
+        '<li><h3>Question %s</h3><p>%s</p></li>' % (i, escape(q))
+        for i, q in enumerate(questions, start=1)
+    )
+    return re.sub(r'<ol class="rc-q-list">[\s\S]*?</ol>', '<ol class="rc-q-list">' + lis + '</ol>', html, count=1, flags=re.I)
+
+
+def _pull_top3_out_of_glossary(html):
+    """Older pages nested the priorities section inside an unclosed glossary."""
+    start = html.find('<details class="glossary-panel"')
+    top = html.find('<section class="top3" id="your-top-priorities"')
+    if start == -1 or top == -1 or top < start:
+        return html
+    between = html[start:top]
+    if '</dl>' in between:
+        return html
+    section = re.search(
+        r'<section class="top3" id="your-top-priorities"[\s\S]*?</section>',
+        html[top:],
+    )
+    if not section:
+        return html
+    return html[:start] + section.group(0) + html[top + section.end():]
+
+
+def clean_client_report(html):
+    """Client page and PDF: plain language only. No raw scanner names."""
+    if not html:
+        return html
+    html = _pull_top3_out_of_glossary(html)
+    html = re.sub(r'<details class="wellness-raw-toggle">[\s\S]*?</details>', '', html, flags=re.I)
+    html = re.sub(
+        r'<section class="report-section">\s*<h3>[^<]*</h3>\s*(?:<div class="findings-grid">[\s\S]*?</div>\s*)?</section>',
+        '',
+        html,
+        flags=re.I,
+    )
+    html = re.sub(
+        r'<div class="finding-row">\s*<div class="finding-label">[\s\S]*?</div>\s*<div class="finding-meta">[\s\S]*?</div>\s*</div>',
+        '',
+        html,
+        flags=re.I,
+    )
+    html = re.sub(r'<div class="findings-grid">[\s\S]*?</div>', '', html, flags=re.I)
+    html = re.sub(
+        r'<ul class="top-findings">[\s\S]*?</ul>',
+        '<p class="rec-note">Scanner item names and machine codes stay with your practitioner. Start with the wellness plan and your top 3 priorities.</p>',
+        html,
+        count=1,
+        flags=re.I,
+    )
+    html = re.sub(
+        r'Analysis identified <strong>\d+</strong> resonant markers[\s\S]*?requiring attention\.',
+        'This page is a plain-language wellness summary. It is not a list of machine codes and it is not a diagnosis.',
+        html,
+        count=1,
+    )
+    html = html.replace(
+        'Long item lists from the scanner file are folded up.',
+        'Scanner item names stay with your practitioner.',
+    )
+    html = re.sub(r'/?\s*\d{3,5}\s+\d{1,2}/\d{1,2}/\d{2,4}\s*\d*', '', html)
+    html = _rewrite_priority_steps(html)
+    html = _rewrite_questions(html)
+    return html

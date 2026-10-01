@@ -81,6 +81,15 @@ def _jargon_markup(term, meaning):
 def link_jargon(html):
     if not html:
         return html
+    protected = []
+
+    def stash(match):
+        protected.append(match.group(0))
+        return '__PROT_%s__' % (len(protected) - 1)
+
+    html = re.sub(r'<style[^>]*>[\s\S]*?</style>', stash, html, flags=re.I)
+    html = re.sub(r'<script[^>]*>[\s\S]*?</script>', stash, html, flags=re.I)
+    html = re.sub(r'<details class="glossary-panel"[\s\S]*?</details>', stash, html, flags=re.I)
     for term, meaning in GLOSSARY:
         if 'class="jargon-term">' + escape(term) in html:
             continue
@@ -98,6 +107,8 @@ def link_jargon(html):
             if n:
                 found = True
         html = ''.join(out)
+    for i, block in enumerate(protected):
+        html = html.replace('__PROT_%s__' % i, block)
     return html
 
 

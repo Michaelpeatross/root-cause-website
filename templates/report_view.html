@@ -69,7 +69,7 @@
                 </div>
             {% else %}
                 <div class="grok-analysis-content wellness-report-view">
-                <p style="font-size:.92rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.7rem .85rem;margin:0 0 1rem;"><strong>Wellness information only.</strong> Health Scores and themes first; raw scanner lists stay folded. Not a medical diagnosis, allergy test, treatment plan, DNA test, HTMA, or tool for detecting disease. Not a substitute for a licensed clinician.</p>
+                <p style="font-size:.92rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.7rem .85rem;margin:0 0 1rem;"><strong>Wellness information only.</strong> Plain-language plan first. Scanner item names stay with your practitioner. Not a medical diagnosis, allergy test, treatment plan, DNA test, HTMA, or tool for detecting disease. Not a substitute for a licensed clinician.</p>
                 {{ (report.generated_report or report.original_generated_report)|safe }}
                 </div>
             {% endif %}

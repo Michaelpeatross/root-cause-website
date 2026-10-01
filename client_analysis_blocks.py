@@ -5,11 +5,18 @@ from html import escape
 
 def sanitize_client_html(html):
     html = html or ''
-    html = re.sub(r'\bD\s*=\s*[-+]?\d+(?:\.\d+)?', '', html)
-    html = re.sub(r'\bE\s*=\s*[-+]?\d+(?:\.\d+)?', '', html)
-    html = re.sub(r'\b\d{1,3}\s*%', '', html)
-    html = re.sub(r'\bentropy\s*[:=]\s*[-+]?\d+(?:\.\d+)?', '', html, flags=re.I)
-    return html
+    parts = re.split(r'(<[^>]+>)', html)
+    out = []
+    for part in parts:
+        if part.startswith('<') and part.endswith('>'):
+            out.append(part)
+            continue
+        part = re.sub(r'\bD\s*=\s*[-+]?\d+(?:\.\d+)?', '', part)
+        part = re.sub(r'\bE\s*=\s*[-+]?\d+(?:\.\d+)?', '', part)
+        part = re.sub(r'\b\d{1,3}\s*%', '', part)
+        part = re.sub(r'\bentropy\s*[:=]\s*[-+]?\d+(?:\.\d+)?', '', part, flags=re.I)
+        out.append(part)
+    return ''.join(out)
 
 
 def _categories_from_text(raw):

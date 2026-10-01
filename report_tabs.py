@@ -160,12 +160,9 @@ def _section_ask(label, prompt):
 
 
 def _questions_panel(html):
-    items = _extract_questions(html)
-    if not items:
-        items = [
-            'Which of my top priorities is worth a standard lab check first?',
-            'How should I describe these scan patterns without treating them as a diagnosis?',
-        ]
+    from wellness_template import practitioner_questions_for
+    titles = _extract_priority_titles(html)
+    items = practitioner_questions_for(titles)
     lis = ''.join(
         '<li><h3>Question %s</h3><p>%s</p></li>' % (i, escape(q))
         for i, q in enumerate(items, start=1)

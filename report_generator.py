@@ -170,6 +170,25 @@ def _parse_lines(raw_data):
             continue
         if re.match(r'^\d{1,2}\s*$', line):
             continue
+        # NLS page headers, DNA index codes, and slice titles are not findings.
+        if re.match(r'(?i)^DNA\s+\d', line):
+            continue
+        if re.search(r'\b\d{1,2}/\d{1,2}/\d{2,4}\b', line) and re.search(r'\b\d{3,5}\b', line):
+            continue
+        if re.match(r'^\s*/?\s*\d{3,5}\b', line):
+            continue
+        if re.search(r'(?i)\b(cross-section|longitudinal|front view|niduses of)\b', line):
+            continue
+        # Disease-worded scanner labels stay in the raw file, not the client report.
+        if re.search(
+            r'(?i)\b(sarcoma|carcinoma|adenocarcinoma|lymphoma|leukemia|melanoma|'
+            r'tuberculosis|emphysema|abscess|addison|acromegaly|'
+            r'immunodeficiency|\baids\b|\bhiv\b|hepatitis|papillomavirus|'
+            r'diabetes mellitus|cystadenoma|lymphomatosis|lymphangitis|'
+            r'\bmyoma\b|\bfibroma\b|\bneuroma\b|\badenoma\b|pancreatitis)\b',
+            line,
+        ):
+            continue
 
         value = _extract_value(line)
         label = line

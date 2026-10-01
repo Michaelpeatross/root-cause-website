@@ -103,10 +103,11 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                 print('[Root Cause] wellness rebuild failed for report %s: %s' % (getattr(report, 'id', '?'), exc))
                 traceback.print_exc()
         try:
-            from wellness_template import wrap_wellness_report
+            from wellness_template import wrap_wellness_report, clean_client_report
             html = wrap_wellness_report(html, client_name=name, title=report.title, raw_data=raw)
         except Exception as exc:
             print('[Root Cause] wellness wrap failed: %s' % exc)
+            clean_client_report = None
         try:
             from system_plain import inject_system_plain_cards
             html = inject_system_plain_cards(html)
@@ -119,6 +120,11 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         age = _load_overrides().get(_normalize_email(report.user_email))
         if age:
             html = re.sub(r'(<strong>Biometric age:</strong>\s*)\d+', r'\g<1>%s' % age, html, count=1)
+        try:
+            if clean_client_report:
+                html = clean_client_report(html)
+        except Exception as exc:
+            print('[Root Cause] client report clean failed: %s' % exc)
         if html and html != (report.generated_report or ''):
             report.generated_report = html
             try:
