@@ -40,19 +40,6 @@ def analysis_blocks_html(raw_data, client_name='Client', medical_text=''):
     first = escape((client_name or 'Client').split()[0])
     raw = raw_data or ''
     cats = _categories_from_text(raw + '\n' + (medical_text or ''))
-    findings = []
-    try:
-        from report_generator import _parse_lines
-        findings = _parse_lines(raw) or []
-    except Exception:
-        findings = []
-    try:
-        from biometric_age import extract_calendar_age, compute_biometric_age, biometric_age_html
-        calendar_age = extract_calendar_age(raw, medical_text)
-        snapshot = compute_biometric_age(findings, calendar_age=calendar_age, medical_text=medical_text)
-        age_html = biometric_age_html(snapshot, client_name=client_name)
-    except Exception:
-        age_html = '<section id="biometric-age"><h3>Biometric Age</h3><p>Add date of birth in the portal for an exact calendar vs biometric comparison.</p></section>'
     try:
         from tea_protocol import tea_list_html
         tea_html = '<section id="tea-protocol"><h3>Teas to Take</h3>' + tea_list_html(cats) + '</section>'
@@ -80,7 +67,12 @@ def analysis_blocks_html(raw_data, client_name='Client', medical_text=''):
         supp_html = '<section id="supplement-plan"><h3>Supplements for Maximum Benefit</h3>' + supplement_list_html(names) + '<p>Links go to Amazon. Start one product at a time.</p></section>'
     except Exception:
         supp_html = '<section id="supplement-plan"><h3>Supplements for Maximum Benefit</h3><ul><li>Magnesium glycinate</li><li>Vitamin D3 + K2</li><li>Omega-3</li></ul></section>'
-    return '<div class="client-wellness-plan" id="client-wellness-plan"><h2>Your Wellness Plan</h2><p>' + first + ', this page is written in plain language. Raw scanner numbers stay with your practitioner.</p>' + age_html + tea_html + lab_html + supp_html + '<p>Wellness education only — not a diagnosis or a prescription.</p></div>'
+    return (
+        '<div class="client-wellness-plan" id="client-wellness-plan"><h2>What to do next</h2>'
+        '<p>' + first + ', these supports come after the findings. They are ideas to discuss, not a prescription. Raw scanner names stay with your practitioner.</p>'
+        + tea_html + lab_html + supp_html
+        + '<p>Wellness education only — not a diagnosis or a prescription.</p></div>'
+    )
 
 
 def ensure_client_analysis(html, raw_data, client_name='Client', medical_text=''):

@@ -117,13 +117,26 @@ PRACTITIONER_QUESTIONS = {
 
 
 def _step_for(title):
+    try:
+        from organ_ratings import ORGANS
+        for name, _keys, _why, step, _question in ORGANS:
+            if name == title:
+                return step
+    except Exception:
+        pass
     return PRIORITY_STEPS.get(title) or 'Try the suggestion in this theme for one week and notice how you feel.'
 
 
 def practitioner_questions_for(titles):
+    organ_q = {}
+    try:
+        from organ_ratings import ORGANS
+        organ_q = {name: question for name, _k, _w, _s, question in ORGANS}
+    except Exception:
+        organ_q = {}
     items, seen = [], set()
     for title in titles or []:
-        q = PRACTITIONER_QUESTIONS.get(title) or (
+        q = organ_q.get(title) or PRACTITIONER_QUESTIONS.get(title) or (
             'What should I tell my clinician about %s, without treating this scan as a diagnosis?' % title
         )
         if q not in seen:
@@ -207,10 +220,15 @@ def _priorities_from_themes(raw_data):
 
 
 def pick_top_priorities(raw_data, limit=3):
-    items = _priorities_from_overview(raw_data)
+    items = []
+    try:
+        from organ_ratings import priority_items
+        items = priority_items(raw_data, limit=limit)
+    except Exception:
+        items = []
     if len(items) < limit:
         have = {t for t, _, _ in items}
-        for title, why, step in _priorities_from_themes(raw_data):
+        for title, why, step in _priorities_from_overview(raw_data) + _priorities_from_themes(raw_data):
             if title in have:
                 continue
             items.append((title, why, step))
@@ -218,16 +236,23 @@ def pick_top_priorities(raw_data, limit=3):
             if len(items) >= limit:
                 break
     if not items:
-        items = [('Read the Health Scores first', 'This scan did not give a clear three-item ranking, so start with the overall score and the body-system bars.', 'Open one system section that matches how you feel day to day.')]
+        items = [('Read the organ ratings first', 'This scan did not give a clear three-item ranking, so start with the organ table.', 'Notice which organ age sits furthest from calendar age.')]
     return items[:limit]
 
 
 def top_priorities_html(raw_data, client_name=None):
     items = pick_top_priorities(raw_data)
+    bands = {}
+    try:
+        from organ_ratings import rate_organs
+        bands = {row['title']: row['band'] for row in rate_organs(raw_data)}
+    except Exception:
+        bands = {}
+    band_level = {'Higher load': 'high', 'Moderate load': 'medium', 'Mild load': 'low', 'Steady': 'low'}
     first = _first_name(client_name)
     rows = []
     for idx, (title, why, step) in enumerate(items, start=1):
-        level = PRIORITY_BADGES[min(idx - 1, 2)][0]
+        level = band_level.get(bands.get(title)) or PRIORITY_BADGES[min(idx - 1, 2)][0]
         rows.append(
             '<li class="top3-item"><span class="top3-num" aria-hidden="true">' + str(idx) + '</span><div>'
             '<div class="top3-head"><h3>' + escape(title) + '</h3>' + info_badge_html(level) + '</div>'
@@ -241,8 +266,8 @@ def top_priorities_html(raw_data, client_name=None):
     return (
         '<section class="top3" id="your-top-priorities" aria-label="Your top 3 priorities">'
         '<h2>Your top 3 priorities</h2>'
-        '<p class="lead">' + first + ', start here. These are the three patterns that stood out most on this wellness scan. '
-        'Color badges show relative emphasis (High / Medium / Low). They are not a diagnosis, not an allergy result, and not a treatment plan.</p>'
+        '<p class="lead">' + first + ', these are the three organs that stood out most on the list above. '
+        'Color badges match that rating. They are not a diagnosis, not an allergy result, and not a treatment plan.</p>'
         + legend +
         '<ol class="top3-list">' + ''.join(rows) + '</ol></section>'
     )
@@ -426,4 +451,110 @@ def clean_client_report(html):
     html = re.sub(r'/?\s*\d{3,5}\s+\d{1,2}/\d{1,2}/\d{2,4}\s*\d*', '', html)
     html = _rewrite_priority_steps(html)
     html = _rewrite_questions(html)
+    return html
+
+
+def _kept_age(html, calendar_age=None, biometric_age=None):
+    if calendar_age is None:
+        match = re.search(r'Calendar age:</strong>\s*(\d+)', html or '')
+        if match:
+            calendar_age = int(match.group(1))
+    if biometric_age is None:
+        match = re.search(r'Biometric age:</strong>\s*(\d+)', html or '')
+        if match:
+            biometric_age = int(match.group(1))
+    return calendar_age, biometric_age
+
+
+def _age_section(calendar_age, biometric_age, client_name):
+    first = escape(((client_name or 'Client').split() or ['there'])[0])
+    if not calendar_age or not biometric_age:
+        return ''
+    delta = int(biometric_age) - int(calendar_age)
+    if delta > 0:
+        diff = '%s years older than calendar age' % delta
+        summary = 'Scan patterns are reading older than calendar age.'
+    elif delta < 0:
+        diff = '%s years younger than calendar age' % abs(delta)
+        summary = 'Scan patterns are reading younger than calendar age.'
+    else:
+        diff = 'matched to calendar age'
+        summary = 'Scan patterns are close to calendar age.'
+    return (
+        '<section class="report-section biometric-age-block" id="biometric-age">'
+        '<h3>Whole-person age</h3>'
+        '<p><strong>Calendar age:</strong> %s</p>'
+        '<p><strong>Biometric age:</strong> %s</p>'
+        '<p><strong>Difference:</strong> %s</p>'
+        '<p>%s This is a bioenergetic wellness estimate, not a clinical aging test such as PhenoAge or DNA methylation.</p>'
+        '<p class="rec-note">%s, raw scanner percentages stay off this report.</p></section>'
+    ) % (int(calendar_age), int(biometric_age), diff, summary, first)
+
+
+def place_findings_first(html, raw_data, client_name='Client', calendar_age=None, biometric_age=None):
+    """Findings and organ ratings first. Teas, labs, and supplements after."""
+    html = html or ''
+    calendar_age, biometric_age = _kept_age(html, calendar_age, biometric_age)
+    if not calendar_age and raw_data:
+        try:
+            from biometric_age import extract_calendar_age
+            calendar_age = extract_calendar_age(raw_data)
+        except Exception:
+            pass
+    html = re.sub(r'<div class="wellness-theme-grid">[\s\S]*?</div>', '', html, count=1)
+    html = re.sub(r'<div id="scan-findings">[\s\S]*?</div>', '', html, count=1)
+    html = re.sub(r'<section class="report-section biometric-age-block"[\s\S]*?</section>', '', html, count=1)
+    try:
+        from organ_ratings import organ_board_html
+        board = organ_board_html(raw_data, calendar_age=calendar_age, biometric_age=biometric_age, client_name=client_name)
+    except Exception:
+        board = ''
+    first = escape(((client_name or 'Client').split() or ['there'])[0])
+    findings = (
+        '<div id="scan-findings"><style>.organ-board{width:100%;border-collapse:collapse;margin:.5rem 0 1rem}'
+        '.organ-board th,.organ-board td{border-bottom:1px solid #dceee8;padding:.45rem .4rem;text-align:left;vertical-align:top}'
+        '.organ-board th{color:#0b3d2a;font-size:.82rem}.organ-board td{font-size:.9rem}</style>'
+        '<h2>What this scan found</h2>'
+        '<p>' + first + ', findings come first. What to do about them is further down.</p>'
+        + _age_section(calendar_age, biometric_age, client_name)
+        + board
+        + '</div>'
+    )
+    new_top = top_priorities_html(raw_data, client_name=client_name)
+    if 'id="your-top-priorities"' in html:
+        html = re.sub(
+            r'<section class="top3" id="your-top-priorities"[\s\S]*?</section>',
+            new_top,
+            html,
+            count=1,
+        )
+    plan = ''
+    match = re.search(r'<div class="client-wellness-plan"[\s\S]*?</div>', html)
+    if match:
+        plan = match.group(0).replace('Your Wellness Plan', 'What to do next', 1)
+        html = html[:match.start()] + html[match.end():]
+    marker = 'id="wellness-report-chrome"'
+    if marker in html:
+        idx = html.find(marker)
+        gt = html.find('>', idx)
+        rest = html[gt + 1:]
+        prefix = html[:gt + 1]
+        if rest.lstrip().startswith('<style>'):
+            endstyle = rest.find('</style>')
+            if endstyle != -1:
+                html = prefix + rest[:endstyle + 8] + findings + rest[endstyle + 8:]
+            else:
+                html = prefix + findings + rest
+        else:
+            html = prefix + findings + rest
+    else:
+        html = findings + html
+    if plan:
+        spot = html.find('<section class="rc-tab-panel" data-panel="questions"')
+        if spot == -1:
+            spot = html.find('id="tab-questions"')
+        if spot != -1:
+            html = html[:spot] + plan + html[spot:]
+        else:
+            html += plan
     return html

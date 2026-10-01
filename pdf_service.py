@@ -59,6 +59,9 @@ ul { margin: 6px 0; padding-left: 18px; }
 .health-score-scale { font-size: 8pt; color: #666; }
 .health-overall-note { font-size: 9pt; color: #3d5c55; }
 .health-score-pill { font-weight: bold; }
+.organ-board { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
+.organ-board th, .organ-board td { border-bottom: 1px solid #dceee8; padding: 4px 6px; text-align: left; font-size: 9pt; vertical-align: top; }
+.organ-board th { color: #0b3d2a; }
 
 .stress-badge { font-size: 8pt; padding: 2px 6px; }
 .stress-minor { background: #d4edda; color: #155724; }

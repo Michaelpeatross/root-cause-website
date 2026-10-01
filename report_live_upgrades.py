@@ -113,13 +113,28 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             html = inject_system_plain_cards(html)
         except Exception as exc:
             print('[Root Cause] system plain cards failed: %s' % exc)
+        calendar_age = biometric_age = None
+        cal_match = re.search(r'Calendar age:</strong>\s*(\d+)', html or '')
+        bio_match = re.search(r'Biometric age:</strong>\s*(\d+)', html or '')
+        if cal_match:
+            calendar_age = int(cal_match.group(1))
+        if bio_match:
+            biometric_age = int(bio_match.group(1))
+        override = _load_overrides().get(_normalize_email(report.user_email))
+        if override:
+            biometric_age = int(override)
         try:
             html = ensure_client_analysis(html, raw, client_name=name)
         except Exception as exc:
             print('[Root Cause] client analysis blocks failed: %s' % exc)
-        age = _load_overrides().get(_normalize_email(report.user_email))
-        if age:
-            html = re.sub(r'(<strong>Biometric age:</strong>\s*)\d+', r'\g<1>%s' % age, html, count=1)
+        try:
+            from wellness_template import place_findings_first
+            html = place_findings_first(
+                html, raw, client_name=name,
+                calendar_age=calendar_age, biometric_age=biometric_age,
+            )
+        except Exception as exc:
+            print('[Root Cause] findings-first layout failed: %s' % exc)
         try:
             if clean_client_report:
                 html = clean_client_report(html)
