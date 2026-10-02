@@ -453,6 +453,24 @@ def apply_report_upgrades(app, db, Report, reports_dir):
 
     helpers['_approve_and_send_report'] = _approve_and_send_report
 
+    _orig_render_dashboard = helpers.get('_render_client_dashboard')
+
+    def _render_client_dashboard(email, admin_preview=False):
+        try:
+            latest = Report.query.filter(
+                db.func.lower(Report.user_email) == _normalize_email(email),
+                Report.approved == True,
+            ).order_by(Report.id.desc()).first()
+            if latest and (latest.raw_data or latest.generated_report):
+                _apply_plan(latest)
+        except Exception as exc:
+            print('[Root Cause] portal report sync failed: %s' % exc)
+        if _orig_render_dashboard:
+            return _orig_render_dashboard(email, admin_preview=admin_preview)
+        return redirect(url_for('dashboard'))
+
+    helpers['_render_client_dashboard'] = _render_client_dashboard
+
     app.view_functions['view_report'] = view_report
     app.view_functions['download_report_pdf'] = download_report_pdf
     existing = {rule.endpoint for rule in app.url_map.iter_rules()}

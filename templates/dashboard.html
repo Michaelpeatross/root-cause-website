@@ -51,7 +51,7 @@
                 </div>
             </div>
             <div class="report-card-body card" style="margin:0; box-shadow:none; max-height:480px; overflow-y:auto;">
-                {{ (r.original_generated_report or r.generated_report)|safe }}
+                {{ (r.generated_report or r.original_generated_report)|safe }}
             </div>
         </div>
     </div>
