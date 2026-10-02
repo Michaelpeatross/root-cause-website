@@ -402,8 +402,7 @@ def _food_label(raw_name):
     return ' '.join(word.capitalize() for word in key.replace("'", "'").split())
 
 
-def named_foods(raw_data, limit=8):
-    """Loudest everyday foods. No machine numbers and no allergy diagnosis."""
+def _food_scores(raw_data):
     best = {}
     for line in _scan_lines(raw_data):
         parts = re.split(r'\s+D=([0-9.]+)', line)
@@ -416,8 +415,151 @@ def named_foods(raw_data, limit=8):
             if not label:
                 continue
             best[label] = max(best.get(label, 0), value)
+    return best
+
+
+def named_foods(raw_data, limit=8):
+    """Loudest everyday foods. No machine numbers and no allergy diagnosis."""
+    best = _food_scores(raw_data)
     ranked = sorted(best, key=lambda name: (-best[name], name))
     return ranked[:limit]
+
+
+# Practical foods we will suggest only when the scan read them quieter than the sensitivities.
+_EAT_LABELS = {
+    'Cucumbers': 'Cucumber',
+    'Cherry': 'Cherry',
+    'Cranberry': 'Cranberry',
+    'Pumpkin Seeds': 'Pumpkin seeds',
+    'Asparagus': 'Asparagus',
+    'Natural Rice': 'Rice',
+    'Rice': 'Rice',
+    'Pear': 'Pear',
+    'Pumpkin': 'Pumpkin',
+    'Hazelnut': 'Hazelnut',
+    'Beet': 'Beet',
+    'Red Lentil': 'Red lentils',
+    'Green Tea': 'Green tea',
+    'Sardines': 'Sardines',
+    'Mackerel': 'Mackerel',
+    'Walnuts': 'Walnuts',
+    'Potato': 'Potato',
+    'Celery': 'Celery',
+    'Green Peas': 'Green peas',
+    'Apricot': 'Apricot',
+    'Herring': 'Herring',
+}
+_MEAL_ROLES = (
+    ('fruit', ('Pear', 'Cherry', 'Cranberry', 'Apricot')),
+    ('nuts', ('Walnuts', 'Hazelnut', 'Pumpkin seeds')),
+    ('drink', ('Green tea',)),
+    ('grain', ('Rice', 'Potato')),
+    ('fish', ('Sardines', 'Mackerel', 'Herring')),
+    ('veg', ('Cucumber', 'Asparagus', 'Pumpkin', 'Beet', 'Celery', 'Green peas', 'Potato')),
+    ('legume', ('Red lentils', 'Green peas')),
+)
+
+
+def foods_to_eat(raw_data, avoid=None, limit=8):
+    """Quieter everyday foods. Skips the foods that already stood out."""
+    scores = _food_scores(raw_data)
+    avoid = set(avoid or [])
+    loud = [scores[name] for name in avoid if name in scores]
+    floor = min(loud) if loud else 0.2
+    best = {}
+    for label, score in scores.items():
+        shown = _EAT_LABELS.get(label)
+        if not shown or shown in avoid or score >= floor:
+            continue
+        best[shown] = min(best.get(shown, score), score)
+    roles = dict(_MEAL_ROLES)
+    chosen = []
+    used = set()
+    for role in ('veg', 'veg', 'veg', 'grain', 'fruit', 'fish', 'legume', 'drink', 'nuts'):
+        options = [name for name in roles[role] if name in best and name not in used]
+        if not options:
+            continue
+        pick = options[0]
+        chosen.append(pick)
+        used.add(pick)
+        if len(chosen) >= limit:
+            return chosen
+    rest = sorted((name for name in best if name not in used), key=lambda name: (best[name], name))
+    for name in rest:
+        chosen.append(name)
+        if len(chosen) >= limit:
+            break
+    return chosen
+
+
+def meal_ideas(foods):
+    """A few plain meals built only from the quieter foods."""
+    order = list(foods or [])
+    have = set(order)
+    used = set()
+    roles = dict(_MEAL_ROLES)
+
+    def take(role):
+        options = [name for name in roles[role] if name in have and name not in used]
+        if not options:
+            return None
+        pick = min(options, key=lambda name: order.index(name))
+        used.add(pick)
+        return pick
+
+    vegs = [name for name in (take('veg'), take('veg'), take('veg')) if name]
+    grain = take('grain')
+    fruit = take('fruit')
+    fish = take('fish')
+    legume = take('legume')
+    drink = take('drink')
+    nuts = take('nuts')
+    meals = []
+
+    breakfast = None
+    if grain and fruit and nuts:
+        breakfast = '%s with %s and %s' % (grain, fruit.lower(), nuts.lower())
+    elif grain and fruit:
+        breakfast = '%s with %s' % (grain, fruit.lower())
+    elif fruit and nuts:
+        breakfast = '%s and %s' % (fruit, nuts.lower())
+    elif grain:
+        breakfast = grain
+    elif fruit:
+        breakfast = fruit
+    if breakfast and drink:
+        breakfast += ', and a cup of ' + drink.lower()
+    elif drink:
+        breakfast = 'A cup of ' + drink.lower()
+    if breakfast:
+        meals.append(('Breakfast', breakfast + '.'))
+
+    lunch_bits = []
+    if fish and vegs:
+        lunch_bits = [fish, 'with ' + vegs[0].lower()]
+        if grain:
+            lunch_bits.append('and ' + grain.lower())
+    elif fish and grain:
+        lunch_bits = [fish, 'with ' + grain.lower()]
+    elif vegs and grain:
+        lunch_bits = [vegs[0], 'with ' + grain.lower()]
+    if lunch_bits:
+        meals.append(('Lunch', ' '.join(lunch_bits) + '.'))
+
+    sides = vegs[1:3]
+    if legume and len(sides) >= 2:
+        dinner = '%s with %s and %s.' % (legume, sides[0].lower(), sides[1].lower())
+    elif legume and sides:
+        dinner = '%s with %s.' % (legume, sides[0].lower())
+    elif legume:
+        dinner = legume + '.'
+    elif len(sides) >= 2:
+        dinner = '%s and %s.' % (sides[0], sides[1].lower())
+    else:
+        dinner = None
+    if dinner:
+        meals.append(('Dinner', dinner))
+    return meals[:3]
 
 
 def food_board_html(raw_data, client_name='Client'):
@@ -438,4 +580,38 @@ def food_board_html(raw_data, client_name='Client'):
         '<p>' + first + ', these foods stood out more than the other foods on this scan. '
         'This is a scan pattern, not an allergy test, not an intolerance test, and not a diagnosis.</p>'
         '<table class="food-row" cellpadding="4" cellspacing="4">' + rows + '</table>'
+        + _eat_board_html(raw_data, names, first)
+    )
+
+
+def _chip_table(names, css, color):
+    cells = [
+        '<td class="%s" bgcolor="%s">%s</td>' % (css, color, escape(name))
+        for name in names
+    ]
+    return ''.join(
+        '<tr>' + ''.join(cells[i:i + 4]) + '</tr>'
+        for i in range(0, len(cells), 4)
+    )
+
+
+def _eat_board_html(raw_data, avoid, first):
+    foods = foods_to_eat(raw_data, avoid=avoid)
+    if not foods:
+        return ''
+    meals = meal_ideas(foods)
+    meal_html = ''.join(
+        '<li><strong>%s.</strong> %s</li>' % (escape(title), escape(text))
+        for title, text in meals
+    )
+    return (
+        '<h3>Foods to lean on</h3>'
+        '<p>' + first + ', these foods were quieter than the ones that stood out. '
+        'Start here. This is not a diet prescription.</p>'
+        '<table class="eat-row" cellpadding="4" cellspacing="4">'
+        + _chip_table(foods, 'eat-chip', '#1e40af')
+        + '</table>'
+        + ('<h3>Meal ideas</h3><ul class="meal-list">' + meal_html + '</ul>' if meal_html else '')
+        + '<p class="rec-note">Leave off the foods that stood out while you try these. '
+        'This is not a meal plan from a dietitian.</p>'
     )

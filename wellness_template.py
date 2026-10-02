@@ -611,6 +611,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
         '.age-num{font-size:1.8rem;font-weight:800;line-height:1.1}'
         '.toxin-chip{background:#7c2d12;color:#fff;font-weight:700;border-radius:999px;padding:.35rem .7rem}'
         '.food-chip{background:#166534;color:#fff;font-weight:700;border-radius:999px;padding:.35rem .7rem}'
+        '.eat-chip{background:#1e40af;color:#fff;font-weight:700;border-radius:999px;padding:.35rem .7rem}'
         '</style>'
         '<h2>What this scan found</h2>'
         '<p>' + first + ', findings come first. What to do about them is further down.</p>'
