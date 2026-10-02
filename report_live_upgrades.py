@@ -279,7 +279,9 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                 or report_html_has_findings(original)
                 or scan_text_has_content(raw)
             )
-            was_sent = bool(report.email_sent or report.sms_sent or (original and len(original) > 200))
+            was_sent = bool(
+                report.email_sent or report.sms_sent or (original and len(original) > 200) or len((raw or '').strip()) > 80
+            )
             if real and was_sent and not report.approved:
                 report.approved = True
                 if not report.approved_at:
@@ -570,6 +572,56 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         return redirect(url_for('dashboard'))
 
     helpers['_render_client_dashboard'] = _render_client_dashboard
+
+    _orig_build_dashboard = helpers.get('_build_dashboard_context')
+
+    def _report_visible(report):
+        raw = (getattr(report, 'raw_data', None) or '').strip()
+        html = getattr(report, 'generated_report', None) or ''
+        original = getattr(report, 'original_generated_report', None) or ''
+        try:
+            from document_service import report_html_has_findings, scan_text_has_content
+            if report_html_has_findings(html) or report_html_has_findings(original):
+                return True
+            if scan_text_has_content(raw):
+                return True
+        except Exception:
+            pass
+        return len(raw) > 80 or len(html) > 400 or len(original) > 400
+
+    def _build_dashboard_context(email):
+        ctx = _orig_build_dashboard(email) if _orig_build_dashboard else {}
+        try:
+            rows = Report.query.filter(
+                db.func.lower(Report.user_email) == _normalize_email(email)
+            ).order_by(Report.id.desc()).all()
+        except Exception as exc:
+            print('[Root Cause] past report list failed: %s' % exc)
+            return ctx
+        changed = False
+        visible = []
+        for row in rows:
+            if not _report_visible(row):
+                continue
+            if not row.approved:
+                row.approved = True
+                if not row.approved_at:
+                    row.approved_at = row.date or ''
+                changed = True
+            visible.append(row)
+        if changed:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        if visible:
+            ctx['reports'] = visible
+            group = helpers.get('_group_reports_by_date')
+            ctx['reports_by_date'] = group(visible) if group else {'Reports': visible}
+            ctx['report_id'] = visible[0].id
+        return ctx
+
+    helpers['_build_dashboard_context'] = _build_dashboard_context
 
     app.view_functions['view_report'] = view_report
     app.view_functions['download_report_pdf'] = download_report_pdf
