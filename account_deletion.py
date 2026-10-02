@@ -136,10 +136,14 @@ def register_account_deletion_routes(app, db, User, Report=None, ClientDocument=
                 if html and 'href="/account/delete"' not in html:
                     card = ('<div class="card" style="margin:1rem 0;"><h2>Account</h2>'
                             '<p><a href="/account/delete">Delete my account and data</a></p></div>')
-                    if anchor in html:
-                        html = html.replace(anchor, anchor + card, 1)
+                    # Keep account deletion at the bottom of the portal, not under the welcome line.
+                    end = html.rfind('</div>')
+                    if end != -1:
+                        html = html[:end] + card + html[end:]
                     elif '</body>' in html:
-                        html = html.replace('</body>', '<div class="container">' + card + '</div></body>', 1)
+                        html = html.replace('</body>', card + '</body>', 1)
+                    elif anchor in html:
+                        html = html.replace(anchor, anchor + card, 1)
                     response.set_data(html)
         except Exception as exc:
             print('[AccountDelete] dashboard link skipped:', exc)
