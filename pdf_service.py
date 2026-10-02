@@ -83,6 +83,7 @@ ul { margin: 6px 0; padding-left: 18px; }
 .age-label { font-size: 8pt; }
 .age-num { font-size: 18pt; font-weight: bold; }
 .toxin-chip { background-color: #7c2d12; color: #ffffff; font-weight: bold; font-size: 9pt; padding: 4px 8px; }
+.food-chip { background-color: #166534; color: #ffffff; font-weight: bold; font-size: 9pt; padding: 4px 8px; }
 .wellness-disclaimer-line { color: #3d5c55; font-size: 9pt; }
 
 .stress-badge { font-size: 8pt; padding: 2px 6px; }

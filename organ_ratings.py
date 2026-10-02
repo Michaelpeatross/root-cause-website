@@ -352,3 +352,90 @@ def toxin_board_html(raw_data, client_name='Client'):
         'This is not a blood test, a hair-metal test, or a diagnosis.</p>'
         '<table class="toxin-row" cellpadding="4" cellspacing="4"><tr>' + chips + '</tr></table>'
     )
+
+
+_FOOD_TAG = re.compile(
+    r'^(?P<name>.+?)(?:,\s*|\s+)(?P<tag>food|dairy|fruits?|vegetables?|cereals?|meats?|drinks?|spices?|fish|seeds?|oils?)\s*$',
+    re.I,
+)
+_FOOD_SKIP = re.compile(
+    r'rbc|coral|nona|shampoo|nectar|vita|cleanse|fulfil|enteropath|blood sugar|'
+    r'cornea|salmonella|glucose|methyl|chem\b|rattle|sterlet|turtle|beluga|huso|allergen',
+    re.I,
+)
+_FOOD_ALIAS = {
+    'glair': 'Egg white',
+    'yolk': 'Egg yolk',
+    'chicken egg yolk': 'Egg yolk',
+    'oatmeal': 'Oatmeal',
+    'cow milk': 'Cow milk',
+    'red capsicum': 'Red pepper',
+    'colombian coffee': 'Coffee',
+    'sunflower': 'Sunflower seeds',
+    'condensed milk': 'Condensed milk',
+    'goat cheese': 'Goat cheese',
+}
+
+
+def _food_label(raw_name):
+    chunk = re.sub(r'\s+', ' ', raw_name or '').strip(' ,')
+    chunk = re.split(r'E=\d+', chunk)[-1].strip(' ,')
+    match = _FOOD_TAG.match(chunk)
+    if not match:
+        return None
+    if _FOOD_SKIP.search(chunk):
+        return None
+    label = match.group('name').strip(' ,')
+    if len(label) < 3 or len(label.split()) == 1 and len(label) < 3:
+        return None
+    if re.match(r'^[A-Za-z]\s', label):
+        return None
+    key = label.lower()
+    if key in ('food', 'dairy', 'drinks', 'meat', 'fish', 's milk'):
+        return None
+    if '[' in label or ']' in label:
+        return None
+    if re.search(r'absinth|schnapps|grappa|tequila|\bgin\b|\bjin\b|\bport\b|vodka|whisky|whiskey|\brum\b|brandy|cognac|vermouth|liqueur|buffalo|ostrich|\bgoose\b|\bveal\b', key):
+        return None
+    if key in _FOOD_ALIAS:
+        return _FOOD_ALIAS[key]
+    return ' '.join(word.capitalize() for word in key.replace("'", "'").split())
+
+
+def named_foods(raw_data, limit=8):
+    """Loudest everyday foods. No machine numbers and no allergy diagnosis."""
+    best = {}
+    for line in _scan_lines(raw_data):
+        parts = re.split(r'\s+D=([0-9.]+)', line)
+        for name, raw_value in zip(parts[0::2], parts[1::2]):
+            try:
+                value = float(raw_value)
+            except ValueError:
+                continue
+            label = _food_label(name)
+            if not label:
+                continue
+            best[label] = max(best.get(label, 0), value)
+    ranked = sorted(best, key=lambda name: (-best[name], name))
+    return ranked[:limit]
+
+
+def food_board_html(raw_data, client_name='Client'):
+    names = named_foods(raw_data)
+    if not names:
+        return ''
+    first = escape(((client_name or 'Client').split() or ['there'])[0])
+    cells = [
+        '<td class="food-chip" bgcolor="#166534">' + escape(name) + '</td>'
+        for name in names
+    ]
+    rows = ''.join(
+        '<tr>' + ''.join(cells[i:i + 4]) + '</tr>'
+        for i in range(0, len(cells), 4)
+    )
+    return (
+        '<h3>Food sensitivities</h3>'
+        '<p>' + first + ', these foods stood out more than the other foods on this scan. '
+        'This is a scan pattern, not an allergy test, not an intolerance test, and not a diagnosis.</p>'
+        '<table class="food-row" cellpadding="4" cellspacing="4">' + rows + '</table>'
+    )

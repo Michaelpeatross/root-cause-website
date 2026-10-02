@@ -580,7 +580,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
     html = _drop_old_findings(html)
     html = re.sub(r'<section class="report-section biometric-age-block"[\s\S]*?</section>', '', html, count=1)
     try:
-        from organ_ratings import organ_board_html, toxin_board_html
+        from organ_ratings import organ_board_html, toxin_board_html, food_board_html
         board = organ_board_html(
             raw_data,
             calendar_age=calendar_age,
@@ -589,6 +589,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
             previous_scans=previous_scans,
         )
         board += toxin_board_html(raw_data, client_name=client_name)
+        board += food_board_html(raw_data, client_name=client_name)
     except Exception:
         board = ''
     first = escape(((client_name or 'Client').split() or ['there'])[0])
@@ -609,6 +610,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
         '.age-label{font-size:.75rem;letter-spacing:.04em;text-transform:uppercase}'
         '.age-num{font-size:1.8rem;font-weight:800;line-height:1.1}'
         '.toxin-chip{background:#7c2d12;color:#fff;font-weight:700;border-radius:999px;padding:.35rem .7rem}'
+        '.food-chip{background:#166534;color:#fff;font-weight:700;border-radius:999px;padding:.35rem .7rem}'
         '</style>'
         '<h2>What this scan found</h2>'
         '<p>' + first + ', findings come first. What to do about them is further down.</p>'
