@@ -504,15 +504,60 @@ def _age_section(calendar_age, biometric_age, client_name):
         '<section class="report-section biometric-age-block" id="biometric-age">'
         '<h3>Whole-person age</h3>'
         '<table class="age-compare" width="100%" cellpadding="8" cellspacing="6"><tr>'
-        '<td width="50%" class="age-cal" bgcolor="#0b3d2a"><div class="age-label">Calendar age</div>'
-        '<div class="age-num">' + str(int(calendar_age)) + '</div></td>'
-        '<td width="50%" class="age-bio" bgcolor="#9b3a3a"><div class="age-label">Scan age</div>'
-        '<div class="age-num">' + str(int(biometric_age)) + '</div></td>'
+        '<td width="50%" class="age-cal" bgcolor="#0b3d2a"><span class="age-label">Calendar age</span> '
+        '<span class="age-num">' + str(int(calendar_age)) + '</span></td>'
+        '<td width="50%" class="age-bio" bgcolor="#9b3a3a"><span class="age-label">Scan age</span> '
+        '<span class="age-num">' + str(int(biometric_age)) + '</span></td>'
         '</tr></table>'
         '<p><strong>Difference:</strong> ' + diff + '</p>'
         '<p>' + summary + ' This is a bioenergetic wellness estimate, not a clinical aging test such as PhenoAge or DNA methylation.</p>'
         '<p class="rec-note">' + first + ', raw scanner percentages stay off this report.</p></section>'
     )
+
+
+def _cut_balanced_div(html, start_token):
+    start = html.find(start_token)
+    if start < 0:
+        return html
+    i = start + len(start_token)
+    depth = 1
+    while i < len(html) and depth:
+        open_at = html.find('<div', i)
+        close_at = html.find('</div>', i)
+        if close_at < 0:
+            return html[:start]
+        if open_at != -1 and open_at < close_at:
+            depth += 1
+            i = open_at + 4
+        else:
+            depth -= 1
+            i = close_at + 6
+    return html[:start] + html[i:]
+
+
+def _drop_old_findings(html):
+    """Remove current findings, including leftovers from an older short match."""
+    token = '<div id="scan-findings">'
+    for _ in range(12):
+        if token not in html:
+            break
+        html = _cut_balanced_div(html, token)
+    banner = html.find('<aside class="wellness-banner"')
+    for _ in range(12):
+        starts = []
+        for needle in ('<div class="age-num">', '<div class="age-label">', '<h2>What this scan found</h2>', '<h3>Major organs</h3>', '<table class="organ-chart"'):
+            at = html.find(needle)
+            if at != -1 and (banner == -1 or at < banner):
+                starts.append(at)
+        if not starts:
+            break
+        start = min(starts)
+        end = banner if banner != -1 and banner > start else html.find('<section class="top3"', start)
+        if end == -1 or end <= start:
+            break
+        html = html[:start] + html[end:]
+        banner = html.find('<aside class="wellness-banner"')
+    return html
 
 
 def place_findings_first(html, raw_data, client_name='Client', calendar_age=None, biometric_age=None, previous_scans=None):
@@ -526,7 +571,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
         except Exception:
             pass
     html = re.sub(r'<div class="wellness-theme-grid">[\s\S]*?</div>', '', html, count=1)
-    html = re.sub(r'<div id="scan-findings">[\s\S]*?</div>', '', html, count=1)
+    html = _drop_old_findings(html)
     html = re.sub(r'<section class="report-section biometric-age-block"[\s\S]*?</section>', '', html, count=1)
     try:
         from organ_ratings import organ_board_html
