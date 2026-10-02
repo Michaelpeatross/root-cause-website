@@ -3,6 +3,16 @@ from datetime import datetime
 import re
 
 
+AGE_ABOVE_CALENDAR_MAX = 5
+
+
+def cap_to_calendar(calendar_age, age):
+    """Client ages stay within 5 years above calendar age."""
+    if calendar_age is None or age is None:
+        return age
+    return min(int(age), int(calendar_age) + AGE_ABOVE_CALENDAR_MAX)
+
+
 HEAVY_CATEGORIES = {
     'Digestive & Gut',
     'Immune & Microbial',
@@ -64,7 +74,7 @@ def compute_biometric_age(findings, calendar_age=None, medical_text=''):
     if any(k in med for k in ('hrv', 'deep sleep', 'recovery')):
         load -= 0.4
 
-    offset = max(-12.0, min(16.0, load - 1.5))
+    offset = max(-12.0, min(float(AGE_ABOVE_CALENDAR_MAX), load - 1.5))
     offset_years = int(round(offset))
 
     if calendar_age:

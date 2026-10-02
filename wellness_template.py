@@ -491,6 +491,9 @@ def _age_section(calendar_age, biometric_age, client_name):
     if not calendar_age or not biometric_age:
         return ''
     delta = int(biometric_age) - int(calendar_age)
+    if delta > 5:
+        biometric_age = int(calendar_age) + 5
+        delta = 5
     if delta > 0:
         diff = '%s years older than calendar age' % delta
         summary = 'Scan patterns are reading older than calendar age.'
@@ -564,6 +567,9 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
     """Findings and organ ratings first. Teas, labs, and supplements after."""
     html = html or ''
     calendar_age, biometric_age = _kept_age(html, calendar_age, biometric_age)
+    if calendar_age and biometric_age is not None:
+        from biometric_age import cap_to_calendar
+        biometric_age = cap_to_calendar(calendar_age, biometric_age)
     if not calendar_age and raw_data:
         try:
             from biometric_age import extract_calendar_age
@@ -574,7 +580,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
     html = _drop_old_findings(html)
     html = re.sub(r'<section class="report-section biometric-age-block"[\s\S]*?</section>', '', html, count=1)
     try:
-        from organ_ratings import organ_board_html
+        from organ_ratings import organ_board_html, toxin_board_html
         board = organ_board_html(
             raw_data,
             calendar_age=calendar_age,
@@ -582,6 +588,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
             client_name=client_name,
             previous_scans=previous_scans,
         )
+        board += toxin_board_html(raw_data, client_name=client_name)
     except Exception:
         board = ''
     first = escape(((client_name or 'Client').split() or ['there'])[0])
@@ -601,6 +608,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
         '.age-cal{background:#0b3d2a;color:#fff}.age-bio{background:#9b3a3a;color:#fff}'
         '.age-label{font-size:.75rem;letter-spacing:.04em;text-transform:uppercase}'
         '.age-num{font-size:1.8rem;font-weight:800;line-height:1.1}'
+        '.toxin-chip{background:#7c2d12;color:#fff;font-weight:700;border-radius:999px;padding:.35rem .7rem}'
         '</style>'
         '<h2>What this scan found</h2>'
         '<p>' + first + ', findings come first. What to do about them is further down.</p>'

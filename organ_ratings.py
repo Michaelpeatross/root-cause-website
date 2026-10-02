@@ -105,9 +105,13 @@ def rate_organs(raw_data, calendar_age=None, biometric_age=None):
     lo, hi = min(known), max(known)
     span = hi - lo or 1
     if calendar_age and biometric_age:
+        from biometric_age import cap_to_calendar
+        biometric_age = cap_to_calendar(calendar_age, biometric_age)
         year_span = max(0, int(biometric_age) - int(calendar_age))
+    elif calendar_age:
+        year_span = 5
     else:
-        year_span = 12
+        year_span = 5
     rows = []
     for avg, title, why, step, question in measured:
         if avg is None:
@@ -118,6 +122,7 @@ def rate_organs(raw_data, calendar_age=None, biometric_age=None):
             rating = max(42, min(92, rating))
             if calendar_age:
                 organ_age = int(calendar_age) + int(round(ratio * year_span))
+                organ_age = min(organ_age, int(calendar_age) + 5)
             else:
                 organ_age = None
             if rating >= 78:
@@ -296,4 +301,54 @@ def organ_board_html(raw_data, calendar_age=None, biometric_age=None, client_nam
         + '</tbody></table>'
         + summary
         + '<p class="rec-note">Higher rating means quieter on this scan. Organ age is not a lab result.</p>'
+    )
+
+
+# Everyday names only. Obscure scanner metals stay off the client page.
+_TOXIN_NAMES = (
+    ('Aluminum', ('aluminium', 'aluminum')),
+    ('Nickel', ('nickel',)),
+    ('Mercury', ('mercury',)),
+    ('Lead', ('lead',)),
+    ('Benzene', ('benzene',)),
+    ('Pesticides', ('pesticide', 'hexachlorobenzene')),
+    ('Cadmium', ('cadmium',)),
+    ('Arsenic', ('arsenic',)),
+    ('Formaldehyde', ('formaldehyde',)),
+)
+
+
+def named_toxins(raw_data, limit=6):
+    """Loudest recognizable toxin names. No machine numbers."""
+    best = {}
+    for line in _scan_lines(raw_data):
+        match = re.search(r'D=([0-9.]+)', line)
+        if not match:
+            continue
+        try:
+            value = float(match.group(1))
+        except ValueError:
+            continue
+        low = line.lower()
+        for title, keys in _TOXIN_NAMES:
+            if any(re.search(r'\b' + re.escape(key), low) for key in keys):
+                best[title] = max(best.get(title, 0), value)
+    ranked = sorted(best, key=lambda name: (-best[name], name))
+    return ranked[:limit]
+
+
+def toxin_board_html(raw_data, client_name='Client'):
+    names = named_toxins(raw_data)
+    if not names:
+        return ''
+    first = escape(((client_name or 'Client').split() or ['there'])[0])
+    chips = ''.join(
+        '<td class="toxin-chip" bgcolor="#7c2d12">' + escape(name) + '</td>'
+        for name in names
+    )
+    return (
+        '<h3>Toxins that stood out</h3>'
+        '<p>' + first + ', these everyday toxin patterns were louder than the other toxin names on this scan. '
+        'This is not a blood test, a hair-metal test, or a diagnosis.</p>'
+        '<table class="toxin-row" cellpadding="4" cellspacing="4"><tr>' + chips + '</tr></table>'
     )
