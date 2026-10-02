@@ -115,6 +115,7 @@ def health_records_html(documents, client_name='Client'):
     rows = []
     unread = 0
     used = 0
+    scan_dates = []
     for doc in docs:
         label = (
             getattr(doc, 'grok_label', None)
@@ -129,24 +130,34 @@ def health_records_html(documents, client_name='Client'):
         )
         text = getattr(doc, 'extracted_text', None) or ''
         name = getattr(doc, 'original_name', None) or ''
-        if _is_scan_file(text, name):
-            detail = 'Earlier bioenergetic scan. Compared in the organ chart above, not repeated here.'
+        if _is_scan_file(text, name) or 'balancing scan' in (label or '').lower() or 'bioenergetic' in (label or '').lower():
+            scan_dates.append(str(when or label)[:32])
+            continue
+        lines = notable_lines(text)
+        if lines:
+            detail = '; '.join(lines)
             used += 1
+        elif text_is_stub(text):
+            detail = 'File is saved. No readable lab or wearable numbers could be extracted.'
+            unread += 1
         else:
-            lines = notable_lines(text)
-            if lines:
-                detail = '; '.join(lines)
-                used += 1
-            elif text_is_stub(text):
-                detail = 'File is saved. No readable lab or wearable numbers could be extracted.'
-                unread += 1
-            else:
-                detail = 'Read. No flagged lab lines or wearable numbers stood out.'
-                used += 1
+            detail = 'Read. No flagged lab lines or wearable numbers stood out.'
+            used += 1
         rows.append(
             '<tr><td>%s</td><td>%s</td><td>%s</td></tr>'
             % (escape(str(label)[:120]), escape(str(when)[:32]), escape(detail))
         )
+    if scan_dates:
+        shown = ', '.join(scan_dates[:8])
+        extra = ''
+        if len(scan_dates) > 8:
+            extra = ' and %s more' % (len(scan_dates) - 8)
+        rows.append(
+            '<tr><td>Earlier scan files</td><td>%s</td>'
+            '<td>Saved for your history. The organ chart compares the scans on this account. These files are not copied again.</td></tr>'
+            % escape(shown + extra)
+        )
+        used += 1
 
     return (
         '<h3>Uploaded health records</h3>'

@@ -255,13 +255,13 @@ def top_priorities_html(raw_data, client_name=None):
         level = band_level.get(bands.get(title)) or PRIORITY_BADGES[min(idx - 1, 2)][0]
         rows.append(
             '<li class="top3-item"><span class="top3-num" aria-hidden="true">' + str(idx) + '</span><div>'
-            '<div class="top3-head"><h3>' + escape(title) + '</h3>' + info_badge_html(level) + '</div>'
+            '<div class="top3-head"><h3>' + escape(title) + '</h3> ' + info_badge_html(level) + '</div>'
             '<p>' + escape(why) + '</p>'
             '<p class="top3-step">Simple first step: ' + escape(step) + '</p></div></li>'
         )
     legend = (
-        '<div class="info-badge-legend">' + info_badge_html('high') + info_badge_html('medium') + info_badge_html('low') +
-        '<span class="hint">Informational emphasis on this scan - not a diagnosis or lab grade.</span></div>'
+        '<p class="info-badge-legend">' + info_badge_html('high') + ' ' + info_badge_html('medium') + ' ' + info_badge_html('low') +
+        ' Informational emphasis on this scan. Not a diagnosis or a lab grade.</p>'
     )
     return (
         '<section class="top3" id="your-top-priorities" aria-label="Your top 3 priorities">'
@@ -407,11 +407,29 @@ def _pull_top3_out_of_glossary(html):
     return html[:start] + section.group(0) + html[top + section.end():]
 
 
+def _drop_stale_summary(html):
+    """The new organ chart is the summary. Drop the old banner, executive blurb, and generic supplement list."""
+    if 'id="scan-findings"' not in (html or ''):
+        return html
+    html = re.sub(r'<aside class="wellness-banner"[\s\S]*?</aside>', '', html, count=1, flags=re.I)
+    html = re.sub(r'<section class="report-executive"[\s\S]*?</section>', '', html, count=1, flags=re.I)
+    html = re.sub(r'<div class="report-columns">[\s\S]*?</section>\s*</div>', '', html, count=1, flags=re.I)
+    html = re.sub(r'<footer class="report-footer">[\s\S]*?</footer>', '', html, count=1, flags=re.I)
+    html = re.sub(
+        r'<p class="rec-note">Scanner item names and machine codes stay with your practitioner\.[\s\S]*?</p>',
+        '',
+        html,
+        count=1,
+    )
+    return html
+
+
 def clean_client_report(html):
     """Client page and PDF: plain language only. No raw scanner names."""
     if not html:
         return html
     html = _pull_top3_out_of_glossary(html)
+    html = _drop_stale_summary(html)
     html = re.sub(r'<details[^>]*(?:id="report-glossary"|glossary-panel)[\s\S]*?</dl>\s*</details>', '', html, flags=re.I)
     html = re.sub(r'<dl class="glossary-list"[\s\S]*?</dl>', '', html, flags=re.I)
     html = re.sub(r'<div class="glossary-item">[\s\S]*?</div>', '', html, flags=re.I)
@@ -449,7 +467,7 @@ def clean_client_report(html):
     html = re.sub(r'<div class="findings-grid">[\s\S]*?</div>', '', html, flags=re.I)
     html = re.sub(
         r'<ul class="top-findings">[\s\S]*?</ul>',
-        '<p class="rec-note">Scanner item names and machine codes stay with your practitioner. The organ chart above is the finding. The plan comes after.</p>',
+        '<p class="rec-note">The organ chart is the finding. What to do about it comes next.</p>',
         html,
         count=1,
         flags=re.I,
@@ -593,6 +611,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
     except Exception:
         board = ''
     first = escape(((client_name or 'Client').split() or ['there'])[0])
+    new_top = top_priorities_html(raw_data, client_name=client_name)
     findings = (
         '<div id="scan-findings"><style>'
         '.organ-board,.organ-chart{width:100%;border-collapse:collapse;margin:.5rem 0 1rem}'
@@ -617,17 +636,16 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
         '<p>' + first + ', findings come first. What to do about them is further down.</p>'
         + _age_section(calendar_age, biometric_age, client_name)
         + board
+        + new_top
         + (health_html or '')
         + '</div>'
     )
-    new_top = top_priorities_html(raw_data, client_name=client_name)
-    if 'id="your-top-priorities"' in html:
-        html = re.sub(
-            r'<section class="top3" id="your-top-priorities"[\s\S]*?</section>',
-            new_top,
-            html,
-            count=1,
-        )
+    html = re.sub(
+        r'<section class="top3" id="your-top-priorities"[\s\S]*?</section>',
+        '',
+        html,
+        count=1,
+    )
     plan = ''
     match = re.search(r'<div class="client-wellness-plan"[\s\S]*?</div>', html)
     if match:
