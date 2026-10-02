@@ -167,22 +167,24 @@ def deliver_report_to_client(
 
     if send_sms:
         from notification_service import send_sms as _send_sms
-        if media_url:
+        if media_url and _twilio_configured():
             sms_body = (
                 f'Root Cause: Your report "{report_title}" is attached as a PDF. '
                 f'Reply to this text for help.'
             )
+            sms_media = media_url
         else:
             sms_body = (
                 f'Root Cause: Your report "{report_title}" is ready. '
-                f'The PDF is in your email. Reply to this text for help.'
+                f'The PDF is attached to the email just sent to you. Reply to this text for help.'
             )
+            sms_media = None
         ok, msg = _send_sms(
             client_phone,
             sms_body,
             reply_webhook_url=reply_webhook_url,
             from_number=from_number,
-            media_url=media_url,
+            media_url=sms_media,
         )
         results.append(('sms', ok, msg))
     else:
