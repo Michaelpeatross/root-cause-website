@@ -278,14 +278,9 @@ def _banner_html(client_name=None):
     return (
         '<aside class="wellness-banner" aria-label="How to read this wellness report">'
         '<h2>Your wellness report</h2>'
-        '<p>Hi ' + first + '. This page is written in everyday language. Health Scores (0-100, higher is better) summarize how balanced each body system looked on this scan.</p>'
-        '<p><strong>Your top 3 priorities</strong> come first, with High / Medium / Low color badges for relative emphasis. Scanner item names stay with your practitioner.</p>'
-        '<div class="wellness-pill-row">'
-        '<span class="wellness-pill">Informational only</span>'
-        '<span class="wellness-pill">Not a diagnosis</span>'
-        '<span class="wellness-pill">Not an allergy test</span>'
-        '<span class="wellness-pill">Not a substitute for a clinician</span>'
-        '</div></aside>'
+        '<p>Hi ' + first + '. Findings come first: how each organ looked, then what to do about it.</p>'
+        '<p class="wellness-disclaimer-line">Informational only. This is not a diagnosis, not an allergy test, and not a substitute for a clinician.</p>'
+        '</aside>'
     )
 
 
@@ -417,6 +412,27 @@ def clean_client_report(html):
     if not html:
         return html
     html = _pull_top3_out_of_glossary(html)
+    html = re.sub(r'<details[^>]*(?:id="report-glossary"|glossary-panel)[\s\S]*?</dl>\s*</details>', '', html, flags=re.I)
+    html = re.sub(r'<dl class="glossary-list"[\s\S]*?</dl>', '', html, flags=re.I)
+    html = re.sub(r'<div class="glossary-item">[\s\S]*?</div>', '', html, flags=re.I)
+    html = re.sub(
+        r'<details class="jargon"><summary class="jargon-term">(.*?)</summary>[\s\S]*?</details>',
+        r'\1',
+        html,
+        flags=re.I,
+    )
+    html = re.sub(
+        r'<p><strong>Your top 3 priorities</strong> come first[\s\S]*?</p>\s*',
+        '',
+        html,
+        count=1,
+    )
+    html = re.sub(
+        r'<div class="wellness-pill-row">[\s\S]*?</div>',
+        '<p class="wellness-disclaimer-line">Informational only. This is not a diagnosis, not an allergy test, and not a substitute for a clinician.</p>',
+        html,
+        count=1,
+    )
     html = re.sub(r'<details class="wellness-raw-toggle">[\s\S]*?</details>', '', html, flags=re.I)
     html = re.sub(
         r'<section class="report-section">\s*<h3>[^<]*</h3>\s*(?:<div class="findings-grid">[\s\S]*?</div>\s*)?</section>',
@@ -433,7 +449,7 @@ def clean_client_report(html):
     html = re.sub(r'<div class="findings-grid">[\s\S]*?</div>', '', html, flags=re.I)
     html = re.sub(
         r'<ul class="top-findings">[\s\S]*?</ul>',
-        '<p class="rec-note">Scanner item names and machine codes stay with your practitioner. Start with the wellness plan and your top 3 priorities.</p>',
+        '<p class="rec-note">Scanner item names and machine codes stay with your practitioner. The organ chart above is the finding. The plan comes after.</p>',
         html,
         count=1,
         flags=re.I,
@@ -456,11 +472,15 @@ def clean_client_report(html):
 
 def _kept_age(html, calendar_age=None, biometric_age=None):
     if calendar_age is None:
-        match = re.search(r'Calendar age:</strong>\s*(\d+)', html or '')
+        match = re.search(r'Calendar age:</strong>\s*(\d+)', html or '') or re.search(
+            r'class="age-cal"[\s\S]{0,180}?class="age-num">\s*(\d+)', html or ''
+        )
         if match:
             calendar_age = int(match.group(1))
     if biometric_age is None:
-        match = re.search(r'Biometric age:</strong>\s*(\d+)', html or '')
+        match = re.search(r'Biometric age:</strong>\s*(\d+)', html or '') or re.search(
+            r'class="age-bio"[\s\S]{0,180}?class="age-num">\s*(\d+)', html or ''
+        )
         if match:
             biometric_age = int(match.group(1))
     return calendar_age, biometric_age
@@ -483,12 +503,16 @@ def _age_section(calendar_age, biometric_age, client_name):
     return (
         '<section class="report-section biometric-age-block" id="biometric-age">'
         '<h3>Whole-person age</h3>'
-        '<p><strong>Calendar age:</strong> %s</p>'
-        '<p><strong>Biometric age:</strong> %s</p>'
-        '<p><strong>Difference:</strong> %s</p>'
-        '<p>%s This is a bioenergetic wellness estimate, not a clinical aging test such as PhenoAge or DNA methylation.</p>'
-        '<p class="rec-note">%s, raw scanner percentages stay off this report.</p></section>'
-    ) % (int(calendar_age), int(biometric_age), diff, summary, first)
+        '<table class="age-compare" width="100%" cellpadding="8" cellspacing="6"><tr>'
+        '<td width="50%" class="age-cal" bgcolor="#0b3d2a"><div class="age-label">Calendar age</div>'
+        '<div class="age-num">' + str(int(calendar_age)) + '</div></td>'
+        '<td width="50%" class="age-bio" bgcolor="#9b3a3a"><div class="age-label">Scan age</div>'
+        '<div class="age-num">' + str(int(biometric_age)) + '</div></td>'
+        '</tr></table>'
+        '<p><strong>Difference:</strong> ' + diff + '</p>'
+        '<p>' + summary + ' This is a bioenergetic wellness estimate, not a clinical aging test such as PhenoAge or DNA methylation.</p>'
+        '<p class="rec-note">' + first + ', raw scanner percentages stay off this report.</p></section>'
+    )
 
 
 def place_findings_first(html, raw_data, client_name='Client', calendar_age=None, biometric_age=None, previous_scans=None):
@@ -517,9 +541,22 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
         board = ''
     first = escape(((client_name or 'Client').split() or ['there'])[0])
     findings = (
-        '<div id="scan-findings"><style>.organ-board{width:100%;border-collapse:collapse;margin:.5rem 0 1rem}'
-        '.organ-board th,.organ-board td{border-bottom:1px solid #dceee8;padding:.45rem .4rem;text-align:left;vertical-align:top}'
-        '.organ-board th{color:#0b3d2a;font-size:.82rem}.organ-board td{font-size:.9rem}</style>'
+        '<div id="scan-findings"><style>'
+        '.organ-board,.organ-chart{width:100%;border-collapse:collapse;margin:.5rem 0 1rem}'
+        '.organ-board th,.organ-board td,.organ-chart th,.organ-chart td{border-bottom:1px solid #dceee8;padding:.45rem .4rem;text-align:left;vertical-align:middle}'
+        '.organ-board th,.organ-chart th{color:#0b3d2a;font-size:.82rem}'
+        '.rating-bar{width:100%;border-collapse:collapse;height:18px}'
+        '.rating-bar td{border:0;padding:2px 4px;color:#fff;font-size:.78rem;font-weight:700}'
+        '.bar-high{background:#c2413a;color:#fff}.bar-mod{background:#d97706;color:#fff}'
+        '.bar-mild{background:#0f766e;color:#fff}.bar-ok{background:#1f8a5b;color:#fff}'
+        '.bar-rest{background:#e7f0ec;color:transparent}'
+        '.swatch{display:inline-block;padding:.1rem .45rem;border-radius:999px;margin-right:.35rem;font-size:.75rem}'
+        '.chg-better{color:#0f6b3d;font-weight:700}.chg-worse{color:#9b1c1c;font-weight:700}.chg-same{color:#92400e}'
+        '.age-compare td{border-radius:10px;padding:.7rem .8rem}'
+        '.age-cal{background:#0b3d2a;color:#fff}.age-bio{background:#9b3a3a;color:#fff}'
+        '.age-label{font-size:.75rem;letter-spacing:.04em;text-transform:uppercase}'
+        '.age-num{font-size:1.8rem;font-weight:800;line-height:1.1}'
+        '</style>'
         '<h2>What this scan found</h2>'
         '<p>' + first + ', findings come first. What to do about them is further down.</p>'
         + _age_section(calendar_age, biometric_age, client_name)

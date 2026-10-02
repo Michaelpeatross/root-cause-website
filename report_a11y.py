@@ -134,7 +134,7 @@ def enhance_score_bars(html):
 def apply_report_a11y(html):
     if not html or len(html.strip()) < 40:
         return html
-    if 'id="report-glossary"' not in html:
+    if 'id="report-glossary"' not in html and 'class="wellness-banner"' not in html and 'id="scan-findings"' not in html:
         panel = glossary_panel_html()
         if 'id="your-top-priorities"' in html:
             html = html.replace('<section class="top3" id="your-top-priorities"', panel + '<section class="top3" id="your-top-priorities"', 1)

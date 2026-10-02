@@ -158,8 +158,12 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         except Exception as exc:
             print('[Root Cause] system plain cards failed: %s' % exc)
         calendar_age = biometric_age = None
-        cal_match = re.search(r'Calendar age:</strong>\s*(\d+)', html or '')
-        bio_match = re.search(r'Biometric age:</strong>\s*(\d+)', html or '')
+        cal_match = re.search(r'Calendar age:</strong>\s*(\d+)', html or '') or re.search(
+            r'class="age-cal"[\s\S]{0,180}?class="age-num">\s*(\d+)', html or ''
+        )
+        bio_match = re.search(r'Biometric age:</strong>\s*(\d+)', html or '') or re.search(
+            r'class="age-bio"[\s\S]{0,180}?class="age-num">\s*(\d+)', html or ''
+        )
         if cal_match:
             calendar_age = int(cal_match.group(1))
         if bio_match:

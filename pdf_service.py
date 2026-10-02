@@ -61,7 +61,28 @@ ul { margin: 6px 0; padding-left: 18px; }
 .health-score-pill { font-weight: bold; }
 .organ-board { width: 100%; border-collapse: collapse; margin: 8px 0 12px; }
 .organ-board th, .organ-board td { border-bottom: 1px solid #dceee8; padding: 4px 6px; text-align: left; font-size: 9pt; vertical-align: top; }
-.organ-board th { color: #0b3d2a; }
+.organ-board th { color: #0b3d2a; background-color: #f4faf7; }
+.organ-chart { width: 100%; border-collapse: collapse; margin: 8px 0 14px; }
+.organ-chart th { color: #0b3d2a; font-size: 8pt; text-align: left; padding: 3px; }
+.organ-chart td { padding: 3px 4px; vertical-align: middle; font-size: 9pt; }
+.chart-name { width: 28%; }
+.chart-age { width: 12%; font-weight: bold; color: #0b3d2a; }
+.rating-bar { width: 100%; border-collapse: collapse; }
+.bar-high { background-color: #c2413a; color: #ffffff; font-size: 8pt; font-weight: bold; }
+.bar-mod { background-color: #d97706; color: #ffffff; font-size: 8pt; font-weight: bold; }
+.bar-mild { background-color: #0f766e; color: #ffffff; font-size: 8pt; font-weight: bold; }
+.bar-ok { background-color: #1f8a5b; color: #ffffff; font-size: 8pt; font-weight: bold; }
+.bar-rest { background-color: #e7f0ec; color: #e7f0ec; font-size: 8pt; }
+.swatch { font-size: 8pt; font-weight: bold; }
+.chg-better { color: #0f6b3d; font-weight: bold; }
+.chg-worse { color: #9b1c1c; font-weight: bold; }
+.chg-same { color: #92400e; }
+.age-compare { width: 100%; margin: 8px 0 10px; }
+.age-cal { background-color: #0b3d2a; color: #ffffff; padding: 8px; }
+.age-bio { background-color: #9b3a3a; color: #ffffff; padding: 8px; }
+.age-label { font-size: 8pt; }
+.age-num { font-size: 18pt; font-weight: bold; }
+.wellness-disclaimer-line { color: #3d5c55; font-size: 9pt; }
 
 .stress-badge { font-size: 8pt; padding: 2px 6px; }
 .stress-minor { background: #d4edda; color: #155724; }
@@ -97,9 +118,20 @@ def _sanitize_html_for_pdf(html):
     html = re.sub(r'<p class="rc-section-ask">[\s\S]*?</p>', '', html, flags=re.I)
     html = re.sub(r'<div id="grok-float"[\s\S]*?</div>\s*</div>\s*</div>', '', html, count=1, flags=re.I)
     html = re.sub(
-        r'<details class="glossary-panel"[\s\S]*?</details>',
-        lambda m: m.group(0) if 'your-top-priorities' in m.group(0) else '',
+        r'<details class="jargon"><summary class="jargon-term">(.*?)</summary>[\s\S]*?</details>',
+        r'\1',
         html,
+        flags=re.I,
+    )
+    html = re.sub(r'<details[^>]*(?:id="report-glossary"|glossary-panel)[\s\S]*?</dl>\s*</details>', '', html, flags=re.I)
+    html = re.sub(r'<dl class="glossary-list"[\s\S]*?</dl>', '', html, flags=re.I)
+    html = re.sub(r'<div class="glossary-item">[\s\S]*?</div>', '', html, flags=re.I)
+    html = re.sub(r'<p class="glossary-lead">[\s\S]*?</p>', '', html, flags=re.I)
+    html = re.sub(
+        r'<div class="wellness-pill-row">[\s\S]*?</div>',
+        '<p>Informational only. This is not a diagnosis, not an allergy test, and not a substitute for a clinician.</p>',
+        html,
+        count=1,
         flags=re.I,
     )
     html = re.sub(r'<p>Nothing extra in this section\. Use Overview or Ask Grok\.</p>', '', html)

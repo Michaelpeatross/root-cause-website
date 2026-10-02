@@ -161,6 +161,43 @@ def organ_signals(raw_data):
     return found
 
 
+def _bar_color(band):
+    return {
+        'Higher load': '#c2413a',
+        'Moderate load': '#d97706',
+        'Mild load': '#0f766e',
+        'Steady': '#1f8a5b',
+    }.get(band, '#64748b')
+
+
+def _bar_class(band):
+    return {
+        'Higher load': 'bar-high',
+        'Moderate load': 'bar-mod',
+        'Mild load': 'bar-mild',
+        'Steady': 'bar-ok',
+    }.get(band, 'bar-mod')
+
+
+def _rating_bar(rating, band):
+    width = max(8, min(100, int(rating)))
+    color = _bar_color(band)
+    return (
+        '<table class="rating-bar" width="100%%" cellpadding="0" cellspacing="0"><tr>'
+        '<td width="%s%%" class="%s" bgcolor="%s">%s</td>'
+        '<td class="bar-rest" bgcolor="#e7f0ec">&nbsp;</td>'
+        '</tr></table>'
+    ) % (width, _bar_class(band), color, rating)
+
+
+def _change_class(label):
+    if label.startswith('Improved') or label.startswith('Quieter'):
+        return 'chg-better'
+    if label.startswith('Louder'):
+        return 'chg-worse'
+    return 'chg-same'
+
+
 def _change_label(delta, band):
     still = band in ('Higher load', 'Moderate load')
     if delta is None:
@@ -201,11 +238,13 @@ def organ_board_html(raw_data, calendar_age=None, biometric_age=None, client_nam
     head = (
         '<h3>Major organs</h3>'
         '<p>' + first + ', every major organ is listed below, loudest first. '
-        'The rating is higher when that organ was quieter. The age is a bioenergetic estimate beside calendar age, '
-        'not a clinical organ test and not a diagnosis.' + age_note + '</p>'
+        'A longer green bar is quieter. A short red bar is louder and still needs work. '
+        'The age is a bioenergetic estimate beside calendar age, not a clinical organ test and not a diagnosis.'
+        + age_note + '</p>'
         + history
     )
     improved, needs = [], []
+    chart = []
     body = []
     change_head = '<th>Since ' + escape(prior_label) + '</th>' if prior else ''
     for row in rows:
@@ -216,14 +255,19 @@ def organ_board_html(raw_data, calendar_age=None, biometric_age=None, client_nam
             new = row.get('signal')
             delta = None if old is None or new is None else new - old
             label = _change_label(delta, row['band'])
-            change_cell = '<td>' + escape(label) + '</td>'
+            change_cell = '<td class="' + _change_class(label) + '">' + escape(label) + '</td>'
             if label.startswith('Improved') or label.startswith('Quieter'):
                 improved.append(row['title'])
             if 'work' in label.lower() or label.startswith('Louder'):
                 needs.append(row['title'])
+        chart.append(
+            '<tr><td class="chart-name"><strong>' + escape(row['title']) + '</strong></td>'
+            '<td class="chart-bar">' + _rating_bar(row['rating'], row['band']) + '</td>'
+            '<td class="chart-age">' + age + '</td></tr>'
+        )
         body.append(
             '<tr><td><strong>' + escape(row['title']) + '</strong></td>'
-            '<td>' + str(row['rating']) + ' · ' + escape(row['band']) + '</td>'
+            '<td class="' + _bar_class(row['band']) + '">' + str(row['rating']) + ' · ' + escape(row['band']) + '</td>'
             '<td>' + age + '</td>'
             + change_cell
             + '<td>' + escape(row['why']) + '</td></tr>'
@@ -238,6 +282,13 @@ def organ_board_html(raw_data, calendar_age=None, biometric_age=None, client_nam
         )
     return (
         head
+        + '<p class="chart-key"><span class="swatch bar-high">Louder</span> '
+        '<span class="swatch bar-mod">Moderate</span> '
+        '<span class="swatch bar-mild">Mild</span> '
+        '<span class="swatch bar-ok">Quieter</span></p>'
+        + '<table class="organ-chart" width="100%"><thead><tr><th>Organ</th><th>Rating bar</th><th>Age</th></tr></thead><tbody>'
+        + ''.join(chart)
+        + '</tbody></table>'
         + '<table class="organ-board"><thead><tr><th>Organ</th><th>Rating</th><th>Age</th>'
         + change_head
         + '<th>What stood out</th></tr></thead><tbody>'
