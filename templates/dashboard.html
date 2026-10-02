@@ -55,6 +55,27 @@
     </div>
 
     <div class="card">
+        <h2>Past reports</h2>
+        <p style="color:var(--text-muted); font-size:0.9rem;">Every scan stays here. Each one keeps its own PDF.</p>
+        {% for date_label, date_reports in reports_by_date.items() %}
+        <div class="scan-date-group" style="margin-top:1rem;">
+            <h3 style="font-family:'Playfair Display',serif; color:var(--green-dark); font-size:1.05rem; border-bottom:2px solid var(--green-light); padding-bottom:0.35rem;">{{ date_label }}</h3>
+            <ul style="list-style:none; padding:0; margin:0;">
+                {% for report in date_reports %}
+                <li style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; padding:0.6rem 0; border-bottom:1px solid #eee;">
+                    <strong>{{ report.title }}</strong>
+                    <div style="display:flex; gap:0.4rem;">
+                        <a href="{{ url_for('view_report', report_id=report.id) }}" class="btn btn-outline" style="padding:0.3rem 0.7rem; font-size:0.85rem;">View</a>
+                        <a href="{{ url_for('download_report_pdf', report_id=report.id) }}" class="btn btn-primary" style="padding:0.3rem 0.7rem; font-size:0.85rem;">PDF</a>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="card">
         <h2>Grok Analysis</h2>
         <p style="color:var(--text-muted);">Your original scan analysis is preserved. After you upload records, request an updated analysis.</p>
 
@@ -110,26 +131,6 @@
                 {{ recommendations.labs_html|safe }}
             </div>
         </details>
-    </div>
-
-    <div class="card">
-        <h2>Your Scan History</h2>
-        {% for date_label, date_reports in reports_by_date.items() %}
-        <div class="scan-date-group" style="margin-top:1rem;">
-            <h3 style="font-family:'Playfair Display',serif; color:var(--green-dark); font-size:1.05rem; border-bottom:2px solid var(--green-light); padding-bottom:0.35rem;">{{ date_label }}</h3>
-            <ul style="list-style:none; padding:0; margin:0;">
-                {% for report in date_reports %}
-                <li style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; padding:0.6rem 0; border-bottom:1px solid #eee;">
-                    <strong>{{ report.title }}</strong>
-                    <div style="display:flex; gap:0.4rem;">
-                        <a href="{{ url_for('view_report', report_id=report.id) }}" class="btn btn-outline" style="padding:0.3rem 0.7rem; font-size:0.85rem;">View</a>
-                        <a href="{{ url_for('download_report_pdf', report_id=report.id) }}" class="btn btn-primary" style="padding:0.3rem 0.7rem; font-size:0.85rem;">PDF</a>
-                    </div>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-        {% endfor %}
     </div>
     {% endif %}
 

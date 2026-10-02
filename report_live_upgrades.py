@@ -232,7 +232,66 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+        _persist_report_pdf(report, html)
         return html
+
+    def _persist_report_pdf(report, html):
+        """Keep a PDF copy on the persistent disk for this report. Never delete older reports."""
+        if not html or len(html.strip()) < 40 or not getattr(report, 'id', None):
+            return False
+        pdf_name = 'report_%s.pdf' % report.id
+        try:
+            os.makedirs(reports_dir, exist_ok=True)
+            path = os.path.join(reports_dir, pdf_name)
+            ok = bool(save_report_pdf(html, path))
+        except Exception as exc:
+            print('[Root Cause] keep pdf failed for report %s: %s' % (getattr(report, 'id', '?'), exc))
+            return False
+        if not ok or not os.path.isfile(os.path.join(reports_dir, pdf_name)):
+            return False
+        if report.pdf_filename != pdf_name:
+            report.pdf_filename = pdf_name
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        return True
+
+    def _restore_published_reports():
+        """Put sent reports back on the client page if a later edit hid them."""
+        try:
+            from document_service import report_html_has_findings, scan_text_has_content
+        except Exception:
+            report_html_has_findings = lambda html: False
+            scan_text_has_content = lambda text: len((text or '').strip()) > 80
+        changed = False
+        try:
+            rows = Report.query.all()
+        except Exception as exc:
+            print('[Root Cause] restore reports failed: %s' % exc)
+            return
+        for report in rows:
+            html = report.generated_report or ''
+            original = getattr(report, 'original_generated_report', None) or ''
+            raw = report.raw_data or ''
+            real = (
+                report_html_has_findings(html)
+                or report_html_has_findings(original)
+                or scan_text_has_content(raw)
+            )
+            was_sent = bool(report.email_sent or report.sms_sent or (original and len(original) > 200))
+            if real and was_sent and not report.approved:
+                report.approved = True
+                if not report.approved_at:
+                    report.approved_at = report.date or ''
+                changed = True
+        if changed:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+    _restore_published_reports()
 
     def view_report(report_id):
         current_user = _get_current_user()
@@ -494,12 +553,16 @@ def apply_report_upgrades(app, db, Report, reports_dir):
 
     def _render_client_dashboard(email, admin_preview=False):
         try:
-            latest = Report.query.filter(
+            rows = Report.query.filter(
                 db.func.lower(Report.user_email) == _normalize_email(email),
                 Report.approved == True,
-            ).order_by(Report.id.desc()).first()
-            if latest and (latest.raw_data or latest.generated_report):
-                _apply_plan(latest)
+            ).order_by(Report.id.desc()).all()
+            for row in rows:
+                if not (row.raw_data or row.generated_report):
+                    continue
+                pdf_path = os.path.join(reports_dir, 'report_%s.pdf' % row.id)
+                if row.id == rows[0].id or not os.path.isfile(pdf_path):
+                    _apply_plan(row)
         except Exception as exc:
             print('[Root Cause] portal report sync failed: %s' % exc)
         if _orig_render_dashboard:

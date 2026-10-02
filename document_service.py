@@ -751,6 +751,8 @@ def report_html_has_findings(html):
     markers = (
         'body-overview', 'marker-card', 'finding-row',
         'scan-col', 'scan-remedy-card', 'top-findings',
+        'id="scan-findings"', 'organ-chart', 'wellness-report-chrome',
+        'What this scan found',
     )
     if not any(token in content for token in markers):
         return False
