@@ -307,7 +307,7 @@ def _summarize_apple_health_xml(xml_file_or_content, max_records: int = 30) -> s
         metrics = {}          # rtype -> deque of recent values
         recent_samples = deque(maxlen=max_records)
         count = 0
-        MAX_ITER = 5000       # safety cap - we can scan more now because we don't store everything
+        MAX_ITER = 400000       # stream the export; deques keep only the newest samples
 
         def add_value(rtype, val, unit, date):
             if rtype not in metrics:

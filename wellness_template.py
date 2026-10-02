@@ -563,7 +563,7 @@ def _drop_old_findings(html):
     return html
 
 
-def place_findings_first(html, raw_data, client_name='Client', calendar_age=None, biometric_age=None, previous_scans=None):
+def place_findings_first(html, raw_data, client_name='Client', calendar_age=None, biometric_age=None, previous_scans=None, health_html=''):
     """Findings and organ ratings first. Teas, labs, and supplements after."""
     html = html or ''
     calendar_age, biometric_age = _kept_age(html, calendar_age, biometric_age)
@@ -617,6 +617,7 @@ def place_findings_first(html, raw_data, client_name='Client', calendar_age=None
         '<p>' + first + ', findings come first. What to do about them is further down.</p>'
         + _age_section(calendar_age, biometric_age, client_name)
         + board
+        + (health_html or '')
         + '</div>'
     )
     new_top = top_priorities_html(raw_data, client_name=client_name)

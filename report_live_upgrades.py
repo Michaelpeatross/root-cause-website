@@ -119,6 +119,42 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             found.append({'label': _scan_label(row), 'signals': signals})
         return found
 
+    def _health_records_block(report):
+        ClientDocument = helpers.get('ClientDocument')
+        if ClientDocument is None:
+            return ''
+        documents_dir = helpers.get('documents_dir') or ''
+        email = _normalize_email(getattr(report, 'user_email', ''))
+        try:
+            docs = ClientDocument.query.filter(
+                db.func.lower(ClientDocument.user_email) == email
+            ).order_by(ClientDocument.id.asc()).all()
+        except Exception as exc:
+            print('[Root Cause] health record lookup failed: %s' % exc)
+            return ''
+        changed = False
+        try:
+            from health_records_report import refresh_document_text, health_records_html
+        except Exception as exc:
+            print('[Root Cause] health record module failed: %s' % exc)
+            return ''
+        for doc in docs:
+            try:
+                if refresh_document_text(doc, documents_dir):
+                    changed = True
+            except Exception:
+                continue
+        if changed:
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        try:
+            return health_records_html(docs, client_name=_client_display_name(email))
+        except Exception as exc:
+            print('[Root Cause] health record html failed: %s' % exc)
+            return ''
+
     def _apply_plan(report):
         name = _client_display_name(report.user_email)
         html = report.generated_report or report.original_generated_report or ''
@@ -181,6 +217,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                 html, raw, client_name=name,
                 calendar_age=calendar_age, biometric_age=biometric_age,
                 previous_scans=_earlier_scans(report),
+                health_html=_health_records_block(report),
             )
         except Exception as exc:
             print('[Root Cause] findings-first layout failed: %s' % exc)
