@@ -368,6 +368,91 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         flash('Health Age for %s set to %s.' % (email, age), 'success')
         return redirect(url_for('admin'))
 
+    def _pdf_token(report_id):
+        import hmac
+        import hashlib
+        secret = app.secret_key or os.environ.get('SECRET_KEY') or 'root-cause-report-pdf'
+        if isinstance(secret, bytes):
+            secret = secret.decode('utf-8', errors='replace')
+        digest = hmac.new(
+            str(secret).encode('utf-8'),
+            ('report-pdf:%s' % int(report_id)).encode('utf-8'),
+            hashlib.sha256,
+        ).hexdigest()
+        return digest[:40]
+
+    def report_mms_pdf(report_id, token):
+        import hmac
+        from flask import Response
+        if not hmac.compare_digest(str(token or ''), _pdf_token(report_id)):
+            abort(404)
+        report = Report.query.get_or_404(report_id)
+        html = _apply_plan(report) or report.generated_report or ''
+        from pdf_service import pdf_to_bytes
+        data = pdf_to_bytes(html)
+        if not data:
+            abort(404)
+        filename = 'Full-Scan.pdf'
+        return Response(
+            data,
+            mimetype='application/pdf',
+            headers={'Content-Disposition': 'inline; filename="%s"' % filename},
+        )
+
+    def _approve_and_send_report(report, send_email=False, send_sms=False):
+        User = helpers['User']
+        user = User.query.filter(
+            db.func.lower(User.email) == _normalize_email(report.user_email)
+        ).first()
+        client_name = _client_display_name(report.user_email)
+        client_phone = user.phone if user else ''
+        helpers['_publish_report_to_portal'](report)
+        html = _apply_plan(report) or report.generated_report or ''
+        pdf_bytes = None
+        if html and (send_email or send_sms):
+            from pdf_service import pdf_to_bytes
+            pdf_bytes = pdf_to_bytes(html)
+            if pdf_bytes:
+                try:
+                    os.makedirs(reports_dir, exist_ok=True)
+                    pdf_name = 'report_%s.pdf' % report.id
+                    with open(os.path.join(reports_dir, pdf_name), 'wb') as handle:
+                        handle.write(pdf_bytes)
+                    report.pdf_filename = pdf_name
+                except Exception as exc:
+                    print('[Root Cause] could not store pdf for send: %s' % exc)
+        site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com').rstrip('/')
+        media_url = None
+        if send_sms and pdf_bytes:
+            media_url = '%s/reports/%s/mms/%s' % (site, report.id, _pdf_token(report.id))
+        from notification_service import deliver_report_to_client
+        results = deliver_report_to_client(
+            report.user_email,
+            client_name,
+            client_phone,
+            report.title,
+            report.plain_text or '',
+            pdf_bytes=pdf_bytes,
+            send_email=send_email,
+            send_sms=send_sms,
+            reply_webhook_url=site + '/api/textbelt/reply',
+            from_number='+15106801079',
+            media_url=media_url,
+        )
+        messages = []
+        for channel, ok, msg in results:
+            if channel == 'email' and send_email:
+                report.email_sent = bool(ok)
+                messages.append(msg)
+            elif channel == 'sms' and send_sms:
+                report.sms_sent = bool(ok)
+                messages.append(msg)
+        if not send_email and not send_sms:
+            messages.append('Report is on the client portal (no email or text sent).')
+        return messages
+
+    helpers['_approve_and_send_report'] = _approve_and_send_report
+
     app.view_functions['view_report'] = view_report
     app.view_functions['download_report_pdf'] = download_report_pdf
     existing = {rule.endpoint for rule in app.url_map.iter_rules()}
@@ -381,6 +466,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         ('/api/food-scan/meal', 'api_food_meal', api_food_meal, ['POST']),
         ('/api/food-scan/diary', 'api_food_diary', api_food_diary, ['GET']),
         ('/admin/health-age', 'admin_set_health_age', admin_set_health_age, ['POST']),
+        ('/reports/<int:report_id>/mms/<token>', 'report_mms_pdf', report_mms_pdf, ['GET']),
     ]
     for path, endpoint, view, methods in extra:
         app.view_functions[endpoint] = view

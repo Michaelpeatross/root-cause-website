@@ -38,7 +38,7 @@ def _normalize_phone(number):
 DEFAULT_SMS_FROM_NUMBER = "+15106801079"
 
 
-def send_sms(to_number, message, reply_webhook_url=None, from_number=None):
+def send_sms(to_number, message, reply_webhook_url=None, from_number=None, media_url=None):
     """Send SMS. Prefers Textbelt (cheapest for low volume) if TEXTBELT_API_KEY is set,
     otherwise falls back to Twilio. Returns (success: bool, message: str).
     If reply_webhook_url is provided, Textbelt will POST replies to that URL.
@@ -100,11 +100,14 @@ def send_sms(to_number, message, reply_webhook_url=None, from_number=None):
     token = os.environ['TWILIO_AUTH_TOKEN']
     from_num = sms_from or os.environ.get('TWILIO_FROM_NUMBER') or os.environ.get('SMS_FROM_NUMBER', '')
 
-    body = urllib.parse.urlencode({
+    body_fields = {
         'To': to_num,
         'From': from_num,
         'Body': message[:1500],
-    }).encode('utf-8')
+    }
+    if media_url:
+        body_fields['MediaUrl'] = media_url
+    body = urllib.parse.urlencode(body_fields).encode('utf-8')
 
     url = f'https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json'
     req = urllib.request.Request(url, data=body, method='POST')
@@ -118,30 +121,44 @@ def send_sms(to_number, message, reply_webhook_url=None, from_number=None):
         _log_sms_sent(to_num, True, 'twilio', message)
         return True, f'SMS sent to {to_num}.'
     except Exception as exc:
+        detail = ''
+        if hasattr(exc, 'read'):
+            try:
+                detail = exc.read().decode('utf-8', errors='replace')[:300]
+            except Exception:
+                detail = ''
         _log_sms_sent(to_num, False, 'twilio', message)
-        return False, f'SMS failed: {exc}'
+        extra = (' ' + detail) if detail else ''
+        return False, f'SMS failed: {exc}.{extra}'
 
 
 def deliver_report_to_client(
     client_email, client_name, client_phone, report_title, plain_text,
     pdf_bytes=None, send_email=True, send_sms=True, reply_webhook_url=None, from_number=None,
+    media_url=None,
 ):
     """Send report to client via selected channels. Returns list of status messages."""
-    site = os.environ.get('SITE_URL', 'https://root-cause-website.onrender.com')
     results = []
+    safe_name = re.sub(r'[^\w\-]+', '-', report_title or 'Root-Cause-Report').strip('-') or 'Root-Cause-Report'
 
     if send_email:
         subject = f'Your Root Cause Report: {report_title}'
-        body = (
-            f'Hi {client_name},\n\n'
-            f'Your personalized Root Cause bioenergetic report is ready.\n\n'
-            f'{plain_text[:2500]}\n\n'
-            f'View your full report and download the PDF in your client portal:\n'
-            f'{site}/login\n\n'
-            f'— Root Cause Bioenergetics'
-        )
+        if pdf_bytes:
+            body = (
+                f'Hi {client_name},\n\n'
+                f'Your Root Cause report "{report_title}" is attached as a PDF.\n\n'
+                f'— Root Cause Bioenergetics'
+            )
+        else:
+            site = os.environ.get('SITE_URL', 'https://www.root-cause-test.com')
+            body = (
+                f'Hi {client_name},\n\n'
+                f'Your Root Cause report "{report_title}" is ready.\n\n'
+                f'{site}/login\n\n'
+                f'— Root Cause Bioenergetics'
+            )
         ok, msg = send_plain_email(
-            client_email, subject, body, pdf_bytes, f'{report_title}.pdf',
+            client_email, subject, body, pdf_bytes, f'{safe_name}.pdf',
             from_email='Reports@root-cause-test.com'
         )
         results.append(('email', ok, msg))
@@ -149,18 +166,23 @@ def deliver_report_to_client(
         results.append(('email', None, 'Email not selected.'))
 
     if send_sms:
-        # Use local import or alias to avoid any shadowing with the bool param
         from notification_service import send_sms as _send_sms
-        # Avoid URLs in SMS for Textbelt (requires verified account for URLs)
-        sms_body = (
-            f'Root Cause: Your report "{report_title}" is ready. '
-            f'Check your email or client portal for details. Reply to this text for help.'
-        )
+        if media_url:
+            sms_body = (
+                f'Root Cause: Your report "{report_title}" is attached as a PDF. '
+                f'Reply to this text for help.'
+            )
+        else:
+            sms_body = (
+                f'Root Cause: Your report "{report_title}" is ready. '
+                f'The PDF is in your email. Reply to this text for help.'
+            )
         ok, msg = _send_sms(
             client_phone,
             sms_body,
             reply_webhook_url=reply_webhook_url,
             from_number=from_number,
+            media_url=media_url,
         )
         results.append(('sms', ok, msg))
     else:
