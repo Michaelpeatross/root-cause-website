@@ -49,6 +49,8 @@
     <p>Scores run 1&ndash;100 and are driven mainly by how processed a food is. Whole, unprocessed foods (fresh produce, eggs, plain meat and fish, beans, nuts, whole grains) score 90&ndash;100. Foods with only kitchen basics added (salt, olive oil, vinegar, spices) score 85&ndash;96. Processed foods land in the middle. Ultra-processed foods (artificial sweeteners or colors, emulsifiers, flavor enhancers, refined syrups, hydrogenated oils) stay below 40 no matter what the nutrition panel says. Nutrition values only adjust a score within its group.</p>
     <p>Scores are general educational information about food processing. They are not medical or dietary advice and do not diagnose, treat, or prevent any condition. Talk with your doctor before making medical or diet decisions.</p>
   </details>
+  <p style="margin:.75rem 0 0;"><button type="button" class="btn btn-outline" id="show-perfect">Show 100 high-score foods</button></p>
+  <div id="perfect-list" class="card" hidden></div>
   <div class="scan-tabs" role="tablist">
     <button type="button" class="active" data-tab="barcode">Barcode camera</button>
     <button type="button" data-tab="type">Type barcode</button>
@@ -121,5 +123,5 @@
 <script>window.RC_FOOD = { loggedIn: {{ 'true' if logged_in else 'false' }} };</script>
 <script src="{{ url_for('static', filename='js/vendor/quagga.min.js') }}?v=20261002scan" onerror="window.RC_QUAGGA_FAILED=true"></script>
 <script src="{{ url_for('static', filename='js/barcode_photo_logic.js') }}?v=20261002scan"></script>
-<script src="{{ url_for('static', filename='js/food_scanner.js') }}?v=20261002del"></script>
+<script src="{{ url_for('static', filename='js/food_scanner.js') }}?v=20261002perfect"></script>
 {% endblock %}

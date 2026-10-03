@@ -316,9 +316,15 @@ def register_food_scan_routes(app, db=None, Report=None):
 
     def api_guides():
         try:
-            from food_guides import lists_for_flags
+            from food_guides import lists_for_flags, perfect_score_foods
             top, low = lists_for_flags(_flags() if _logged_in() else [], raw_text=_scan_raw() if _logged_in() else "")
-            return jsonify({"ok": True, "top": top[:40], "low": low[:40], "guest": not _logged_in()})
+            return jsonify({
+                "ok": True,
+                "top": top[:40],
+                "low": low[:40],
+                "perfect": perfect_score_foods(100),
+                "guest": not _logged_in(),
+            })
         except Exception as exc:
             return jsonify({"ok": False, "top": [], "low": [], "error": str(exc)})
 

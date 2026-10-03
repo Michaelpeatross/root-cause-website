@@ -293,3 +293,60 @@ def lists_for_flags(flags, scanned_names=None, raw_text=''):
     best.sort(reverse=True)
     worst.sort(reverse=True)
     return [n for _, n in best[:100]], [n for _, n in worst[:100]]
+
+
+# Single-ingredient foods that sit at the top of the 90-100 band.
+_PERFECT_100 = {
+    'Wild salmon', 'Sardines', 'Pasture eggs', 'Blueberries', 'Raspberries',
+    'Spinach', 'Kale', 'Broccoli', 'Avocado', 'Extra-virgin olive oil',
+    'Walnuts', 'Lentils', 'Apple', 'Cod', 'Oysters',
+}
+
+def perfect_score_foods(limit=100):
+    """Reference list of high scores so a client can see what 90-100 looks like."""
+    rows = []
+    seen = set()
+    for name, tags in CANDIDATES:
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        if name in _PERFECT_100:
+            score = 100
+        elif 'condiment' in tags or 'sugar' in tags or 'dairy' in tags:
+            score = 92
+        elif 'carb' in tags:
+            score = 93
+        elif 'drink' in tags:
+            score = 97
+        elif 'herb' in tags:
+            score = 99
+        else:
+            score = 98
+        rows.append({
+            'name': name,
+            'score': score,
+            'why': 'Whole or only kitchen basics. This is what a high score looks like.',
+        })
+    for name, score in (
+        ('Oranges', 99),
+        ('Bananas', 96),
+        ('Plain air-popped popcorn', 94),
+        ('Cantaloupe', 96),
+        ('Watermelon', 95),
+        ('Plain oats', 94),
+        ('Brown rice', 94),
+        ('Turkey breast plain', 99),
+        ('Cabbage slaw no dressing', 98),
+        ('Celery sticks', 99),
+    ):
+        if name.lower() in seen or score < 90:
+            continue
+        seen.add(name.lower())
+        rows.append({
+            'name': name,
+            'score': score,
+            'why': 'Whole or only kitchen basics. This is what a high score looks like.',
+        })
+    rows.sort(key=lambda row: (-row['score'], row['name'].lower()))
+    return rows[:limit]

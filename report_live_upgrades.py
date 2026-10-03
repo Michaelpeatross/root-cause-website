@@ -412,13 +412,13 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         if not current_user:
             return jsonify({'ok': False}), 401
         from food_scanner import client_flags_from_scan
-        from food_guides import lists_for_flags
+        from food_guides import lists_for_flags, perfect_score_foods
         from food_scan_history import load_history
         raw = _client_scan_raw(current_user)
         flags = client_flags_from_scan(raw)
         scanned = [row.get('name') or '' for row in load_history(current_user.email)]
         top, low = lists_for_flags(flags, scanned_names=scanned, raw_text=raw)
-        return jsonify({'ok': True, 'flags': flags, 'top': top, 'low': low})
+        return jsonify({'ok': True, 'flags': flags, 'top': top, 'low': low, 'perfect': perfect_score_foods(100)})
 
     def api_food_meal():
         current_user = _get_current_user()

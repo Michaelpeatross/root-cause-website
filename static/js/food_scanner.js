@@ -620,4 +620,38 @@
   var stopCam = document.getElementById('stop-cam');
   if (stopCam) stopCam.addEventListener('click', function () { running = false; try { Quagga.stop(); } catch (e) {} });
   if (loggedIn) { loadHistory(); loadDiary(); }
+  var perfectBtn = document.getElementById('show-perfect');
+  var perfectBox = document.getElementById('perfect-list');
+  if (perfectBtn && perfectBox) {
+    perfectBtn.addEventListener('click', function () {
+      if (!perfectBox.hidden && perfectBox.getAttribute('data-loaded') === '1') {
+        perfectBox.hidden = true;
+        perfectBtn.textContent = 'Show 100 high-score foods';
+        return;
+      }
+      perfectBtn.disabled = true;
+      perfectBox.hidden = false;
+      perfectBox.innerHTML = '<p class="hint">Loading high-score foods…</p>';
+      fetch('/api/food-scan/guides').then(function (r) { return r.json(); }).then(function (data) {
+        var items = (data && data.perfect) || [];
+        perfectBtn.disabled = false;
+        perfectBtn.textContent = 'Hide high-score foods';
+        perfectBox.setAttribute('data-loaded', '1');
+        if (!items.length) {
+          perfectBox.innerHTML = '<p>The high-score list is not available right now.</p>';
+          return;
+        }
+        perfectBox.innerHTML = '<h2>100 high-score foods</h2>' +
+          '<p class="hint">A perfect score is 100. These whole foods land in the 90–100 band. This is an example list, not a meal plan.</p>' +
+          items.map(function (item, idx) {
+            return '<div class="hist-row"><div><strong>' + (idx + 1) + '. ' + escapeHtml(item.name) + '</strong>' +
+              '<div class="meta">' + escapeHtml(item.why || '') + '</div></div>' +
+              '<span class="swatch" style="background:#1f8a5b;color:#fff;">' + escapeHtml(item.score) + '</span></div>';
+          }).join('');
+      }).catch(function () {
+        perfectBtn.disabled = false;
+        perfectBox.innerHTML = '<p>Could not load the list. Try again.</p>';
+      });
+    });
+  }
 })();
