@@ -36,6 +36,71 @@ def _categories_from_text(raw):
     return cats or ['General Findings']
 
 
+def iv_ozone_html(raw_data, client_name='Client'):
+    """Educational IV, ozone, and EBOO notes. Not a prescription."""
+    first = escape(((client_name or 'Client').split() or ['there'])[0])
+    loud = []
+    try:
+        from organ_ratings import rate_organs
+        loud = [
+            row.get('title')
+            for row in (rate_organs(raw_data) or [])
+            if row.get('band') in ('Higher load', 'Moderate load')
+        ]
+    except Exception:
+        loud = []
+    cats = _categories_from_text(raw_data or '')
+    ideas = []
+
+    def add(name, why):
+        if name not in [item[0] for item in ideas]:
+            ideas.append((name, why))
+
+    liverish = any(title in loud for title in ('Liver', 'Kidneys', 'Lymph')) or 'Detox & Elimination' in cats
+    immuneish = any(title in loud for title in ('Lungs', 'Lymph')) or 'Immune & Microbial' in cats
+    stressish = 'Brain and nerves' in loud or 'Nervous & Stress' in cats or 'Hormonal & Endocrine' in cats
+    gutish = any(title in loud for title in ('Intestines', 'Stomach', 'Pancreas')) or 'Digestive & Gut' in cats
+    if liverish:
+        add('Glutathione IV', 'Ask about this when the liver, kidney, or drainage side of the chart is louder.')
+        add('Phosphatidylcholine IV', 'A liver-support drip some clinicians discuss for the same pattern.')
+    if immuneish:
+        add('Vitamin C IV', 'Ask about this when the immune, lung, or lymph pattern is louder.')
+    if stressish:
+        add("Myers' cocktail", 'Magnesium, B vitamins, and vitamin C. A discussion item when stress, nerves, or hormones stand out.')
+        add('NAD+ IV', 'Some clinicians discuss this for energy and stress. It is not the first step for every person.')
+    if gutish and not ideas:
+        add('Hydration with minerals', 'A simple IV fluid is the gentler discussion when the gut is the loud part and ozone is not the first step.')
+    if not ideas:
+        add("Myers' cocktail", 'A general mineral drip to ask about only if you and a clinician want one extra support. Food, teas, and labs come first.')
+
+    ozone_fit = liverish or immuneish
+    if ozone_fit:
+        ozone = (
+            'Ozone and an EBOO session are worth asking a clinician about on this scan. '
+            'The louder pattern is detox, immune, lung, or drainage, which is the setting where those options are usually discussed. '
+            'EBOO is the larger blood-filtration style ozone session. A shorter ozone session is the smaller version of the same question. '
+            'This scan does not order either one.'
+        )
+    elif gutish or stressish:
+        ozone = (
+            'Ozone and EBOO are not the first step on this scan. The louder pattern is gut, stress, or hormones. '
+            'Start with food, teas, labs, and a simpler IV discussion if you want one. '
+            'Revisit ozone or EBOO only with a clinician after those basics.'
+        )
+    else:
+        ozone = (
+            'Ozone and EBOO are optional here, not the priority. The chart is quieter. '
+            'A perfect use of either machine is a clinician decision, not something this scan can require.'
+        )
+    items = ''.join('<li><strong>%s</strong> — %s</li>' % (escape(name), escape(why)) for name, why in ideas[:4])
+    return (
+        '<section id="iv-ozone"><h3>IV drips, ozone, and EBOO</h3>'
+        '<p>' + first + ', these are questions for a clinician who already offers them. They are not a prescription and not a diagnosis.</p>'
+        '<ul>' + items + '</ul>'
+        '<p>' + escape(ozone) + '</p></section>'
+    )
+
+
 def analysis_blocks_html(raw_data, client_name='Client', medical_text=''):
     first = escape((client_name or 'Client').split()[0])
     raw = raw_data or ''
@@ -71,6 +136,7 @@ def analysis_blocks_html(raw_data, client_name='Client', medical_text=''):
         '<div class="client-wellness-plan" id="client-wellness-plan"><h2>What to do next</h2>'
         '<p>' + first + ', these supports come after the findings. They are ideas to discuss, not a prescription. Raw scanner names stay with your practitioner.</p>'
         + tea_html + lab_html + supp_html
+        + iv_ozone_html(raw + '\n' + (medical_text or ''), client_name)
         + '<p>Wellness education only — not a diagnosis or a prescription.</p></div>'
     )
 
