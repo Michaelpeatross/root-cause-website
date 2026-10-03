@@ -29,10 +29,23 @@
     var t = data.today || {};
     todayBox.hidden = false;
     todayBox.innerHTML = '<h2>Today</h2><p>' + (t.meals || 0) + ' meals · ' + (t.calories || 0) + ' kcal · P ' + (t.protein || 0) + ' · C ' + (t.carbs || 0) + ' · F ' + (t.fat || 0) + '</p>';
-    var meals = data.meals || [];
+    function num(v) {
+      var x = Number(v);
+      return isFinite(x) ? Math.round(x) : (v == null ? '—' : v);
+    }
+    function mealKey(m) {
+      return String(m.name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim() + '|' + String(m.eaten_at || m.day || '').slice(0, 16);
+    }
+    var seen = {};
+    var meals = (data.meals || []).filter(function (m) {
+      var key = mealKey(m);
+      if (seen[key]) return false;
+      seen[key] = 1;
+      return true;
+    });
     list.innerHTML = meals.length ? meals.map(function (m) {
       var thumb = (m.thumbnail && String(m.thumbnail).indexOf('http') === 0) ? '<img src="' + esc(m.thumbnail) + '" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;float:left;margin:0 12px 8px 0;">' : '';
-      return '<div class="card">' + thumb + '<p><strong>' + esc(m.name) + '</strong></p><p class="hint">' + esc(m.eaten_at || m.day || '') + '</p><p>' + esc(m.calories) + ' kcal · P ' + esc(m.protein) + ' · C ' + esc(m.carbs) + ' · F ' + esc(m.fat) + '</p>' + (m.notes ? '<p>' + esc(m.notes) + '</p>' : '') + '<div style="clear:both"></div></div>';
+      return '<div class="card">' + thumb + '<p><strong>' + esc(m.name) + '</strong></p><p class="hint">' + esc(m.eaten_at || m.day || '') + '</p><p>' + num(m.calories) + ' kcal · P ' + num(m.protein) + ' · C ' + num(m.carbs) + ' · F ' + num(m.fat) + '</p>' + (m.notes ? '<p>' + esc(m.notes) + '</p>' : '') + '<div style="clear:both"></div></div>';
     }).join('') : '<p>No meals yet. <a href="/scan-food">Scan a food</a> to add one.</p>';
   }).catch(function () { status.textContent = 'Could not load your log. Check your connection and try again.'; });
 })();

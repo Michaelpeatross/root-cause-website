@@ -20,6 +20,42 @@ def _path(email):
     os.makedirs(DIARY_DIR, exist_ok=True)
     return os.path.join(DIARY_DIR, _safe(email) + '.json')
 
+def _round(val, digits=1):
+    try:
+        n = float(val)
+    except (TypeError, ValueError):
+        return val
+    if digits == 0 or abs(n - round(n)) < 0.05:
+        return int(round(n))
+    return round(n, digits)
+
+def _meal_key(row):
+    name = re.sub(r'[^a-z0-9]+', ' ', str((row or {}).get('name') or '').lower()).strip()
+    when = str((row or {}).get('eaten_at') or (row or {}).get('day') or '')[:16]
+    return name + '|' + when
+
+def _clean_row(row):
+    row = dict(row or {})
+    for field in ('calories', 'protein', 'carbs', 'fat', 'sugar', 'fiber', 'sodium', 'score'):
+        if row.get(field) is not None:
+            row[field] = _round(row.get(field), 0 if field in ('calories', 'score') else 1)
+    return row
+
+def dedupe_meals(rows):
+    seen = set()
+    kept = []
+    for row in rows or []:
+        key = _meal_key(row)
+        if not key.strip('|') or key in seen:
+            continue
+        seen.add(key)
+        kept.append(_clean_row(row))
+    return kept
+
+def _write(email, rows):
+    with open(_path(email), 'w', encoding='utf-8') as fh:
+        json.dump(rows[:500], fh)
+
 def load_meals(email):
     path = _path(email)
     if not os.path.isfile(path):
@@ -27,9 +63,13 @@ def load_meals(email):
     try:
         with open(path, 'r', encoding='utf-8') as fh:
             data = json.load(fh)
-        return data if isinstance(data, list) else []
+        rows = data if isinstance(data, list) else []
     except Exception:
         return []
+    cleaned = dedupe_meals(rows)
+    if cleaned != rows:
+        _write(email, cleaned)
+    return cleaned
 
 def save_meal(email, meal):
     rows = load_meals(email)
@@ -55,9 +95,11 @@ def save_meal(email, meal):
         'notes': meal.get('notes') or '',
         'thumbnail': thumb[:240],
     }
+    entry = _clean_row(entry)
+    key = _meal_key(entry)
+    rows = [row for row in rows if _meal_key(row) != key]
     rows.insert(0, entry)
-    with open(_path(email), 'w', encoding='utf-8') as fh:
-        json.dump(rows[:500], fh)
+    _write(email, rows)
     return entry
 
 def _num(val):
