@@ -149,13 +149,15 @@
       if (!items.length) { box.innerHTML = '<p class="hint">No scans saved yet.</p>'; return; }
       box.innerHTML = items.map(function (item, idx) {
         var canAdd = item.code || item.calories != null;
-        var btn = canAdd
+        var add = canAdd
           ? '<button type="button" class="btn btn-outline add-intake" data-idx="' + idx + '">Add to today</button>'
           : '';
+        var del = '<button type="button" class="btn btn-outline del-scan" data-idx="' + idx + '">Delete</button>';
         return '<div class="hist-row"><div><strong>' + escapeHtml(item.name) + '</strong>' +
           '<div class="meta">Score ' + escapeHtml(item.score == null ? '—' : item.score) +
           (item.calories != null ? ' · ' + escapeHtml(item.calories) + ' kcal' : '') +
-          '<br>' + escapeHtml(item.scanned_at || '') + '</div></div>' + btn + '</div>';
+          '<br>' + escapeHtml(item.scanned_at || '') + '</div></div>' +
+          '<div style="display:flex;flex-direction:column;gap:.35rem;">' + add + del + '</div></div>';
       }).join('');
       box.querySelectorAll('.add-intake').forEach(function (btn) {
         btn.addEventListener('click', function () {
@@ -173,6 +175,22 @@
             score: item.score,
             label: item.label || ''
           }, btn);
+        });
+      });
+      box.querySelectorAll('.del-scan').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var item = items[Number(btn.getAttribute('data-idx'))] || {};
+          if (!item.id) return;
+          if (!window.confirm('Remove ' + (item.name || 'this scan') + ' from scan history?')) return;
+          btn.disabled = true;
+          postJSON('/api/food-scan/history/delete', { id: item.id }).then(function (res) {
+            if (!res || !res.ok) {
+              btn.disabled = false;
+              showError((res && res.error) || 'Could not delete that scan.');
+              return;
+            }
+            loadHistory();
+          });
         });
       });
     }).catch(function () { box.textContent = 'Could not load history.'; });

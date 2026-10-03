@@ -303,6 +303,17 @@ def register_food_scan_routes(app, db=None, Report=None):
         except Exception as exc:
             return jsonify({"ok": False, "error": str(exc), "today": {}, "days": [], "meals": []})
 
+    def api_delete_history():
+        if not _logged_in():
+            return jsonify({"ok": False, "error": "Log in to delete a scan."}), 401
+        data = request.get_json(silent=True) or {}
+        try:
+            from food_scan_history import delete_scan
+            removed = delete_scan(_email(), data.get("id"))
+            return jsonify({"ok": bool(removed), "error": "" if removed else "That scan is already gone."})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)})
+
     def api_guides():
         try:
             from food_guides import lists_for_flags
@@ -321,6 +332,7 @@ def register_food_scan_routes(app, db=None, Report=None):
         ("/api/food-scan/photo", "api_food_photo_public", api_photo, ["POST"]),
         ("/api/food-scan/meal", "api_food_meal_public", api_meal, ["POST"]),
         ("/api/food-scan/history", "api_food_history_public", api_history, ["GET"]),
+        ("/api/food-scan/history/delete", "api_food_history_delete_public", api_delete_history, ["POST"]),
         ("/api/food-scan/intake", "api_food_intake_public", api_add_intake, ["POST"]),
         ("/api/food-scan/diary", "api_food_diary_public", api_diary, ["GET"]),
         ("/api/food-scan/guides", "api_food_guides_public", api_guides, ["GET"]),

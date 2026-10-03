@@ -30,6 +30,42 @@ def load_history(email):
     except Exception:
         return []
 
+def _write(email, rows):
+    with open(_path(email), 'w', encoding='utf-8') as fh:
+        json.dump(rows[:400], fh)
+
+
+def _identity(row):
+    """Same barcode, or the same name when there is no barcode, is one scan."""
+    code = re.sub(r'\D+', '', str((row or {}).get('code') or ''))
+    if len(code) >= 8:
+        return 'c:' + code
+    name = re.sub(r'[^a-z0-9]+', ' ', str((row or {}).get('name') or '').lower()).strip()
+    if not name or name in ('unknown product', 'food', 'meal photo'):
+        return 'id:' + str((row or {}).get('id') or id(row))
+    return 'n:' + name
+
+
+def dedupe_rows(rows):
+    seen = set()
+    kept = []
+    for row in rows or []:
+        key = _identity(row)
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(row)
+    return kept
+
+
+def dedupe_history(email):
+    rows = load_history(email)
+    kept = dedupe_rows(rows)
+    if len(kept) != len(rows):
+        _write(email, kept)
+    return kept
+
+
 def save_scan(email, payload):
     product = (payload or {}).get('product') or {}
     rating = (payload or {}).get('rating') or {}
@@ -58,14 +94,15 @@ def save_scan(email, payload):
         'fiber': macros.get('fiber'),
         'sodium': macros.get('sodium'),
     }
-    rows = load_history(email)
+    rows = dedupe_rows(load_history(email))
+    key = _identity(entry)
+    rows = [row for row in rows if _identity(row) != key]
     rows.insert(0, entry)
-    with open(_path(email), 'w', encoding='utf-8') as fh:
-        json.dump(rows[:400], fh)
+    _write(email, rows)
     return entry
 
 def sorted_history(email, sort='date_desc'):
-    rows = list(load_history(email))
+    rows = dedupe_history(email)
     if sort == 'score_desc':
         rows.sort(key=lambda r: (r.get('score') is None, -(r.get('score') or 0)))
     elif sort == 'score_asc':
@@ -75,6 +112,18 @@ def sorted_history(email, sort='date_desc'):
     else:
         rows.sort(key=lambda r: r.get('scanned_at') or '', reverse=True)
     return rows
+
+def delete_scan(email, scan_id):
+    """Remove one saved scan. Does not change today's intake."""
+    target = str(scan_id or '').strip()
+    if not target:
+        return False
+    rows = load_history(email)
+    kept = [row for row in rows if str(row.get('id') or '') != target]
+    if len(kept) == len(rows):
+        return False
+    _write(email, kept)
+    return True
 
 def delete_history(email):
     """Remove all saved food scans for this account (used by account deletion)."""
