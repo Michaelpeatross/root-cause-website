@@ -4,7 +4,11 @@
 {% block meta_description %}Free Food Scanner from Root Cause Test. Scan a barcode, nutrition label, or plate photo for educational wellness calorie and macro estimates. Not medical advice.{% endblock %}
 {% block extra_head %}
 <style>
-  .scan-wrap { max-width: 760px; margin: 0 auto; padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
+  .scan-wrap { max-width: 760px; margin: 0 auto; padding-bottom: calc(2rem + env(safe-area-inset-bottom)); }
+  #food-scan-fab { display: none !important; }
+  .hist-row, .log-row { display: flex; justify-content: space-between; align-items: center; gap: .6rem; padding: .7rem 0; border-bottom: 1px solid #e5eeea; }
+  .hist-row .meta, .log-row .meta { font-size: .85rem; color: #5c6b66; margin-top: .15rem; }
+  .add-intake { padding: .35rem .65rem; font-size: .8rem; min-height: 36px; white-space: nowrap; }
   .scan-tabs { display: flex; gap: .4rem; flex-wrap: wrap; margin: 1rem 0; }
   .scan-tabs button { border: 1px solid #cfe3d8; background: #fff; color: #0b3d2a; padding: .55rem .9rem; border-radius: 999px; cursor: pointer; font: inherit; min-height: 44px; }
   .scan-tabs button.active { background: #0b3d2a; color: #fff; }
@@ -53,14 +57,16 @@
     <button type="button" data-tab="plate">Plate photo</button>
   </div>
   <div id="tab-barcode" class="scan-panel active card">
-    <p>Point the camera at the barcode bars. If the camera stays black, use Type barcode or a close photo instead.</p>
+    <p>Point the camera at the bars and hold still. When a code is read, the camera stops and the food appears below.</p>
     <div class="cam-actions">
       <button type="button" class="btn btn-primary" id="start-cam">Start camera</button>
       <button type="button" class="btn btn-outline" id="stop-cam">Stop</button>
     </div>
     <div id="reader" aria-label="Live barcode camera preview"></div>
     <p id="cam-status" class="hint">Camera is off until you tap Start camera.</p>
-    <p><strong>Camera missed?</strong> Take a photo or choose one from your library. Fill the frame with the bars only.</p>
+    <p><button type="button" class="btn btn-primary" id="quick-photo-btn">Take a picture and estimate</button></p>
+    <input type="file" id="quick-photo" accept="image/*" capture="environment" hidden>
+    <p class="hint">Use this when the barcode will not read. One photo of the package or Nutrition Facts panel is estimated and saved.</p>
     <label for="barcode-photo">Barcode photo (JPEG, PNG, WEBP, HEIC)</label>
     <input type="file" id="barcode-photo" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,image/*">
     <div class="preview-wrap"><img id="barcode-preview" alt="Barcode photo preview" hidden></div>
@@ -113,7 +119,7 @@
   <p class="hint" style="margin-top:1.5rem;">Barcode and nutrition-database values may be incomplete. Photo results are estimates. Not medical advice. <a href="/privacy">Privacy</a> · <a href="/contact">Support</a>{% if logged_in %} · <a href="/account/delete">Delete account</a>{% endif %}</p>
 </div>
 <script>window.RC_FOOD = { loggedIn: {{ 'true' if logged_in else 'false' }} };</script>
-<script src="{{ url_for('static', filename='js/vendor/quagga.min.js') }}?v=20260929iphone" onerror="window.RC_QUAGGA_FAILED=true"></script>
-<script src="{{ url_for('static', filename='js/barcode_photo_logic.js') }}?v=20260929iphone"></script>
-<script src="{{ url_for('static', filename='js/food_scanner.js') }}?v=20260929iphone"></script>
+<script src="{{ url_for('static', filename='js/vendor/quagga.min.js') }}?v=20261002scan" onerror="window.RC_QUAGGA_FAILED=true"></script>
+<script src="{{ url_for('static', filename='js/barcode_photo_logic.js') }}?v=20261002scan"></script>
+<script src="{{ url_for('static', filename='js/food_scanner.js') }}?v=20261002scan"></script>
 {% endblock %}

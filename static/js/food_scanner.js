@@ -13,7 +13,8 @@
   });
   var resultEl = document.getElementById('result');
   var camStatus = document.getElementById('cam-status');
-  var lastCode = ''; var lastAt = 0; var running = false;
+  var lastCode = ''; var lastAt = 0; var running = false; var lookupBusy = false;
+  var lastFood = null;
   function escapeHtml(text) {
     return String(text == null ? '' : text)
       .replace(/&/g, '&amp;')
@@ -35,14 +36,63 @@
     if (isNaN(n)) return escapeHtml(val);
     return (Math.round(n * 10) / 10) + (unit ? ' ' + unit : '');
   }
-  function postJSON(url, body) {
-    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      .then(function (res) { return res.json().catch(function () { return { ok: false, error: 'No result returned.' }; }); });
+  function postJSON(url, body, timeoutMs) {
+    var opts = { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) };
+    var timer;
+    if (timeoutMs && typeof AbortController === 'function') {
+      var ctrl = new AbortController();
+      opts.signal = ctrl.signal;
+      timer = setTimeout(function () { ctrl.abort(); }, timeoutMs);
+    }
+    return fetch(url, opts).then(function (res) {
+      if (timer) clearTimeout(timer);
+      return res.json().catch(function () { return { ok: false, error: 'No result returned.' }; });
+    }).catch(function (err) {
+      if (timer) clearTimeout(timer);
+      if (err && err.name === 'AbortError') return { ok: false, error: 'That estimate took too long. Try a closer photo of the Nutrition Facts panel.' };
+      return { ok: false, error: 'The request did not finish. Check your connection and try again.' };
+    });
+  }
+  function intakeButton(data) {
+    if (!loggedIn || !data) return '';
+    if (data.saved) return '<p class="hint">Added to today\'s intake.</p>';
+    return '<p><button type="button" class="btn btn-primary" id="add-this-intake">Add to today\'s intake</button></p>';
+  }
+  function mealFromResult(data) {
+    var p = (data && data.product) || {};
+    var r = (data && data.rating) || {};
+    var m = (data && data.macros) || {};
+    return {
+      name: p.name || '',
+      code: p.code || '',
+      calories: m.calories,
+      protein: m.protein,
+      carbs: m.carbs,
+      fat: m.fat,
+      sugar: m.sugar,
+      fiber: m.fiber,
+      sodium: m.sodium,
+      score: r.score,
+      label: r.label || ''
+    };
+  }
+  function addIntake(payload, button) {
+    if (button) { button.disabled = true; button.textContent = 'Adding…'; }
+    postJSON('/api/food-scan/intake', payload).then(function (data) {
+      if (!data || !data.ok) {
+        if (button) { button.disabled = false; button.textContent = 'Add to today'; }
+        showError((data && data.error) || 'Could not add that to today.');
+        return;
+      }
+      if (button) { button.textContent = 'Added'; }
+      loadDiary();
+    });
   }
   function renderResult(data) {
     if (!data || !data.ok) { showError((data && data.error) || 'Could not estimate that item.'); return; }
     var p = data.product || {}; var r = data.rating || {}; var m = data.macros || {};
-    var guestNote = data.guest ? '<p class="guest-cta">Create a free account to save this estimate to your nutrition history.</p>' : (data.saved ? '<p class="hint">Saved to your nutrition log.</p>' : '');
+    var guestNote = data.guest ? '<p class="guest-cta">Create a free account to save this estimate and add it to today\'s intake.</p>' : intakeButton(data);
+    lastFood = data;
     resultEl.hidden = false;
     resultEl.innerHTML = '<div class="card">' +
       (r.score != null ? '<div class="score-ring" style="background:' + escapeHtml(r.color || '#555') + '"><div class="num">' + escapeHtml(r.score) + '</div><div>' + escapeHtml(r.label || '') + '</div></div>' : '') +
@@ -62,26 +112,69 @@
       '<p class="hint" style="margin-top:1rem;"><strong>' + escapeHtml(data.confidence || 'estimate') + '</strong> — ' + escapeHtml(data.uncertainty || 'Educational estimate only. Not medical advice.') + '</p>' +
       (m.notes ? '<p>' + escapeHtml(m.notes) + '</p>' : '') +
       ((r.personal_notes || []).map(function (n) { return '<p>' + escapeHtml(n) + '</p>'; }).join('')) +
-      guestNote + '</div>';
+      guestNote +
+      '<p><button type="button" class="btn btn-outline" id="scan-another">Scan another</button></p></div>';
+    var addBtn = document.getElementById('add-this-intake');
+    if (addBtn) addBtn.addEventListener('click', function () { addIntake(mealFromResult(data), addBtn); });
+    var again = document.getElementById('scan-another');
+    if (again) again.addEventListener('click', function () {
+      var start = document.getElementById('start-cam');
+      if (start) start.click();
+      var reader = document.getElementById('reader');
+      if (reader && reader.scrollIntoView) reader.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    if (resultEl.scrollIntoView) resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     if (loggedIn) { loadHistory(); loadDiary(); }
   }
   function scoreBarcode(code) {
     var digits = String(code || '').replace(/\D+/g, '');
     if (digits.length < 8) { showError('Enter at least 8 barcode digits.'); return; }
     var now = Date.now();
-    if (digits === lastCode && now - lastAt < 2500) return;
+    if (lookupBusy) return;
+    if (digits === lastCode && now - lastAt < 4000) return;
     lastCode = digits; lastAt = now;
-    if (camStatus) camStatus.textContent = 'Read ' + digits + ' — looking up…';
-    showLoad('Looking up ' + digits + '…');
-    postJSON('/api/food-scan/barcode', { barcode: digits }).then(renderResult);
+    lookupBusy = true;
+    stopLiveCameraForPhoto();
+    if (camStatus) camStatus.textContent = 'Found ' + digits + '. Camera paused.';
+    showLoad('Found ' + digits + '. Looking it up…');
+    postJSON('/api/food-scan/barcode', { barcode: digits }).then(function (data) {
+      lookupBusy = false;
+      renderResult(data);
+    });
   }
   function loadHistory() {
     var box = document.getElementById('history-list'); if (!box) return;
     fetch('/api/food-scan/history').then(function (r) { return r.json(); }).then(function (data) {
       var items = (data && data.items) || [];
-      box.innerHTML = items.length ? items.map(function (item) {
-        return '<p><strong>' + escapeHtml(item.name) + '</strong> · ' + escapeHtml(item.score) + ' · ' + escapeHtml(item.scanned_at || '') + '</p>';
-      }).join('') : '<p class="hint">No scans saved yet.</p>';
+      if (!items.length) { box.innerHTML = '<p class="hint">No scans saved yet.</p>'; return; }
+      box.innerHTML = items.map(function (item, idx) {
+        var canAdd = item.code || item.calories != null;
+        var btn = canAdd
+          ? '<button type="button" class="btn btn-outline add-intake" data-idx="' + idx + '">Add to today</button>'
+          : '';
+        return '<div class="hist-row"><div><strong>' + escapeHtml(item.name) + '</strong>' +
+          '<div class="meta">Score ' + escapeHtml(item.score == null ? '—' : item.score) +
+          (item.calories != null ? ' · ' + escapeHtml(item.calories) + ' kcal' : '') +
+          '<br>' + escapeHtml(item.scanned_at || '') + '</div></div>' + btn + '</div>';
+      }).join('');
+      box.querySelectorAll('.add-intake').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var item = items[Number(btn.getAttribute('data-idx'))] || {};
+          addIntake({
+            name: item.name || '',
+            code: item.code || '',
+            calories: item.calories,
+            protein: item.protein,
+            carbs: item.carbs,
+            fat: item.fat,
+            sugar: item.sugar,
+            fiber: item.fiber,
+            sodium: item.sodium,
+            score: item.score,
+            label: item.label || ''
+          }, btn);
+        });
+      });
     }).catch(function () { box.textContent = 'Could not load history.'; });
   }
   function loadDiary() {
@@ -90,10 +183,22 @@
     if (!todayBox && !daysBox) return;
     fetch('/api/food-scan/diary').then(function (r) { return r.json(); }).then(function (data) {
       var today = (data && data.today) || {};
-      if (todayBox) todayBox.innerHTML = '<p>' + (today.meals || 0) + ' meals · ' + (today.calories || 0) + ' kcal</p>';
-      if (daysBox) daysBox.innerHTML = ((data.days || []).map(function (d) {
-        return '<p>' + escapeHtml(d.day) + ' · ' + escapeHtml(d.calories) + ' kcal</p>';
-      }).join('')) || '<p class="hint">No meals logged yet.</p>';
+      if (todayBox) todayBox.innerHTML = '<p><strong>' + (today.meals || 0) + ' meals · ' + (today.calories || 0) + ' kcal</strong></p>';
+      var meals = (data && data.meals) || [];
+      var todayMeals = meals.filter(function (m) { return (m.day || '').slice(0, 10) === (today.day || ''); });
+      if (todayBox && todayMeals.length) {
+        todayBox.innerHTML += todayMeals.map(function (m) {
+          return '<div class="log-row"><div><strong>' + escapeHtml(m.name) + '</strong><div class="meta">' +
+            escapeHtml(m.calories == null ? '—' : m.calories) + ' kcal</div></div></div>';
+        }).join('');
+      }
+      if (daysBox) {
+        var days = data.days || [];
+        daysBox.innerHTML = days.length ? days.map(function (d) {
+          return '<div class="log-row"><div><strong>' + escapeHtml(d.day) + '</strong><div class="meta">' +
+            escapeHtml(d.meals) + ' meals · ' + escapeHtml(d.calories) + ' kcal</div></div></div>';
+        }).join('') : '<p class="hint">No meals logged yet. Use Add to today on a scan.</p>';
+      }
     }).catch(function () { if (todayBox) todayBox.textContent = 'Could not load today\'s log.'; });
   }
   var typeForm = document.getElementById('type-form');
@@ -402,7 +507,7 @@
       showLoad(loadingText);
       payloadFromFile(file).then(function (payload) {
         if (!payload.b64) { showError(photoMessages().unreadable); return; }
-        postJSON(url, { image_b64: payload.b64, mime: payload.mime || 'image/jpeg' }).then(renderResult);
+        postJSON(url, { image_b64: payload.b64, mime: payload.mime || 'image/jpeg' }, 50000).then(renderResult);
       }).catch(function (err) {
         showError((err && err.userMessage) || photoMessages().unreadable);
       });
@@ -410,6 +515,25 @@
   }
   bindPhoto('photo', 'preview', 'score-photo', 'clear-photo', '/api/food-scan/photo', 'Reading the label…');
   bindPhoto('plate', 'plate-preview', 'score-plate', 'clear-plate', '/api/food-scan/meal', 'Estimating the plate…');
+  var quickBtn = document.getElementById('quick-photo-btn');
+  var quickInput = document.getElementById('quick-photo');
+  if (quickBtn && quickInput) {
+    quickBtn.addEventListener('click', function () { quickInput.click(); });
+    quickInput.addEventListener('change', function () {
+      var file = takeChosenFile(quickInput);
+      if (!file) return;
+      if (!aiConsentOk()) { showError('Photo analysis needs your OK to send the photo to our AI provider. You can still scan a barcode or search by name.'); return; }
+      stopLiveCameraForPhoto();
+      if (camStatus) camStatus.textContent = 'Camera paused. Reading the picture…';
+      showLoad('Reading the picture and saving the estimate…');
+      payloadFromFile(file).then(function (payload) {
+        if (!payload.b64) { showError(photoMessages().unreadable); return; }
+        postJSON('/api/food-scan/photo', { image_b64: payload.b64, mime: payload.mime || 'image/jpeg' }, 50000).then(renderResult);
+      }).catch(function (err) {
+        showError((err && err.userMessage) || photoMessages().unreadable);
+      });
+    });
+  }
   function onDetected(result) {
     if (result && result.codeResult && result.codeResult.code) scoreBarcode(result.codeResult.code);
   }

@@ -80,7 +80,7 @@ def register_food_scan_routes(app, db=None, Report=None):
             return url
         return ""
 
-    def _maybe_save(result, kind="scan"):
+    def _maybe_save(result, kind="scan", to_diary=False):
         if not result or not result.get("ok") or not _logged_in():
             return result
         email = _email()
@@ -91,30 +91,36 @@ def register_food_scan_routes(app, db=None, Report=None):
             save_scan(email, result)
         except Exception as exc:
             print("[FoodScan] history save skipped:", exc)
-        try:
-            from food_diary import save_meal
-            product = result.get("product") or {}
-            rating = result.get("rating") or {}
-            macros = result.get("macros") or _macros(product)
-            save_meal(email, {
-                "name": product.get("name") or "Food",
-                "calories": macros.get("calories"),
-                "protein": macros.get("protein"),
-                "carbs": macros.get("carbs"),
-                "fat": macros.get("fat"),
-                "sugar": macros.get("sugar"),
-                "fiber": macros.get("fiber"),
-                "sodium": macros.get("sodium"),
-                "score": rating.get("score"),
-                "label": rating.get("label") or "",
-                "notes": macros.get("notes") or "",
-                "thumbnail": _thumb(result),
-                "portion": macros.get("portion") or kind,
-            })
-        except Exception as exc:
-            print("[FoodScan] diary save skipped:", exc)
-        result["saved"] = True
+        if to_diary:
+            try:
+                _save_result_meal(email, result, kind)
+                result["saved"] = True
+            except Exception as exc:
+                print("[FoodScan] diary save skipped:", exc)
+        else:
+            result["saved"] = False
         return result
+
+    def _save_result_meal(email, result, kind="scan"):
+        from food_diary import save_meal
+        product = (result or {}).get("product") or {}
+        rating = (result or {}).get("rating") or {}
+        macros = (result or {}).get("macros") or _macros(product)
+        return save_meal(email, {
+            "name": product.get("name") or result.get("name") or "Food",
+            "calories": macros.get("calories") if macros.get("calories") is not None else result.get("calories"),
+            "protein": macros.get("protein") if macros.get("protein") is not None else result.get("protein"),
+            "carbs": macros.get("carbs") if macros.get("carbs") is not None else result.get("carbs"),
+            "fat": macros.get("fat") if macros.get("fat") is not None else result.get("fat"),
+            "sugar": macros.get("sugar") if macros.get("sugar") is not None else result.get("sugar"),
+            "fiber": macros.get("fiber"),
+            "sodium": macros.get("sodium"),
+            "score": rating.get("score") if rating.get("score") is not None else result.get("score"),
+            "label": rating.get("label") or result.get("label") or "",
+            "notes": macros.get("notes") or "",
+            "thumbnail": _thumb(result),
+            "portion": macros.get("portion") or kind,
+        })
 
     def scan_food_page():
         return render_template(
@@ -151,7 +157,7 @@ def register_food_scan_routes(app, db=None, Report=None):
                 "uncertainty": "Barcode data can be incomplete. Values are usually per 100 g. Educational wellness only — not medical advice.",
                 "guest": not _logged_in(),
             }
-            return jsonify(_maybe_save(result, kind="scan"))
+            return jsonify(_maybe_save(result, kind="scan", to_diary=False))
         except Exception as exc:
             return jsonify({"ok": False, "error": "Lookup failed: %s" % exc})
 
@@ -195,7 +201,7 @@ def register_food_scan_routes(app, db=None, Report=None):
                 result["confidence"] = "estimate"
                 result["uncertainty"] = "Label-photo values are estimates from the image. Not a lab analysis. Educational wellness only — not medical advice."
                 result["guest"] = not _logged_in()
-                result = _maybe_save(result, kind="scan")
+                result = _maybe_save(result, kind="label", to_diary=True)
             return jsonify(result)
         except Exception as exc:
             return jsonify({"ok": False, "error": "Could not read that label: %s" % exc})
@@ -211,10 +217,60 @@ def register_food_scan_routes(app, db=None, Report=None):
                 result["confidence"] = "estimate"
                 result["uncertainty"] = "Plate photos are rough educational estimates. Portion size is often uncertain. Not medical advice."
                 result["guest"] = not _logged_in()
-                result = _maybe_save(result, kind="meal")
+                result = _maybe_save(result, kind="meal", to_diary=True)
             return jsonify(result)
         except Exception as exc:
             return jsonify({"ok": False, "error": "Could not read that plate: %s" % exc})
+
+    def api_add_intake():
+        if not _logged_in():
+            return jsonify({"ok": False, "error": "Log in to add this to today's intake."}), 401
+        data = request.get_json(silent=True) or {}
+        email = _email()
+        name = (data.get("name") or "").strip()
+        code = "".join(ch for ch in str(data.get("code") or "") if ch.isdigit())
+        calories = data.get("calories")
+        try:
+            if (calories is None or calories == "") and code:
+                from food_scanner import lookup_barcode, score_product
+                product = lookup_barcode(code)
+                if not product:
+                    return jsonify({"ok": False, "error": "That past scan has no saved numbers, and the barcode was not found."})
+                product = _enrich_product(product)
+                flags = _flags()
+                rating = score_product(product, flags)
+                macros = _macros(product)
+                result = {"ok": True, "product": product, "rating": rating, "macros": macros}
+            else:
+                if not name:
+                    return jsonify({"ok": False, "error": "That past item has no name to add."})
+                result = {
+                    "ok": True,
+                    "product": {"name": name, "code": code},
+                    "rating": {"score": data.get("score"), "label": data.get("label") or ""},
+                    "macros": {
+                        "calories": data.get("calories"),
+                        "protein": data.get("protein"),
+                        "carbs": data.get("carbs"),
+                        "fat": data.get("fat"),
+                        "sugar": data.get("sugar"),
+                        "fiber": data.get("fiber"),
+                        "sodium": data.get("sodium"),
+                    },
+                    "name": name,
+                    "calories": data.get("calories"),
+                    "protein": data.get("protein"),
+                    "carbs": data.get("carbs"),
+                    "fat": data.get("fat"),
+                    "score": data.get("score"),
+                    "label": data.get("label") or "",
+                }
+            meal = _save_result_meal(email, result, data.get("kind") or "intake")
+            from food_diary import daily_summary
+            summary = daily_summary(email)
+            return jsonify({"ok": True, "meal": meal, "today": summary.get("today") or {}})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": "Could not add that to today's intake: %s" % exc})
 
     def api_history():
         if not _logged_in():
@@ -265,6 +321,7 @@ def register_food_scan_routes(app, db=None, Report=None):
         ("/api/food-scan/photo", "api_food_photo_public", api_photo, ["POST"]),
         ("/api/food-scan/meal", "api_food_meal_public", api_meal, ["POST"]),
         ("/api/food-scan/history", "api_food_history_public", api_history, ["GET"]),
+        ("/api/food-scan/intake", "api_food_intake_public", api_add_intake, ["POST"]),
         ("/api/food-scan/diary", "api_food_diary_public", api_diary, ["GET"]),
         ("/api/food-scan/guides", "api_food_guides_public", api_guides, ["GET"]),
     ]

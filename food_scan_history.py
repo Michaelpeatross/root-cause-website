@@ -34,6 +34,7 @@ def save_scan(email, payload):
     product = (payload or {}).get('product') or {}
     rating = (payload or {}).get('rating') or {}
     now = central_now()
+    macros = (payload or {}).get('macros') or {}
     entry = {
         'id': now.strftime('%Y%m%d%H%M%S%f'),
         'scanned_at': now.strftime('%Y-%m-%d %H:%M ') + (now.tzname() or 'CT'),
@@ -49,6 +50,13 @@ def save_scan(email, payload):
         'personal_score': rating.get('personal_score'),
         'processing_label': rating.get('processing_label') or '',
         'rubric_version': rating.get('rubric_version') or 'v1',
+        'calories': macros.get('calories'),
+        'protein': macros.get('protein'),
+        'carbs': macros.get('carbs'),
+        'fat': macros.get('fat'),
+        'sugar': macros.get('sugar'),
+        'fiber': macros.get('fiber'),
+        'sodium': macros.get('sodium'),
     }
     rows = load_history(email)
     rows.insert(0, entry)

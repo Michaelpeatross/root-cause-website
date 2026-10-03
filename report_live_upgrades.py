@@ -654,7 +654,7 @@ def apply_report_upgrades(app, db, Report, reports_dir):
             if 'Logout' in data or 'Dashboard</a>' in data:
                 if '>Scan Food</a>' not in data and 'Dashboard</a>' in data:
                     data = data.replace('>Dashboard</a>', '>Dashboard</a><a href="/food-scanner">Scan Food</a>', 1)
-                if 'id="food-scan-fab"' not in data and not (request.path or '').startswith('/food-scanner'):
+                if 'id="food-scan-fab"' not in data and not (request.path or '').startswith(('/food-scanner', '/scan-food', '/nutrition')):
                     data = data.replace('</body>', FOOD_FAB + '</body>', 1)
                 resp.set_data(data)
         except Exception:
