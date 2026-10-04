@@ -295,6 +295,30 @@ def apply_report_upgrades(app, db, Report, reports_dir):
 
     _restore_published_reports()
 
+    def _refresh_latest_scan():
+        """Rebuild the newest published report so new result sections are saved."""
+        ctx = None
+        try:
+            ctx = app.app_context()
+            ctx.push()
+            report = Report.query.filter(Report.approved == True).order_by(Report.id.desc()).first()
+            if not report:
+                return
+            html = _apply_plan(report)
+            print('[Root Cause] updated latest scan report %s (%s) iv=%s' % (
+                report.id, report.title, 'id="iv-ozone"' in (html or ''),
+            ))
+        except Exception as exc:
+            print('[Root Cause] latest scan update failed: %s' % exc)
+        finally:
+            if ctx is not None:
+                try:
+                    ctx.pop()
+                except Exception:
+                    pass
+
+    _refresh_latest_scan()
+
     def view_report(report_id):
         current_user = _get_current_user()
         if not current_user:
