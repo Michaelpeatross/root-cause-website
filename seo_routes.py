@@ -130,32 +130,44 @@ def register_public_seo_routes(app):
 
     FOOTER = (
         '<footer class="site-footer">'
-        '<div class="footer-inner"><strong>Root Cause Test</strong> · ROOTCAUSE LLC'
-        '<nav aria-label="Footer">'
-        '<a href="/scan-food">Scan Food</a> '
-        '<a href="/how-it-works">How it works</a> '
-        '<a href="/sample-report">Sample Report</a> '
-        '<a href="/export-records">Export records</a> '
-        '<a href="/health-app">Health records</a> '
-        '<a href="/blog">Guides</a> '
-        '<a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is the scan</a> '
-        '<a href="/blog/bioenergetic-vs-food-allergy-test">Vs allergy test</a> '
-        '<a href="/contact">Contact</a> '
-        '<a href="/privacy">Privacy</a> '
-        '<a href="/terms">Terms</a> '
-        '<a href="/refunds">Refunds</a> '
-        '<a href="/buy">Buy $199</a> '
-        '<a href="/login">Login</a>'
-        '</nav>'
+        '<div class="footer-inner">'
+        '<div class="footer-brand"><strong>Root Cause Test</strong><span>ROOTCAUSE LLC</span></div>'
+        '<div class="footer-cols">'
+        '<div class="footer-col"><h4>Product</h4>'
+        '<a href="/how-it-works">How it works</a>'
+        '<a href="/sample-report">Sample report</a>'
+        '<a href="/buy">Order — $199</a></div>'
+        '<div class="footer-col"><h4>Tools</h4>'
+        '<a href="/scan-food">Food Scanner</a>'
+        '<a href="/health-app">Health records</a>'
+        '<a href="/export-records">Export records</a>'
+        '<a href="/blog">Guides</a></div>'
+        '<div class="footer-col"><h4>Company</h4>'
+        '<a href="/contact">Contact</a>'
+        '<a href="/privacy">Privacy</a>'
+        '<a href="/terms">Terms</a>'
+        '<a href="/refunds">Refunds</a>'
+        '<a href="/login">Log in</a></div>'
+        '</div>'
         '<p class="fine">Wellness information only. This at-home bioenergetic hair and saliva scan '
         'is not a medical diagnosis, not an allergy test, not a DNA test, and not intended to detect '
         'or treat disease. It does not replace care from a licensed clinician. Questions: '
         '<a href="mailto:test@root-cause-test.com">test@root-cause-test.com</a></p>'
         '</div></footer>'
-        '<style>.site-footer{background:#0b3d2a;color:rgba(255,255,255,.88);margin-top:3rem;padding:2rem 1.5rem 2.5rem}'
-        '.site-footer .footer-inner{max-width:1100px;margin:0 auto}.site-footer a{color:#d7efe8}'
-        '.site-footer nav{display:flex;flex-wrap:wrap;gap:.75rem 1.25rem;margin:.75rem 0 1rem}'
-        '.site-footer .fine{font-size:.82rem;color:rgba(255,255,255,.7);line-height:1.55;max-width:720px}'
+        '<style>'
+        '.site-footer{background:#0b3d2a;color:rgba(255,255,255,.88);margin-top:3rem;padding:2.5rem 1.5rem 2.75rem}'
+        '.site-footer .footer-inner{max-width:1100px;margin:0 auto}'
+        '.site-footer a{color:#d7efe8;text-decoration:none}'
+        '.site-footer a:hover{color:#fff;text-decoration:underline}'
+        '.footer-brand{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:baseline;margin-bottom:1.25rem}'
+        '.footer-brand strong{font-size:1.05rem;color:#fff}'
+        '.footer-brand span{font-size:.85rem;opacity:.75}'
+        '.footer-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.5rem;margin:0 0 1.5rem}'
+        '.footer-col{display:flex;flex-direction:column;gap:.45rem}'
+        '.footer-col h4{margin:0 0 .35rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.55);font-weight:600}'
+        '.site-footer .fine{font-size:.82rem;color:rgba(255,255,255,.7);line-height:1.55;max-width:720px;margin:0}'
+        '@media(max-width:700px){.footer-cols{grid-template-columns:1fr 1fr}}'
+        '@media(max-width:420px){.footer-cols{grid-template-columns:1fr}}'
         '.compare-table{width:100%;border-collapse:collapse;font-size:.95rem}'
         '.compare-table th,.compare-table td{border:1px solid #dfe6e9;padding:.7rem .8rem;text-align:left}'
         '.compare-table th{background:#0b3d2a;color:#fff}.compare-table tr:nth-child(even) td{background:#f3faf7}'
@@ -163,6 +175,10 @@ def register_public_seo_routes(app):
         '@media(min-width:760px){.step-grid,.include-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}}'
         '.faq details{background:#fff;border-radius:12px;padding:1rem 1.15rem;margin:0 0 .75rem;box-shadow:0 4px 24px rgba(11,61,42,.08)}'
         '.faq summary{cursor:pointer;font-weight:600;color:#0b3d2a}'
+        '.section-title{text-align:center;font-family:"Playfair Display",serif;color:#0b3d2a;margin:2.25rem 0 1.25rem}'
+        '.hero-actions{display:flex;flex-wrap:wrap;gap:.75rem;justify-content:center;align-items:center}'
+        '.hero .btn-ghost{background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.85);color:#fff}'
+        '.hero .btn-ghost:hover{background:rgba(255,255,255,.22);color:#fff;text-decoration:none}'
         'body{padding-bottom:72px}'
         '@media(max-width:720px){'
         '#grok-label,#grok-bubble-label{display:none!important}'
@@ -171,7 +187,8 @@ def register_public_seo_routes(app):
         'body{padding-bottom:96px}'
         '.container,.card,form{padding-bottom:12px}'
         '.btn-primary,.btn-secondary{margin-bottom:8px}'
-        '}</style>'
+        '}'
+        '</style>'
     )
 
     NOINDEX_PREFIXES = (
@@ -263,23 +280,30 @@ def register_public_seo_routes(app):
                 extra += '<style>.rc-form-page #grok-label,.rc-form-page #grok-bubble-label{display:none!important}</style>'
             if '</head>' in html and 'rel="canonical"' not in html:
                 html = html.replace('</head>', extra + '</head>', 1)
-            NAV = (
-                '<a href="/scan-food">Scan Food</a> '
-                '<a href="/how-it-works">How it works</a> '
-                '<a href="/sample-report">Sample Report</a> '
-            )
+            # Prefer clear product language site-wide
+            html = html.replace('>Get Analysis</a>', '>Order</a>')
+            html = html.replace('Get Your Analysis — $199', 'Order your scan — $199')
+            html = html.replace('Get Your Analysis', 'Order your scan')
+            html = html.replace('>Scan Food</a>', '>Food Scanner</a>')
+            html = html.replace('>Buy $199</a>', '>Order — $199</a>')
             if 'href="/scan-food"' not in html:
-                if 'Get Analysis</a>' in html:
-                    html = html.replace('Get Analysis</a>', 'Get Analysis</a>' + NAV, 1)
+                NAV = (
+                    '<a href="/how-it-works">How it works</a> '
+                    '<a href="/scan-food">Food Scanner</a> '
+                    '<a href="/sample-report">Sample report</a> '
+                )
+                if 'Order</a>' in html:
+                    html = html.replace('Order</a>', 'Order</a>' + NAV, 1)
                 elif '<nav>' in html:
                     html = html.replace('<nav>', '<nav>' + NAV, 1)
             if 'class="site-header"' not in html:
                 header = (
-                    '<header class="site-header"><a href="/" class="logo">Root Cause</a><nav>'
-                    '<a href="/scan-food">Scan Food</a> '
+                    '<header class="site-header"><a href="/" class="logo">Root Cause</a>'
+                    '<nav class="site-nav">'
                     '<a href="/how-it-works">How it works</a> '
-                    '<a href="/buy">Get Analysis</a> '
-                    '<a href="/login">Log In</a></nav></header>'
+                    '<a href="/scan-food">Food Scanner</a> '
+                    '<a href="/buy" class="nav-cta">Order</a> '
+                    '<a href="/login">Log in</a></nav></header>'
                 )
                 html = html.replace('<body>', '<body>' + header, 1)
                 if 'class="site-header"' not in html:

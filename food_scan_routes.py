@@ -363,11 +363,11 @@ def register_food_scan_routes(app, db=None, Report=None):
                 return response
             if 'href="/scan-food"' not in html:
                 if "<nav>" in html:
-                    html = html.replace("<nav>", '<nav><a href="/scan-food">Scan Food</a>', 1)
+                    html = html.replace("<nav>", '<nav><a href="/scan-food">Food Scanner</a>', 1)
                 elif 'class="logo"' in html:
                     html = html.replace(
                         'class="logo">Root Cause</a>',
-                        'class="logo">Root Cause</a><nav><a href="/scan-food">Scan Food</a></nav>',
+                        'class="logo">Root Cause</a><nav><a href="/scan-food">Food Scanner</a></nav>',
                         1,
                     )
             if request.path == "/dashboard" and "My nutrition history" not in html:
