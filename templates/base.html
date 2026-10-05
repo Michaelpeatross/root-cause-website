@@ -8,13 +8,13 @@
     <meta name="theme-color" content="#2e7d32">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Root Cause Health">
+    <meta name="apple-mobile-web-app-title" content="Root Cause">
 
     <!-- SEO -->
-    <meta name="description" content="Root Cause Test: Bioenergetic scanning combined with Grok AI analysis of your wearable health data, blood work, and medical records. Personalized reports and recommendations.">
+    <meta name="description" content="Root Cause Test: at-home bioenergetic hair and saliva wellness scan ($199). Free Food Scanner. Educational wellness information only — not a medical diagnosis.">
     <meta name="keywords" content="root cause test, bioenergetic scan, health analysis, wearable data, blood tests, grok ai, apple health, lab results">
     <meta property="og:title" content="{% block og_title %}Root Cause Test{% endblock %}">
-    <meta property="og:description" content="Upload your Apple Watch, Fitbit, blood work and medical records. Grok analyzes everything for deep health insights.">
+    <meta property="og:description" content="At-home bioenergetic hair and saliva wellness scan with a prioritized report. $199. Mail samples free, or optional $15 prepaid kit.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="{{ request.url }}">
     <meta name="robots" content="index, follow">
@@ -31,22 +31,33 @@
     {% block header %}
     <header class="site-header">
         <a href="{{ url_for('index') }}" class="logo">Root Cause</a>
-        <nav>
-            <a href="{{ url_for('buy') }}">Get Analysis</a>
-            <a href="{{ url_for('contact') }}">Contact Us</a>
+        <button type="button" class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="site-nav">Menu</button>
+        <nav id="site-nav" class="site-nav">
+            <a href="/how-it-works">How it works</a>
+            <a href="/scan-food">Food Scanner</a>
+            <a href="{{ url_for('buy') }}" class="nav-cta">Order</a>
             {% if session.get('is_admin') %}
                 <a href="{{ url_for('admin') }}">Admin</a>
             {% elif session.get('user_id') %}
                 <a href="{{ url_for('dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('logout') }}">Log out</a>
             {% else %}
-                <a href="{{ url_for('register') }}">Create Account</a>
-                <a href="{{ url_for('login') }}">Log In</a>
-            {% endif %}
-            {% if session.get('user_id') %}
-                <a href="{{ url_for('logout') }}">Logout</a>
+                <a href="{{ url_for('login') }}">Log in</a>
             {% endif %}
         </nav>
     </header>
+    <script>
+    (function(){
+      var btn=document.querySelector('.nav-toggle');
+      var nav=document.getElementById('site-nav');
+      if(!btn||!nav) return;
+      btn.addEventListener('click',function(){
+        var open=nav.classList.toggle('is-open');
+        btn.setAttribute('aria-expanded', open?'true':'false');
+        btn.textContent=open?'Close':'Menu';
+      });
+    })();
+    </script>
     {% endblock %}
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -130,8 +141,8 @@
   #grok-disclaimer { font-size: 9.5px; color: #64748b; text-align: center; padding: 5px 8px 7px; background: #fff; border-top: 1px solid #f1f5f9; }
 </style>
 <div id="grok-float" aria-live="polite">
-  <button id="grok-bubble" type="button" aria-haspopup="dialog" aria-expanded="false" title="Click to chat with Grok – free AI help for your scan results">🧬</button>
-  <div id="grok-label">Ask me anything</div>
+  <button id="grok-bubble" type="button" aria-haspopup="dialog" aria-expanded="false" title="Ask a question about the scan">🧬</button>
+  <div id="grok-label">Ask a question</div>
   <div id="grok-bubble-label">Free scan help</div>
   <div id="grok-panel" role="dialog" aria-label="Ask Grok chat">
     <div id="grok-header">

@@ -93,54 +93,61 @@
 
 {% block content %}
 <section class="hero">
-    <h1>At-Home Bioenergetic Hair & Saliva Wellness Scan</h1>
-    <p class="tagline">Get a clear, prioritized wellness report from hair and saliva samples — shipped from home, no clinic visit. $199.</p>
-    <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis — $199</a>
-    <a href="{{ url_for('register') }}" class="btn btn-primary" style="background:rgba(255,255,255,0.2); border:2px solid white;">Create Free Account</a>
-    <a href="{{ url_for('login') }}" class="btn btn-outline" style="color:white; border-color:white;">Log In</a>
+    <p class="hero-eyebrow">Root Cause Test</p>
+    <h1>At-home hair &amp; saliva wellness scan</h1>
+    <p class="tagline">A clear, prioritized wellness report from samples you collect at home. No clinic visit. $199.</p>
+    <div class="hero-actions">
+        <a href="{{ url_for('buy') }}" class="btn btn-primary">Order your scan — $199</a>
+        <a href="/scan-food" class="btn btn-ghost">Free Food Scanner</a>
+        <a href="{{ url_for('login') }}" class="btn btn-ghost">Log in</a>
+    </div>
 </section>
 
-<div class="container">
+<div class="container home-page">
     <div class="trust-banner">
         <p><strong>Non-invasive · Prioritized wellness report · Supplement ideas</strong></p>
-        <p><span style="color:var(--green); font-weight:700; font-size:1.2rem;">$199</span> · At-home hair + saliva collection · Standard letter mail is free</p>
+        <p class="trust-price"><span>$199</span> · At-home collection · Standard letter mail is free</p>
     </div>
 
-    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">How it works</h2>
-    <div class="step-grid" style="margin-bottom:2rem;">
+    <h2 class="section-title">How it works</h2>
+    <div class="step-grid">
         <div class="card step-card">
             <h3>1. Order</h3>
-            <p>Checkout for $199. Create your free account so collection steps and your dashboard are ready.</p>
+            <p>Checkout for $199. Create a free account so collection steps and your dashboard are ready.</p>
         </div>
         <div class="card step-card">
-            <h3>2. Collect hair + saliva</h3>
-            <p>Follow the at-home instructions. No clinic visit and no needles.</p>
+            <h3>2. Collect</h3>
+            <p>Take hair and saliva at home using the portal instructions. No clinic visit and no needles.</p>
         </div>
         <div class="card step-card">
             <h3>3. Ship</h3>
-            <p>Shipping your samples: Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
+            <p>Mail free in a regular envelope with a stamp, use the optional $15 prepaid kit, or overnight for the fastest turnaround.</p>
         </div>
         <div class="card step-card">
-            <h3>4. Dashboard report</h3>
+            <h3>4. Report</h3>
             <p>When processing is complete, your prioritized wellness report appears in your client portal.</p>
         </div>
     </div>
 
-    <div class="card" style="margin-bottom:2rem;">
-        <h2 style="margin-top:0;">Shipping your samples</h2>
-        <p>Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
-        <p style="margin-bottom:0;">Standard letter mail is <strong>free</strong>: put your samples in a regular envelope, add a postage stamp, and mail them. You do not pay $15 unless you want the optional prepaid collection kit for convenience. The collection-site address is in your post-purchase email and in the instructions page after you log in.</p>
+    <div class="card shipping-card">
+        <h2>Shipping your samples</h2>
+        <ul class="shipping-list">
+            <li><strong>Free standard mail</strong> — regular envelope and a postage stamp.</li>
+            <li><strong>Optional prepaid kit</strong> — $15 for convenience. Not required.</li>
+            <li><strong>Fastest turnaround</strong> — overnight the envelope to the collection site.</li>
+        </ul>
+        <p class="fine-inline">The collection-site address is in your post-purchase email and on the instructions page after you log in.</p>
     </div>
 
-    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">What’s included</h2>
-    <div class="include-grid" style="margin-bottom:2rem;">
+    <h2 class="section-title">What’s included</h2>
+    <div class="include-grid">
         <div class="card include-card">
             <h3>Hair + saliva scan</h3>
             <p>One Root Cause Bioenergetic Scan from samples you collect at home.</p>
         </div>
         <div class="card include-card">
             <h3>Clear wellness report</h3>
-            <p>A prioritized summary organized so you can see what to look at first.</p>
+            <p>A prioritized summary so you can see what to look at first.</p>
         </div>
         <div class="card include-card">
             <h3>Supplement ideas</h3>
@@ -152,15 +159,21 @@
         </div>
     </div>
 
+    <div class="card" id="food-scanner-home">
+        <h2>Free Food Scanner</h2>
+        <p>Look up a barcode, search a food name, or photograph a label or plate for educational calorie and macro estimates. Guests can scan without an account.</p>
+        <p class="card-actions"><a class="btn btn-primary" href="/scan-food">Open Food Scanner</a></p>
+    </div>
+
     <div class="card">
         <h2>What this is — and isn’t</h2>
         <p><strong>This is</strong> an at-home bioenergetic hair and saliva wellness scan with a written report and supplement ideas.</p>
         <p><strong>This is not</strong> a medical diagnosis, allergy test, DNA test, HTMA (hair tissue mineral analysis), blood panel, or a tool for detecting or treating disease.</p>
-        <p style="color:var(--text-muted); margin-bottom:0;">Educational wellness information only. It does not replace licensed medical care.</p>
+        <p class="muted">Educational wellness information only. It does not replace licensed medical care.</p>
     </div>
 
-    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">How it compares</h2>
-    <div class="card" style="overflow-x:auto;">
+    <h2 class="section-title">How it compares</h2>
+    <div class="card table-card">
         <table class="compare-table">
             <thead>
                 <tr>
@@ -209,7 +222,7 @@
         </table>
     </div>
 
-    <h2 style="text-align:center; font-family:'Playfair Display',serif; color:var(--green-dark);">FAQ</h2>
+    <h2 class="section-title">FAQ</h2>
     <div class="faq">
         <details>
             <summary>Is this a medical test?</summary>
@@ -219,14 +232,13 @@
             <summary>How is this different from bloodwork?</summary>
             <p>Bloodwork is a clinical lab service ordered with a licensed clinician. This is an at-home bioenergetic hair and saliva wellness scan that produces a prioritized wellness report and supplement ideas. It does not replace bloodwork or a doctor visit.</p>
         </details>
-        <details open>
+        <details>
             <summary>How do I ship my samples?</summary>
-            <p>Shipping your samples: Optional prepaid collection kit — $15. Or mail free in a regular envelope with a postage stamp. For the fastest turnaround, overnight the envelope to the collection site.</p>
-            <p>Standard letter mail is <strong>free</strong>: put samples in a regular envelope, add a postage stamp, and mail them. You do not pay the $15. The $15 is only for the optional prepaid collection kit / convenience.</p>
+            <p>Mail free in a regular envelope with a postage stamp, choose the optional $15 prepaid collection kit, or overnight the envelope for the fastest turnaround. The $15 kit is convenience only — it is not required.</p>
         </details>
         <details>
             <summary>How long until I get my report?</summary>
-            <p>Typical turnaround is 7–14 days after your hair and saliva samples arrive. For the fastest turnaround, place samples in an envelope and overnight it to the collection site.</p>
+            <p>Typical turnaround is 7–14 days after your hair and saliva samples arrive. For the fastest turnaround, overnight the envelope to the collection site.</p>
         </details>
         <details>
             <summary>Will this replace my doctor?</summary>
@@ -238,32 +250,16 @@
         </details>
     </div>
 
-    <div class="card" id="food-scanner-home" style="margin-top:2rem;">
-        <h2 style="margin-top:0;">Free Food Scanner</h2>
-        <p>Look up a barcode, search a food name, or photograph a label or plate for educational calorie and macro estimates. Guests can scan without an account.</p>
-        <p style="margin-bottom:0;"><a class="btn btn-primary" href="/scan-food">Open Food Scanner</a></p>
-    </div>
-
-    <div class="card" id="optional-wearable" style="margin-top:2rem;">
-        <p style="margin:0 0 .35rem; font-size:.78rem; letter-spacing:.04em; text-transform:uppercase; color:var(--text-muted);">Optional add-on</p>
-        <h2 style="margin-top:0;">Wearable & file analysis</h2>
+    <div class="card" id="optional-wearable">
+        <p class="eyebrow">Optional add-on</p>
+        <h2>Wearable &amp; file analysis</h2>
         <p>The $199 scan is hair and saliva only. After you have an account, you can optionally upload Apple Watch, Fitbit, or other health-export files for extra wellness context. This is not required to order or to receive your scan report.</p>
-        <p style="margin-bottom:0;"><a href="{{ url_for('health_app') }}">Open the optional Health App uploader</a> · <a href="{{ url_for('contact') }}">Contact</a></p>
+        <p class="card-actions"><a href="{{ url_for('health_app') }}">Open Health records uploader</a> · <a href="{{ url_for('contact') }}">Contact</a></p>
     </div>
 
-    <p style="text-align:center; margin:1.5rem 0 0;">
-        <a href="/scan-food">Food Scanner</a> ·
-        <a href="/how-it-works">How it works</a> ·
-        <a href="/sample-report">Sample report</a> ·
-        <a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is the scan</a> ·
-        <a href="/blog/bioenergetic-vs-food-allergy-test">Vs food allergy testing</a> ·
-        <a href="{{ url_for('contact') }}">Contact</a> ·
-        <a href="{{ url_for('privacy') }}">Privacy</a> ·
-        <a href="{{ url_for('terms') }}">Terms</a> ·
-        <a href="{{ url_for('refunds') }}">Refunds</a>
-    </p>
-    <div style="text-align:center; margin:2.5rem 0 1rem;">
-        <a href="{{ url_for('buy') }}" class="btn btn-primary">Get Your Analysis — $199</a>
+    <div class="home-cta">
+        <a href="{{ url_for('buy') }}" class="btn btn-primary">Order your scan — $199</a>
+        <a href="/how-it-works" class="btn btn-outline">See how it works</a>
     </div>
 </div>
 {% endblock %}
