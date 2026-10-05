@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% block title %}How the $199 At-Home Scan Works | Root Cause Test{% endblock %}
-{% block meta_description %}Order the $199 scan, collect hair and saliva at home, then ship samples. Standard letter mail is free (envelope + stamp). Optional prepaid collection kit $15. Fastest turnaround: overnight the envelope to the collection site.{% endblock %}
+{% block title %}How the At-Home Hair & Saliva Scan Works | Root Cause Test{% endblock %}
+{% block meta_description %}Order, collect hair and saliva at home, mail your samples, and read your wellness report 7–14 days after they arrive. Free stamp mail, optional $15 kit, overnight for speed.{% endblock %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -21,8 +21,8 @@
 {% block content %}
 <div class="container" style="max-width:800px;">
   <p style="color:var(--text-muted); font-size:.85rem; margin:1.5rem 0 .5rem;"><a href="{{ url_for('index') }}">Home</a> · How it works</p>
-  <h1>How the at-home scan works</h1>
-  <p>Four steps. No clinic visit. $199 for one Root Cause Bioenergetic Scan.</p>
+  <h1>How the at-home hair &amp; saliva scan works</h1>
+  <p>Four steps from order to wellness report. No clinic visit. $199 for one Root Cause Bioenergetic Scan.</p>
 
   <div class="card"><h2>1. Order</h2>
     <p>Pay $199 on the secure Stripe checkout. You do not need an account to pay. Create a free account after purchase so collection instructions and your dashboard are ready.</p></div>
@@ -56,6 +56,16 @@
     <details><summary>Do I need a clinic visit?</summary><p>No. You collect hair and saliva at home and ship the samples.</p></details>
     <details><summary>Is this a medical or allergy test?</summary><p>No. This is a wellness scan. It is not a medical diagnosis, not an allergy test, and not intended to detect or treat disease.</p></details>
     <details><summary>How much does it cost?</summary><p>The Root Cause Bioenergetic Scan is $199 through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required.</p></details>
+  </div>
+
+  <div class="card">
+    <h2>Related</h2>
+    <ul>
+      <li><a href="/sample-report">Sample wellness report</a></li>
+      <li><a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is a bioenergetic hair and saliva scan?</a></li>
+      <li><a href="/blog/bioenergetic-vs-food-allergy-test">Bioenergetic scan vs food allergy testing</a></li>
+      <li><a href="/scan-food">Free Food Scanner</a></li>
+    </ul>
   </div>
 
   <div style="text-align:center; margin:2.5rem 0;">

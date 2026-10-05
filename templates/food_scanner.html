@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Food Scanner | Root Cause Test{% endblock %}
+{% block title %}Free Food Scanner: Barcode, Label & Plate Photo | Root Cause Test{% endblock %}
 {% block og_title %}Food Scanner | Root Cause Test{% endblock %}
-{% block meta_description %}Free Food Scanner from Root Cause Test. Scan a barcode, nutrition label, or plate photo for educational wellness calorie and macro estimates. Not medical advice.{% endblock %}
+{% block meta_description %}Free online Food Scanner. Scan a barcode, nutrition label, or plate photo for a 1–100 food processing score plus calorie and macro estimates. No app or account needed.{% endblock %}
 {% block extra_head %}
 <style>
   .scan-wrap { max-width: 760px; margin: 0 auto; padding-bottom: calc(2rem + env(safe-area-inset-bottom)); }
@@ -124,4 +124,15 @@
 <script src="{{ url_for('static', filename='js/vendor/quagga.min.js') }}?v=20261002scan" onerror="window.RC_QUAGGA_FAILED=true"></script>
 <script src="{{ url_for('static', filename='js/barcode_photo_logic.js') }}?v=20261002scan"></script>
 <script src="{{ url_for('static', filename='js/food_scanner.js') }}?v=20261002perfect"></script>
+
+<div class="card related-links" style="margin-top:2rem;">
+  <h2>Related</h2>
+  <ul>
+    <li><a href="/buy">Order the $199 at-home bioenergetic scan</a></li>
+    <li><a href="/how-it-works">How the hair and saliva scan works</a></li>
+    <li><a href="/sample-report">Sample wellness report</a></li>
+    <li><a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is a bioenergetic hair and saliva scan?</a></li>
+  </ul>
+</div>
+
 {% endblock %}

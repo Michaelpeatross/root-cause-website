@@ -7,6 +7,103 @@ def register_public_seo_routes(app):
 
     SITE = 'https://www.root-cause-test.com'
 
+    # One title + meta description per indexable public page.
+    # Keyword map: docs/seo-keywords.md. Keep wellness framing — no medical claims.
+    PAGE_SEO = {
+        '/': (
+            'At-Home Bioenergetic Hair & Saliva Scan – $199 | Root Cause Test',
+            'Order a $199 at-home bioenergetic hair and saliva wellness scan. Collect samples at home, '
+            'mail them free with a stamp, and get a prioritized wellness report. Not a diagnosis.',
+        ),
+        '/buy': (
+            'Order the $199 At-Home Bioenergetic Scan | Root Cause Test',
+            'Order your $199 bioenergetic hair and saliva wellness scan online. Secure Stripe checkout. '
+            'Mail samples free with a stamp, add a $15 prepaid kit, or overnight for speed.',
+        ),
+        '/how-it-works': (
+            'How the At-Home Hair & Saliva Scan Works | Root Cause Test',
+            'Order, collect hair and saliva at home, mail your samples, and read your wellness report '
+            '7–14 days after they arrive. Free stamp mail, optional $15 kit, overnight for speed.',
+        ),
+        '/scan-food': (
+            'Free Food Scanner: Barcode, Label & Plate Photo | Root Cause Test',
+            'Free online Food Scanner. Scan a barcode, nutrition label, or plate photo for a 1–100 food '
+            'processing score plus calorie and macro estimates. No app or account needed.',
+        ),
+        '/sample-report': (
+            'Sample Bioenergetic Wellness Report | Root Cause Test',
+            'See a sample bioenergetic wellness report from a $199 hair and saliva scan: top 3 priorities, '
+            'Health Scores, and body-system cards. Placeholder data. Not a diagnosis.',
+        ),
+        '/blog': (
+            'Bioenergetic Scan Guides | Root Cause Test',
+            'Plain-language guides to the at-home bioenergetic hair and saliva wellness scan: what it is, '
+            'what it is not, and how it compares with allergy testing and HTMA.',
+        ),
+        '/blog/what-is-bioenergetic-hair-saliva-scan': (
+            'What Is a Bioenergetic Hair & Saliva Scan? | Root Cause Test',
+            'What an at-home bioenergetic hair and saliva wellness scan is, what it is not, and how it '
+            'differs from allergy testing and HTMA. Plain-language guide. Not medical advice.',
+        ),
+        '/blog/bioenergetic-vs-food-allergy-test': (
+            'Bioenergetic Scan vs Food Allergy Test | Root Cause Test',
+            'Bioenergetic hair and saliva wellness scan vs clinical food allergy testing, side by side. '
+            'A wellness scan does not diagnose or rule out food allergy. See the real limits.',
+        ),
+        '/health-app': (
+            'Upload Health Records & Wearable Data | Root Cause Test',
+            'Optional: upload Apple Health, Fitbit, or Garmin exports and lab PDFs you downloaded for extra '
+            'wellness context next to your $199 scan. We never ask for portal passwords.',
+        ),
+        '/export-records': (
+            'How to Export MyChart, Labcorp & Quest Records | Root Cause Test',
+            'Step-by-step: download your own MyChart, Labcorp, Quest, and Apple Health files, then upload '
+            'them for optional wellness context. We never ask for portal passwords.',
+        ),
+        '/contact': (
+            'Contact Root Cause Test | Questions About the $199 Scan',
+            'Questions about the $199 at-home hair and saliva wellness scan, shipping, or the Free Food '
+            'Scanner? Text or email Root Cause Test and get a quick answer.',
+        ),
+        '/privacy': (
+            'Privacy Policy | Root Cause Test',
+            'How Root Cause Test collects, uses, and protects account, scan, Food Scanner, and optional '
+            'health-record data. We do not sell your personal information.',
+        ),
+        '/terms': (
+            'Terms of Use | Root Cause Test',
+            'Terms of use for Root Cause Test, the $199 at-home bioenergetic hair and saliva wellness scan '
+            'and Free Food Scanner. Wellness information only, not medical care.',
+        ),
+        '/refunds': (
+            'Refund Policy | Root Cause Test',
+            'Refund policy for the $199 Root Cause Test hair and saliva wellness scan: cancellations before '
+            'you mail samples, and what happens once processing starts.',
+        ),
+    }
+
+    # Duplicate URLs that should consolidate to one canonical page.
+    CANONICAL_ALIASES = {'/food-scanner': '/scan-food'}
+
+    # Breadcrumb trail (name, path) for BreadcrumbList JSON-LD.
+    BREADCRUMBS = {
+        '/buy': [('Order', '/buy')],
+        '/how-it-works': [('How it works', '/how-it-works')],
+        '/scan-food': [('Food Scanner', '/scan-food')],
+        '/sample-report': [('Sample report', '/sample-report')],
+        '/blog': [('Guides', '/blog')],
+        '/blog/what-is-bioenergetic-hair-saliva-scan': [
+            ('Guides', '/blog'),
+            ('What is a bioenergetic hair and saliva scan?', '/blog/what-is-bioenergetic-hair-saliva-scan'),
+        ],
+        '/blog/bioenergetic-vs-food-allergy-test': [
+            ('Guides', '/blog'),
+            ('Bioenergetic scan vs food allergy test', '/blog/bioenergetic-vs-food-allergy-test'),
+        ],
+        '/export-records': [('Export your records', '/export-records')],
+        '/health-app': [('Health records', '/health-app')],
+    }
+
     def privacy():
         return render_template('privacy.html')
 
@@ -21,6 +118,14 @@ def register_public_seo_routes(app):
         try:
             from sample_report_builder import build_sample_report_html
             sample_html = build_sample_report_html() or ''
+            # The page already has its own H1; keep one H1 per page.
+            import re as _re_h1
+            sample_html = _re_h1.sub(
+                r'<h1(\s[^>]*)?>(.*?)</h1>',
+                lambda m: '<h2%s>%s</h2>' % (m.group(1) or '', m.group(2)),
+                sample_html,
+                flags=_re_h1.I | _re_h1.S,
+            )
         except Exception as exc:
             print('[Root Cause] sample report build failed: %s' % exc)
             sample_html = (
@@ -52,6 +157,8 @@ def register_public_seo_routes(app):
             "Disallow: /reports/\n"
             "Disallow: /documents/\n"
             "Disallow: /instructions\n"
+            "Disallow: /api/\n"
+            "Disallow: /account/\n"
             f"Sitemap: {SITE}/sitemap.xml\n"
         )
         return Response(body, mimetype='text/plain')
@@ -76,7 +183,7 @@ def register_public_seo_routes(app):
         xml = ['<?xml version="1.0" encoding="UTF-8"?>',
                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
         for path, freq, pri in pages:
-            loc = SITE if path == '/' else SITE + path
+            loc = SITE + path
             xml.append('  <url>')
             xml.append(f'    <loc>{loc}</loc>')
             xml.append(f'    <changefreq>{freq}</changefreq>')
@@ -208,24 +315,17 @@ def register_public_seo_routes(app):
                 return response
             from flask import request
             path = request.path or '/'
-            canon = SITE + ('/' if path == '/' else path)
+            # /food-scanner is an alias of /scan-food — one canonical URL.
+            canon_path = CANONICAL_ALIASES.get(path, path)
+            canon = SITE + ('/' if canon_path == '/' else canon_path)
             noindex = path == '/checkout/success' or any(
                 path == p or path.startswith(p + '/') for p in NOINDEX_PREFIXES
             ) or response.status_code == 404
             robots = 'noindex, nofollow' if noindex else 'index, follow'
-            DESCS = {
-                '/scan-food': 'Free Food Scanner from Root Cause Test. Scan a barcode, nutrition label, or plate photo for educational wellness calorie and macro estimates. Not medical advice.',
-                '/blog': 'Short wellness articles about the $199 bioenergetic hair and saliva scan. Educational only — not medical advice.',
-                '/sample-report': 'Preview the same wellness report template clients see after a $199 hair and saliva scan: top 3 priorities, Health Scores, and optional food or supplement tabs. Placeholder sample. Not a diagnosis or allergy test.',
-                '/how-it-works': 'Order the $199 scan, collect hair and saliva at home, then ship samples. Standard letter mail is free (envelope + stamp). Optional prepaid collection kit $15. Fastest turnaround: overnight the envelope to the collection site.',
-                '/buy': 'Buy the $199 Root Cause Bioenergetic Scan. Mail samples free in a regular envelope with a postage stamp, or optional $15 prepaid collection kit. Overnight the envelope for the fastest turnaround.',
-                '/blog/what-is-bioenergetic-hair-saliva-scan': 'What a bioenergetic hair and saliva wellness scan is and is not. Compared carefully with clinical allergy testing and HTMA. $199. Mail samples free in a regular envelope, or optional $15 prepaid collection kit. Not a medical diagnosis.',
-                '/blog/bioenergetic-vs-food-allergy-test': 'Side-by-side look at a $199 bioenergetic hair and saliva wellness scan versus clinical food allergy testing. It does not diagnose or rule out food allergy.',
-                '/health-app': 'Optional add-on: upload wearable exports, lab PDFs, visit summaries, imaging reports, or medication lists for educational wellness context next to your $199 hair and saliva scan. Not a diagnosis. We never ask for portal passwords.',
-                '/export-records': 'Download your own MyChart, Labcorp, or Quest files, then upload them for optional wellness context next to the $199 hair and saliva scan. We never ask for portal passwords. Not a medical diagnosis.',
-            }
+            seo_title, seo_desc = PAGE_SEO.get(canon_path, (None, None))
             html = html.replace('https://www.root-cause-test.com/og-scan.jpg', OG_IMG)
             html = html.replace('http://www.root-cause-test.com/og-scan.jpg', OG_IMG)
+            import re as _re_seo
             extra = (
                 f'<link rel="canonical" href="{canon}">'
                 f'<meta name="robots" content="{robots}">'
@@ -234,47 +334,67 @@ def register_public_seo_routes(app):
                 f'<meta name="twitter:card" content="summary_large_image">'
                 f'<meta name="twitter:image" content="{SITE}/static/og-food-scanner.png">'
             )
-            if path in DESCS:
-                import re as _re_desc
-                _d = DESCS[path]
-                html = _re_desc.sub(
+            if seo_title and seo_desc and not noindex:
+                html = _re_seo.sub(
+                    r'<title>[^<]*</title>',
+                    f'<title>{seo_title}</title>',
+                    html,
+                    count=1,
+                    flags=_re_seo.I,
+                )
+                html = _re_seo.sub(
                     r'<meta name="description" content="[^"]*"\s*/?>',
-                    f'<meta name="description" content="{_d}">',
+                    f'<meta name="description" content="{seo_desc}">',
                     html,
-                    flags=_re_desc.I,
+                    flags=_re_seo.I,
                 )
-                html = _re_desc.sub(
+                html = _re_seo.sub(
+                    r'<meta property="og:title" content="[^"]*"\s*/?>',
+                    f'<meta property="og:title" content="{seo_title}">',
+                    html,
+                    flags=_re_seo.I,
+                )
+                html = _re_seo.sub(
                     r'<meta property="og:description" content="[^"]*"\s*/?>',
-                    f'<meta property="og:description" content="{_d}">',
+                    f'<meta property="og:description" content="{seo_desc}">',
                     html,
-                    flags=_re_desc.I,
+                    flags=_re_seo.I,
                 )
-                html = _re_desc.sub(
+                html = _re_seo.sub(
                     r'<meta name="twitter:description" content="[^"]*"\s*/?>',
-                    f'<meta name="twitter:description" content="{_d}">',
+                    f'<meta name="twitter:description" content="{seo_desc}">',
                     html,
-                    flags=_re_desc.I,
+                    flags=_re_seo.I,
                 )
-                extra += f'<meta name="description" content="{_d}">'
-                extra += f'<meta property="og:description" content="{_d}">'
-            if path == '/':
-                _home_ship = (
-                    'At-home bioenergetic hair + saliva wellness scan. $199. '
-                    'Mail samples free in a regular envelope with a postage stamp, '
-                    'or optional $15 prepaid collection kit. Not a medical diagnosis or allergy test.'
-                )
-                html = html.replace(
-                    'Root Cause Test: Bioenergetic scanning combined with Grok AI analysis of your wearable health data, blood work, and medical records. Personalized reports and recommendations.',
-                    _home_ship,
-                )
-                html = html.replace(
-                    'Upload your Apple Watch, Fitbit, blood work and medical records. Grok analyzes everything for deep health insights.',
-                    _home_ship,
-                )
-                html = html.replace(
-                    'At-home bioenergetic hair + saliva wellness scan with a clear report and supplement ideas. $199. Not a medical diagnosis or allergy test.',
-                    _home_ship,
-                )
+                # Avoid duplicate metas: only inject when the template omitted them.
+                if 'name="description"' not in html.lower():
+                    extra += f'<meta name="description" content="{seo_desc}">'
+                if 'property="og:description"' not in html.lower():
+                    extra += f'<meta property="og:description" content="{seo_desc}">'
+                if 'property="og:title"' not in html.lower():
+                    extra += f'<meta property="og:title" content="{seo_title}">'
+            crumb_trail = BREADCRUMBS.get(canon_path)
+            if crumb_trail and 'BreadcrumbList' not in html and not noindex:
+                import json as _json
+                items = [{
+                    '@type': 'ListItem',
+                    'position': 1,
+                    'name': 'Home',
+                    'item': SITE + '/',
+                }]
+                for i, (name, cpath) in enumerate(crumb_trail, start=2):
+                    items.append({
+                        '@type': 'ListItem',
+                        'position': i,
+                        'name': name,
+                        'item': SITE + cpath,
+                    })
+                crumb_json = _json.dumps({
+                    '@context': 'https://schema.org',
+                    '@type': 'BreadcrumbList',
+                    'itemListElement': items,
+                }, ensure_ascii=True)
+                extra += f'<script type="application/ld+json">{crumb_json}</script>'
             if path in ('/login', '/register', '/buy', '/contact', '/checkout/success'):
                 html = html.replace('<body>', '<body class="rc-form-page">', 1)
                 extra += '<style>.rc-form-page #grok-label,.rc-form-page #grok-bubble-label{display:none!important}</style>'
