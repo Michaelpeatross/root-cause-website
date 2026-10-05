@@ -1,7 +1,7 @@
 {% extends "base.html" %}
-{% block title %}Root Cause Test | At-Home Wellness Scan{% endblock %}
-{% block og_title %}Root Cause Test | At-Home Wellness Scan{% endblock %}
-{% block meta_description %}At-home bioenergetic hair + saliva wellness scan. $199. Mail samples free in a regular envelope with a postage stamp, or optional $15 prepaid collection kit. Not a medical diagnosis or allergy test.{% endblock %}
+{% block title %}At-Home Bioenergetic Hair & Saliva Scan – $199 | Root Cause Test{% endblock %}
+{% block og_title %}At-Home Bioenergetic Hair & Saliva Scan – $199 | Root Cause Test{% endblock %}
+{% block meta_description %}Order a $199 at-home bioenergetic hair and saliva wellness scan. Collect samples at home, mail them free with a stamp, and get a prioritized wellness report. Not a diagnosis.{% endblock %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -94,8 +94,8 @@
 {% block content %}
 <section class="hero">
     <p class="hero-eyebrow">Root Cause Test</p>
-    <h1>At-home hair &amp; saliva wellness scan</h1>
-    <p class="tagline">A clear, prioritized wellness report from samples you collect at home. No clinic visit. $199.</p>
+    <h1>At-home bioenergetic hair &amp; saliva wellness scan</h1>
+    <p class="tagline">A clear, prioritized wellness report from hair and saliva samples you collect at home. No clinic visit. $199.</p>
     <div class="hero-actions">
         <a href="{{ url_for('buy') }}" class="btn btn-primary">Order your scan — $199</a>
         <a href="/scan-food" class="btn btn-ghost">Free Food Scanner</a>
@@ -161,7 +161,7 @@
 
     <div class="card" id="food-scanner-home">
         <h2>Free Food Scanner</h2>
-        <p>Look up a barcode, search a food name, or photograph a label or plate for educational calorie and macro estimates. Guests can scan without an account.</p>
+        <p>Look up a barcode, search a food name, or photograph a label or plate for educational calorie and macro estimates. Guests can scan without an account. Prefer to see the paid report first? Preview a <a href="/sample-report">sample wellness report</a>.</p>
         <p class="card-actions"><a class="btn btn-primary" href="/scan-food">Open Food Scanner</a></p>
     </div>
 
@@ -255,6 +255,17 @@
         <h2>Wearable &amp; file analysis</h2>
         <p>The $199 scan is hair and saliva only. After you have an account, you can optionally upload Apple Watch, Fitbit, or other health-export files for extra wellness context. This is not required to order or to receive your scan report.</p>
         <p class="card-actions"><a href="{{ url_for('health_app') }}">Open Health records uploader</a> · <a href="{{ url_for('contact') }}">Contact</a></p>
+    </div>
+
+    <div class="card related-links">
+        <h2>Explore before you order</h2>
+        <ul>
+            <li><a href="/how-it-works">How the at-home hair and saliva scan works</a></li>
+            <li><a href="/sample-report">Sample bioenergetic wellness report</a></li>
+            <li><a href="/blog/what-is-bioenergetic-hair-saliva-scan">What is a bioenergetic hair and saliva scan?</a></li>
+            <li><a href="/blog/bioenergetic-vs-food-allergy-test">Bioenergetic scan vs food allergy testing</a></li>
+            <li><a href="/scan-food">Free Food Scanner</a> (barcode, label, or plate photo)</li>
+        </ul>
     </div>
 
     <div class="home-cta">
