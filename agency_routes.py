@@ -49,7 +49,8 @@ def _add_business_links(html):
 
 
 def register_agency_routes(app):
-    """Serve /agency, /apexforge, /business, /ai-transformation. Does not touch Stripe/scan checkout."""
+    """Serve /agency, /apexforge, /business, /ai-transformation, plus the Foam Insulation
+    offer page at /foam and /spray-foam. Does not touch Stripe/scan checkout."""
     from flask import Response, request
 
     def _load_html():
@@ -100,11 +101,31 @@ def register_agency_routes(app):
     _business_page = _static_agency_page("business.html", "Business")
     _ai_page = _static_agency_page("ai_transformation.html", "AI Transformation")
 
+    def _foam_page():
+        """Foam Insulation, LLC spray foam offer page (separate business; no Root Cause chrome)."""
+        path = os.path.join(app.root_path, "templates", "foam.html")
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                html = fh.read()
+        except Exception as exc:
+            print(f"[Foam] foam.html unavailable: {exc}")
+            return Response(
+                "<!DOCTYPE html><html><body><h1>Foam Insulation, LLC</h1>"
+                "<p>Spray foam insulation in Lafayette &amp; Acadiana. "
+                'Call <a href="tel:+13378493132">(337) 849-3132</a> for a free quote.</p>'
+                "</body></html>",
+                status=503,
+                mimetype="text/html",
+            )
+        return Response(html, mimetype="text/html; charset=utf-8")
+
     routes = [
         ("/agency", "apexforge_agency", _agency_page),
         ("/apexforge", "apexforge_alias", _agency_page),
         ("/business", "apexforge_business", _business_page),
         ("/ai-transformation", "apexforge_ai_transformation", _ai_page),
+        ("/foam", "foam_insulation_offer", _foam_page),
+        ("/spray-foam", "foam_insulation_spray_foam_alias", _foam_page),
     ]
     existing = {rule.endpoint for rule in app.url_map.iter_rules()}
     for path, endpoint, view in routes:
@@ -113,7 +134,10 @@ def register_agency_routes(app):
             app.add_url_rule(path, endpoint, view, methods=["GET", "HEAD"])
 
     # Root Cause seo_routes injects footer/nav into all HTML. Skip that for ApexForge pages.
-    agency_paths = {"/agency", "/apexforge", "/business", "/ai-transformation"}
+    agency_paths = {
+        "/agency", "/apexforge", "/business", "/ai-transformation",
+        "/foam", "/spray-foam",
+    }
 
     def _wrap_seo_processors():
         wrapped = 0
@@ -142,6 +166,7 @@ def register_agency_routes(app):
 
     n = _wrap_seo_processors()
     print(
-        "[ApexForge] Registered /agency, /apexforge, /business, /ai-transformation "
+        "[ApexForge] Registered /agency, /apexforge, /business, /ai-transformation, "
+        "/foam, /spray-foam "
         f"(marketing agency landing; SEO chrome wrappers={n})"
     )
