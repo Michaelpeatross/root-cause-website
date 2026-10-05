@@ -222,3 +222,9 @@ except Exception as _hr_err:
     print(f"[Root Cause] Health record routes not applied: {_hr_err}")
     import traceback
     traceback.print_exc()
+
+try:
+    from tesla_fleet_key import register_tesla_fleet_key_routes
+    register_tesla_fleet_key_routes(app)
+except Exception as _tesla_key_err:
+    print(f"[Root Cause] Tesla fleet key route not applied: {_tesla_key_err}")
