@@ -113,4 +113,6 @@ def test_tag_defaults_and_env_override(monkeypatch):
     monkeypatch.setenv('GA_MEASUREMENT_ID', 'off')
     assert va._tag_value('GA_MEASUREMENT_ID') == ''
     monkeypatch.delenv('CLARITY_PROJECT_ID', raising=False)
+    assert va._tag_value('CLARITY_PROJECT_ID') == 'ytak3q6nb0'
+    monkeypatch.setenv('CLARITY_PROJECT_ID', 'off')
     assert va._tag_value('CLARITY_PROJECT_ID') == ''

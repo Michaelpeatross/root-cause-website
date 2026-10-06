@@ -130,7 +130,7 @@ OWN_HOSTS = ('root-cause-test.com', 'www.root-cause-test.com', 'localhost', '127
 # Add future IDs here so they work without touching Render env vars.
 TAG_DEFAULTS = {
     'GA_MEASUREMENT_ID': 'G-HTF90RE438',
-    'CLARITY_PROJECT_ID': '',
+    'CLARITY_PROJECT_ID': 'ytak3q6nb0',
     'GOOGLE_SITE_VERIFICATION': '',
     'BING_SITE_VERIFICATION': '',
 }
