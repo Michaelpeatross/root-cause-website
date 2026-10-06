@@ -228,3 +228,11 @@ try:
     register_tesla_fleet_key_routes(app)
 except Exception as _tesla_key_err:
     print(f"[Root Cause] Tesla fleet key route not applied: {_tesla_key_err}")
+
+try:
+    from visitor_analytics import register_visitor_analytics
+    register_visitor_analytics(app, get_current_user=globals().get('_get_current_user'))
+except Exception as _va_err:
+    print(f"[Root Cause] Visitor analytics not applied: {_va_err}")
+    import traceback
+    traceback.print_exc()

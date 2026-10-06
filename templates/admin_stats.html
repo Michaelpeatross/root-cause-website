@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Visitor insights — Root Cause Admin{% endblock %}
+
+{% macro table(rows, label, show_visitors=True, cols=None) -%}
+<table class="rc-st-table">
+  <thead><tr><th>{{ label }}</th><th>{{ cols or 'Count' }}</th>{% if show_visitors %}<th>Visitors</th>{% endif %}</tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr><td class="k">{{ r.key }}</td><td>{{ r.count }}</td>{% if show_visitors %}<td>{{ r.visitors }}</td>{% endif %}</tr>
+  {% else %}
+    <tr><td colspan="3" class="muted">No data yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{%- endmacro %}
+
+{% block content %}
+<style>
+  .rc-st{max-width:1180px;margin:0 auto;padding:1.25rem 1rem 3rem}
+  .rc-st h1{font-family:'Playfair Display',serif;color:var(--green-dark,#0b3d2a);margin:.25rem 0}
+  .rc-st h2{font-size:1.05rem;margin:0 0 .6rem;color:#0f172a}
+  .rc-st .muted{color:#64748b;font-size:.85rem}
+  .rc-st-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:1rem 0}
+  .rc-st-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px 14px}
+  .rc-st-card .lbl{font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.04em}
+  .rc-st-card .big{font-size:1.6rem;font-weight:700;color:#0f172a}
+  .rc-st-card .sub{font-size:.8rem;color:#475569}
+  .rc-st-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+  .rc-st-table{width:100%;border-collapse:collapse;font-size:.86rem}
+  .rc-st-table th,.rc-st-table td{border-bottom:1px solid #eef2f7;padding:5px 6px;text-align:left;vertical-align:top}
+  .rc-st-table th{font-size:.72rem;color:#64748b;text-transform:uppercase}
+  .rc-st-table td.k{word-break:break-all;max-width:420px}
+  .rc-st-filters a{display:inline-block;margin:0 .35rem .35rem 0;padding:.25rem .6rem;border:1px solid #cbd5e1;border-radius:999px;font-size:.8rem;text-decoration:none;color:#0f172a}
+  .rc-st-filters a.on{background:#0b3d2a;color:#fff;border-color:#0b3d2a}
+  .rc-st-funnel .bar{height:10px;background:#d1fae5;border-radius:6px;overflow:hidden}
+  .rc-st-funnel .bar span{display:block;height:100%;background:#0b3d2a}
+  .rc-st svg text{font-size:10px;fill:#64748b}
+</style>
+<div class="rc-st">
+  <p class="muted"><a href="/admin">&larr; Admin panel</a></p>
+  <h1>Visitor insights</h1>
+  <p class="muted">First-party, cookie-based, no raw IPs stored. Times in Central (CT). Generated {{ stats.generated_at_ct }}.
+    {% if not stats.include_internal %}Your own admin visits{% if ignoring %} and this browser{% endif %} are excluded.{% endif %}</p>
+
+  <div class="rc-st-filters">
+    <strong class="muted">Site:</strong>
+    {% for s in ['rootcause','apexforge','foam','all'] %}
+      <a class="{{ 'on' if stats.site == s }}" href="?site={{ s }}&days={{ stats.days }}">{{ {'rootcause':'Root Cause','apexforge':'ApexForge','foam':'Foam','all':'All'}[s] }}</a>
+    {% endfor %}
+    <strong class="muted" style="margin-left:.75rem;">Range:</strong>
+    {% for d in [7, 30, 90, 365] %}
+      <a class="{{ 'on' if stats.days == d }}" href="?site={{ stats.site }}&days={{ d }}">{{ d }}d</a>
+    {% endfor %}
+    <a href="/admin/stats.json?site={{ stats.site }}&days={{ stats.days }}">JSON</a>
+    {% if ignoring %}<a href="?ignore_me=0">Count this browser again</a>{% else %}<a href="?ignore_me=1">Exclude this browser</a>{% endif %}
+  </div>
+
+  <div class="rc-st-grid">
+    {% for key, label in [('today','Today'),('7d','Last 7 days'),('30d','Last 30 days')] %}
+    {% set s = stats.summary[key] %}
+    <div class="rc-st-card">
+      <div class="lbl">{{ label }}</div>
+      <div class="big">{{ s.visitors }} <span class="sub">visitors</span></div>
+      <div class="sub">{{ s.pageviews }} pageviews · {{ s.sessions }} sessions</div>
+      <div class="sub">{{ s.new_visitors }} new · {{ s.js_confirmed_visitors }} JS-confirmed</div>
+    </div>
+    {% endfor %}
+    <div class="rc-st-card">
+      <div class="lbl">Bot / crawler hits ({{ stats.days }}d)</div>
+      <div class="big">{{ stats.bot_hits_total }}</div>
+      <div class="sub">Not counted as visitors</div>
+    </div>
+  </div>
+
+  <div class="rc-st-card" style="margin-bottom:14px;">
+    <h2>Daily pageviews (bars) and visitors (dark) — last {{ stats.days }} days</h2>
+    <svg viewBox="0 0 760 175" width="100%" preserveAspectRatio="none" role="img" aria-label="Daily traffic chart">
+      {% for b in chart %}
+        <rect x="{{ b.x }}" y="{{ 155 - b.h_pv }}" width="{{ b.w }}" height="{{ b.h_pv }}" fill="#a7f3d0"><title>{{ b.day }}: {{ b.pv }} pageviews, {{ b.v }} visitors</title></rect>
+        <rect x="{{ b.x }}" y="{{ 155 - b.h_v }}" width="{{ b.w }}" height="{{ b.h_v }}" fill="#0b3d2a"><title>{{ b.day }}: {{ b.pv }} pageviews, {{ b.v }} visitors</title></rect>
+      {% endfor %}
+      <line x1="0" y1="155" x2="760" y2="155" stroke="#cbd5e1"/>
+      {% if chart %}
+      <text x="0" y="170">{{ chart[0].day }}</text>
+      <text x="760" y="170" text-anchor="end">{{ chart[-1].day }}</text>
+      <text x="2" y="10">max {{ chart_max }}</text>
+      {% endif %}
+    </svg>
+  </div>
+
+  <div class="rc-st-cols">
+    <div class="rc-st-card rc-st-funnel">
+      <h2>Order funnel ({{ stats.days }}d, unique visitors)</h2>
+      {% for f in stats.funnel %}
+        <div style="margin:.35rem 0;"><div style="display:flex;justify-content:space-between;font-size:.86rem;"><span>{{ f.step }}</span><strong>{{ f.visitors }} <span class="muted">({{ f.pct_of_landed }}%)</span></strong></div>
+        <div class="bar"><span style="width:{{ f.pct_of_landed }}%"></span></div></div>
+      {% endfor %}
+      <h2 style="margin-top:1rem;">Food Scanner</h2>
+      {% for f in stats.scanner_funnel %}
+        <div style="margin:.35rem 0;"><div style="display:flex;justify-content:space-between;font-size:.86rem;"><span>{{ f.step }}</span><strong>{{ f.visitors }} <span class="muted">({{ f.pct_of_landed }}%)</span></strong></div>
+        <div class="bar"><span style="width:{{ f.pct_of_landed }}%"></span></div></div>
+      {% endfor %}
+      <p class="muted" style="margin-top:.5rem;">Scan types: {% for t in stats.food_scan_types %}{{ t.key }} {{ t.count }}{% if not loop.last %} · {% endif %}{% else %}none yet{% endfor %}</p>
+    </div>
+    <div class="rc-st-card"><h2>Top pages</h2>{{ table(stats.top_pages, 'Path', cols='Views') }}</div>
+    <div class="rc-st-card"><h2>Traffic sources (sessions)</h2>{{ table(stats.sources, 'Source', cols='Sessions') }}
+      <p class="muted" style="margin-top:.5rem;">Channels: {% for c in stats.channels %}{{ c.key }} {{ c.count }}{% if not loop.last %} · {% endif %}{% else %}—{% endfor %}</p></div>
+    <div class="rc-st-card"><h2>Landing pages (sessions)</h2>{{ table(stats.landing_pages, 'Path', cols='Sessions') }}</div>
+    <div class="rc-st-card"><h2>Referring sites</h2>{{ table(stats.referrer_domains, 'Domain', cols='Views') }}</div>
+    <div class="rc-st-card"><h2>Full referrers</h2>{{ table(stats.referrers, 'Referrer', cols='Views') }}</div>
+    <div class="rc-st-card"><h2>UTM campaigns</h2>{{ table(stats.utm_campaigns, 'source / medium / campaign', cols='Views') }}</div>
+    <div class="rc-st-card"><h2>Key events</h2>{{ table(stats.events, 'Event') }}</div>
+    <div class="rc-st-card"><h2>Devices (visitors)</h2>{{ table(stats.devices, 'Device', show_visitors=False, cols='Visitors') }}
+      <h2 style="margin-top:.8rem;">Browsers</h2>{{ table(stats.browsers, 'Browser', show_visitors=False, cols='Visitors') }}
+      <h2 style="margin-top:.8rem;">Operating systems</h2>{{ table(stats.os, 'OS', show_visitors=False, cols='Visitors') }}</div>
+    <div class="rc-st-card"><h2>Countries (visitors)</h2>{{ table(stats.countries, 'Country', show_visitors=False, cols='Visitors') }}
+      <p class="muted">From a CDN country header when present, otherwise the browser's timezone.</p>
+      <h2 style="margin-top:.8rem;">Timezones</h2>{{ table(stats.timezones, 'Timezone', show_visitors=False, cols='Visitors') }}
+      <h2 style="margin-top:.8rem;">Languages</h2>{{ table(stats.languages, 'Language', show_visitors=False, cols='Visitors') }}</div>
+    <div class="rc-st-card"><h2>Avg engaged time by page</h2>
+      <table class="rc-st-table"><thead><tr><th>Path</th><th>Avg sec</th><th>Samples</th></tr></thead><tbody>
+      {% for e in stats.engagement %}<tr><td class="k">{{ e.key }}</td><td>{{ e.avg_engaged_sec }}</td><td>{{ e.samples }}</td></tr>{% else %}<tr><td colspan="3" class="muted">No data yet.</td></tr>{% endfor %}
+      </tbody></table></div>
+    <div class="rc-st-card"><h2>Bots &amp; crawlers (hits)</h2>{{ table(stats.bots, 'Bot', show_visitors=False, cols='Hits') }}</div>
+    <div class="rc-st-card"><h2>404 pages</h2>{{ table(stats.not_found, 'Path', cols='Hits') }}</div>
+  </div>
+
+  <div class="rc-st-card" style="margin-top:14px;">
+    <h2>Recent pageviews</h2>
+    <div style="max-height:360px;overflow:auto;">
+    <table class="rc-st-table"><thead><tr><th>Time (CT)</th><th>Path</th><th>Source</th><th>Device</th><th>Country / TZ</th><th>Visitor</th></tr></thead><tbody>
+    {% for r in stats.recent %}
+      <tr><td>{{ r.time_ct }}</td><td class="k">{{ r.path }}{% if r.status == 404 %} <span class="muted">(404)</span>{% endif %}</td><td>{{ r.source }}</td><td>{{ r.device }} · {{ r.browser }} · {{ r.os }}</td><td>{{ r.country or '—' }}{% if r.tz %} <span class="muted">{{ r.tz }}</span>{% endif %}</td><td><code>{{ r.visitor }}</code>{% if r.new_visitor %} <span class="muted">new</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="6" class="muted">No visits yet.</td></tr>{% endfor %}
+    </tbody></table></div>
+  </div>
+
+  <div class="rc-st-card" style="margin-top:14px;">
+    <h2>Setup &amp; storage</h2>
+    <ul class="muted" style="margin:0;padding-left:1.1rem;">
+      <li>Storage: {{ stats.storage.backend }} · {{ stats.storage.rows }} rows{% if stats.storage.db_bytes is not none %} · {{ (stats.storage.db_bytes / 1024) | round(1) }} KB{% endif %} ·
+        {% if stats.storage.persistent %}on the persistent data disk (survives deploys){% else %}<strong style="color:#b45309;">NOT persistent — set DATA_DIR and attach the Render disk</strong>{% endif %}</li>
+      <li>JSON API token (ANALYTICS_API_TOKEN): {{ 'set' if token_configured else 'not set — JSON works only while logged in as admin' }}</li>
+      <li>GA4 (GA_MEASUREMENT_ID): {{ 'on' if tags.ga_id else 'off' }} · Clarity (CLARITY_PROJECT_ID): {{ 'on' if tags.clarity_id else 'off' }} ·
+          Search Console meta (GOOGLE_SITE_VERIFICATION): {{ 'on' if tags.gsc else 'off' }} · Bing meta (BING_SITE_VERIFICATION): {{ 'on' if tags.bing else 'off' }}</li>
+      {% if stats.storage.write_errors %}<li style="color:#b45309;">Write errors since boot: {{ stats.storage.write_errors }}</li>{% endif %}
+    </ul>
+  </div>
+</div>
+{% endblock %}

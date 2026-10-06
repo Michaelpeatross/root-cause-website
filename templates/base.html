@@ -26,6 +26,64 @@
     {% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/site.css') }}">
     {% block extra_head %}{% endblock %}
+    {# Env-driven analytics / verification tags. Rendered only when the env var is set. #}
+    {% if rc_tags is defined and rc_tags %}
+    {% if rc_tags.gsc %}<meta name="google-site-verification" content="{{ rc_tags.gsc }}">{% endif %}
+    {% if rc_tags.bing %}<meta name="msvalidate.01" content="{{ rc_tags.bing }}">{% endif %}
+    {% if rc_tags.load_trackers and rc_tags.ga_id %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ rc_tags.ga_id }}"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', '{{ rc_tags.ga_id }}');
+      (function(){
+        function ev(name, params){ try { gtag('event', name, params || {}); } catch(e) {} }
+        // Checkout click (form posts to /create-checkout-session, then Stripe)
+        document.addEventListener('submit', function(e){
+          var f = e.target;
+          if (!f || !f.getAttribute) return;
+          var action = f.getAttribute('action') || '';
+          if (action.indexOf('create-checkout-session') === -1) return;
+          var p = f.querySelector('[name="product"]');
+          var product = (p && p.value) || 'single';
+          ev('begin_checkout', {currency: 'USD', items: [{item_id: product, item_name: 'Root Cause scan'}]});
+          ev('checkout_click', {product: product, page_path: location.pathname});
+        }, true);
+        // Clicks toward the order page
+        document.addEventListener('click', function(e){
+          var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+          if (!a) return;
+          var h = a.getAttribute('href') || '';
+          if (/^(https?:\/\/(www\.)?root-cause-test\.com)?\/buy([?#].*)?$/.test(h)) {
+            ev('order_click', {link_url: h, page_path: location.pathname});
+          }
+        }, true);
+        // Food Scanner usage (barcode / search / label photo / plate photo)
+        if (window.fetch) {
+          var _f = window.fetch;
+          window.fetch = function(input, init){
+            try {
+              var u = typeof input === 'string' ? input : ((input && input.url) || '');
+              var m = u.match(/\/api\/food-scan\/(barcode|search|photo|meal)\b/);
+              if (m) ev('scan_food', {scan_type: m[1]});
+            } catch(e) {}
+            return _f.apply(this, arguments);
+          };
+        }
+      })();
+    </script>
+    {% endif %}
+    {% if rc_tags.load_trackers and rc_tags.clarity_id %}
+    <script>
+      (function(c,l,a,r,i,t,y){
+        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+      })(window, document, "clarity", "script", "{{ rc_tags.clarity_id }}");
+    </script>
+    {% endif %}
+    {% endif %}
 </head>
 <body>
     {% block header %}
