@@ -125,6 +125,24 @@ SOURCE_DOMAINS = (
 UTM_SOURCE_ALIASES = {'twitter': 'x', 'x.com': 'x', 't.co': 'x', 'fb': 'facebook', 'ig': 'instagram'}
 OWN_HOSTS = ('root-cause-test.com', 'www.root-cause-test.com', 'localhost', '127.0.0.1')
 
+# Public (non-secret) tag IDs. An env var of the same name overrides the code
+# default; set the env var to "off" to disable a tag without a code change.
+# Add future IDs here so they work without touching Render env vars.
+TAG_DEFAULTS = {
+    'GA_MEASUREMENT_ID': 'G-HTF90RE438',
+    'CLARITY_PROJECT_ID': '',
+    'GOOGLE_SITE_VERIFICATION': '',
+    'BING_SITE_VERIFICATION': '',
+}
+
+
+def _tag_value(name):
+    env = (os.environ.get(name) or '').strip()
+    if env.lower() in ('off', 'none', 'disabled', '0', 'false'):
+        return ''
+    return env or TAG_DEFAULTS.get(name, '')
+
+
 _GA_RE = re.compile(r'^G-[A-Z0-9]{4,20}$')
 _CLARITY_RE = re.compile(r'^[a-z0-9]{5,20}$')
 _VERIFY_RE = re.compile(r'^[A-Za-z0-9_\-=.:+/]{5,200}$')
@@ -1237,10 +1255,10 @@ def register_visitor_analytics(app, get_current_user=None, db_url=None, salt_pat
 
     # ----- Third-party tags (template context) -----------------------------
     def _tag_config():
-        ga = (os.environ.get('GA_MEASUREMENT_ID') or '').strip().upper()
-        clarity = (os.environ.get('CLARITY_PROJECT_ID') or '').strip().lower()
-        gsc = (os.environ.get('GOOGLE_SITE_VERIFICATION') or '').strip()
-        bing = (os.environ.get('BING_SITE_VERIFICATION') or '').strip()
+        ga = _tag_value('GA_MEASUREMENT_ID').upper()
+        clarity = _tag_value('CLARITY_PROJECT_ID').lower()
+        gsc = _tag_value('GOOGLE_SITE_VERIFICATION')
+        bing = _tag_value('BING_SITE_VERIFICATION')
         return {
             'ga_id': ga if _GA_RE.match(ga) else '',
             'clarity_id': clarity if _CLARITY_RE.match(clarity) else '',
