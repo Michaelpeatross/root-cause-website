@@ -102,3 +102,15 @@ def test_admin_visits_marked_internal(tmp_path, monkeypatch):
     data = c.get('/admin/stats.json').get_json()
     assert data['summary']['today']['pageviews'] == 0
     assert c.get('/admin/stats.json?include_internal=1').get_json()['summary']['today']['pageviews'] == 1
+
+
+def test_tag_defaults_and_env_override(monkeypatch):
+    import visitor_analytics as va
+    monkeypatch.delenv('GA_MEASUREMENT_ID', raising=False)
+    assert va._tag_value('GA_MEASUREMENT_ID') == 'G-HTF90RE438'
+    monkeypatch.setenv('GA_MEASUREMENT_ID', 'G-OTHER12345')
+    assert va._tag_value('GA_MEASUREMENT_ID') == 'G-OTHER12345'
+    monkeypatch.setenv('GA_MEASUREMENT_ID', 'off')
+    assert va._tag_value('GA_MEASUREMENT_ID') == ''
+    monkeypatch.delenv('CLARITY_PROJECT_ID', raising=False)
+    assert va._tag_value('CLARITY_PROJECT_ID') == ''
