@@ -421,6 +421,11 @@ def _drop_stale_summary(html):
         html,
         count=1,
     )
+    # Full-scan uploads still carry the old marker lists. The organ chart replaces them.
+    html = re.sub(r'<header class="scan-cover">[\s\S]*?</header>', '', html, count=1, flags=re.I)
+    html = re.sub(r'<section class="scan-section\b[^>]*>[\s\S]*?</section>', '', html, flags=re.I)
+    html = re.sub(r'<div class="marker-grid">[\s\S]*?</div>', '', html, flags=re.I)
+    html = re.sub(r'<footer class="scan-disclaimer">[\s\S]*?</footer>', '', html, count=1, flags=re.I)
     return html
 
 

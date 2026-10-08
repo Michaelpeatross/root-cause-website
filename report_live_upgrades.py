@@ -98,6 +98,9 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         email = _normalize_email(getattr(report, 'user_email', ''))
         if not email:
             return []
+        name = (_client_display_name(email) or '').strip()
+        name_key = name.split()[0].lower() if name and '@' not in name else ''
+        resolve = helpers.get('_resolve_report_scan_data')
         found = []
         try:
             rows = Report.query.order_by(Report.id.asc()).all()
@@ -106,11 +109,24 @@ def apply_report_upgrades(app, db, Report, reports_dir):
         for row in rows:
             if getattr(row, 'id', None) == getattr(report, 'id', None):
                 continue
-            if _normalize_email(getattr(row, 'user_email', '')) != email:
-                continue
             if int(getattr(row, 'id', 0) or 0) > int(getattr(report, 'id', 0) or 0):
                 continue
-            raw = getattr(row, 'raw_data', None) or ''
+            other_email = _normalize_email(getattr(row, 'user_email', ''))
+            other_name = (_client_display_name(other_email) or '').split()[0].lower() if other_email else ''
+            title = (getattr(row, 'title', None) or '').lower()
+            same = other_email == email
+            if not same and name_key and len(name_key) > 2 and (other_name == name_key or name_key in title):
+                same = True
+            if not same:
+                continue
+            raw = ''
+            if resolve:
+                try:
+                    raw = resolve(row) or ''
+                except Exception:
+                    raw = ''
+            if len(raw.strip()) < 40:
+                raw = getattr(row, 'raw_data', None) or ''
             if len(raw.strip()) < 40:
                 continue
             signals = organ_signals(raw)
@@ -296,18 +312,31 @@ def apply_report_upgrades(app, db, Report, reports_dir):
     _restore_published_reports()
 
     def _refresh_latest_scan():
-        """Rebuild the newest published report so new result sections are saved."""
+        """Rebuild recent reports that are still on the old marker layout."""
         ctx = None
         try:
             ctx = app.app_context()
             ctx.push()
-            report = Report.query.filter(Report.approved == True).order_by(Report.id.desc()).first()
-            if not report:
-                return
-            html = _apply_plan(report)
-            print('[Root Cause] updated latest scan report %s (%s) iv=%s' % (
-                report.id, report.title, 'id="iv-ozone"' in (html or ''),
-            ))
+            rows = Report.query.order_by(Report.id.desc()).limit(8).all()
+            updated = 0
+            for report in rows:
+                html = report.generated_report or ''
+                if 'id="scan-findings"' in html and 'marker-grid' not in html and 'scan-section' not in html:
+                    continue
+                if not (report.raw_data or html):
+                    continue
+                new_html = _apply_plan(report) or ''
+                print('[Root Cause] updated scan report %s (%s) findings=%s compare=%s' % (
+                    report.id,
+                    report.title,
+                    'id="scan-findings"' in new_html,
+                    'Since ' in new_html or 'Earlier scans for reference' in new_html,
+                ))
+                updated += 1
+                if updated >= 4:
+                    break
+            if not updated:
+                print('[Root Cause] latest scans already on the new layout')
         except Exception as exc:
             print('[Root Cause] latest scan update failed: %s' % exc)
         finally:
@@ -318,6 +347,22 @@ def apply_report_upgrades(app, db, Report, reports_dir):
                     pass
 
     _refresh_latest_scan()
+
+    _orig_create_report = helpers.get('_create_published_scan_report')
+
+    def _create_published_scan_report(email, title, combined_raw, pdf_results=None):
+        report, err, ai_source, grok_error = _orig_create_report(email, title, combined_raw, pdf_results)
+        if report is not None:
+            try:
+                _apply_plan(report)
+                db.session.commit()
+            except Exception as exc:
+                print('[Root Cause] new scan layout failed: %s' % exc)
+                db.session.rollback()
+        return report, err, ai_source, grok_error
+
+    if _orig_create_report:
+        helpers['_create_published_scan_report'] = _create_published_scan_report
 
     def view_report(report_id):
         current_user = _get_current_user()
