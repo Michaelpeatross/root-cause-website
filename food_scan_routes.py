@@ -201,7 +201,8 @@ def register_food_scan_routes(app, db=None, Report=None):
                 result["confidence"] = "estimate"
                 result["uncertainty"] = "Label-photo values are estimates from the image. Not a lab analysis. Educational wellness only — not medical advice."
                 result["guest"] = not _logged_in()
-                result = _maybe_save(result, kind="label", to_diary=True)
+                # Shown first; the user taps "Add to today's intake" to log it.
+                result = _maybe_save(result, kind="label", to_diary=False)
             return jsonify(result)
         except Exception as exc:
             return jsonify({"ok": False, "error": "Could not read that label: %s" % exc})
@@ -211,16 +212,160 @@ def register_food_scan_routes(app, db=None, Report=None):
         if err:
             return jsonify({"ok": False, "error": err})
         try:
+            import hashlib
             from meal_photo import analyze_plate_for_client
             result = analyze_plate_for_client(b64, mime=mime, scan_raw=_scan_raw() if _logged_in() else "")
             if result.get("ok"):
                 result["confidence"] = "estimate"
-                result["uncertainty"] = "Plate photos are rough educational estimates. Portion size is often uncertain. Not medical advice."
+                result["uncertainty"] = "Photo estimates are rough educational guides. Portions are often uncertain. Not medical advice."
                 result["guest"] = not _logged_in()
-                result = _maybe_save(result, kind="meal", to_diary=True)
+                # Same photo -> same key, so re-estimating it never logs a second meal.
+                result["photo_key"] = hashlib.sha1(b64[:400000].encode("ascii", "ignore")).hexdigest()[:16]
+                # Nothing is logged here. The editable item list is shown first and
+                # only "Save meal" (/api/food-scan/meal/save) adds it to today's intake.
+                result["saved"] = False
             return jsonify(result)
         except Exception as exc:
-            return jsonify({"ok": False, "error": "Could not read that plate: %s" % exc})
+            return jsonify({"ok": False, "error": "Could not read that photo: %s" % exc})
+
+    def api_meal_item():
+        """Re-look up one item after a rename / replace (food table, then a text estimate)."""
+        data = request.get_json(silent=True) or {}
+        name = str(data.get("name") or "").strip()[:60]
+        if len(name) < 2:
+            return jsonify({"ok": False, "error": "Type a food name."})
+        try:
+            from meal_items import lookup_food, make_item
+            raw = lookup_food(name, data.get("grams"))
+            if not raw:
+                from meal_photo import estimate_food_text
+                raw = estimate_food_text(name, data.get("portion") or "")
+                if raw:
+                    raw["source"] = "estimate"
+            if not raw:
+                return jsonify({"ok": False, "error": "No nutrition found for that name. The old numbers were kept; you can type calories instead."})
+            raw["name"] = name
+            for key in ("id", "eaten", "share", "share_override", "size"):
+                if key in data:
+                    raw[key] = data[key]
+            return jsonify({"ok": True, "item": make_item(raw, _flags() if _logged_in() else [])})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": "Lookup failed: %s" % exc})
+
+    def api_food_names():
+        q = request.args.get("q") or ""
+        try:
+            from meal_items import search_foods
+            return jsonify({"ok": True, "items": search_foods(q)})
+        except Exception as exc:
+            return jsonify({"ok": False, "items": [], "error": str(exc)})
+
+    def _meal_payload(data):
+        from meal_items import normalize_items, compute_totals, compact_items, meal_name
+        flags = _flags() if _logged_in() else []
+        items = normalize_items(data.get("items") or [], flags)
+        try:
+            split = max(1, min(12, int(data.get("meal_split") or 1)))
+        except (TypeError, ValueError):
+            split = 1
+        totals = compute_totals(items, split)
+        name = str(data.get("name") or "").strip()[:80] or meal_name(items)
+        from food_score_v2 import _band
+        label = _band(totals["score"])[1] if totals.get("score") is not None else ""
+        meal = {
+            "name": name,
+            "calories": totals["calories"], "protein": totals["protein"], "carbs": totals["carbs"],
+            "fat": totals["fat"], "sugar": totals["sugar"], "fiber": totals["fiber"],
+            "score": totals["score"], "label": label,
+            "portion": "%d of %d items%s" % (totals["items_eaten"], len(items), (", split %d ways" % split) if split > 1 else ""),
+            "items": compact_items(items, split), "meal_split": split, "source": "meal-photo",
+            "save_id": str(data.get("save_id") or "")[:40],
+            "photo_key": str(data.get("photo_key") or "")[:40],
+        }
+        return meal, items, totals
+
+    def api_meal_save():
+        data = request.get_json(silent=True) or {}
+        if not data.get("items"):
+            return jsonify({"ok": False, "error": "Add at least one food first."})
+        try:
+            meal, items, totals = _meal_payload(data)
+            if totals["items_eaten"] == 0:
+                return jsonify({"ok": False, "error": "Check at least one food you ate."})
+            if not _logged_in():
+                return jsonify({"ok": True, "saved": False, "guest": True, "meal": meal, "totals": totals})
+            email = _email()
+            from food_diary import save_meal, update_meal, daily_summary
+            entry_id = str(data.get("entry_id") or "")
+            if entry_id:
+                fields = {k: meal[k] for k in ("name", "calories", "protein", "carbs", "fat", "sugar", "fiber", "score", "label", "portion", "items", "meal_split")}
+                entry = update_meal(email, entry_id, fields)
+                if not entry:
+                    return jsonify({"ok": False, "error": "That meal is no longer in your log."})
+                entry = dict(entry, replaced=True)
+            else:
+                entry = save_meal(email, meal)
+                if not entry.get("replaced"):
+                    try:
+                        from food_scan_history import save_scan
+                        save_scan(email, {"product": {"name": meal["name"], "code": ""},
+                                          "rating": {"score": meal["score"], "label": meal["label"]},
+                                          "macros": {k: meal[k] for k in ("calories", "protein", "carbs", "fat", "sugar", "fiber")}})
+                    except Exception as exc:
+                        print("[FoodScan] history save skipped:", exc)
+            summary = daily_summary(email)
+            return jsonify({"ok": True, "saved": True, "guest": False, "replaced": bool(entry.get("replaced")),
+                            "meal": entry, "totals": totals, "today": summary.get("today") or {}})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": "Could not save that meal: %s" % exc})
+
+    def api_diary_delete():
+        if not _logged_in():
+            return jsonify({"ok": False, "error": "Log in to edit your log."}), 401
+        data = request.get_json(silent=True) or {}
+        try:
+            from food_diary import delete_meal, daily_summary
+            removed = delete_meal(_email(), data.get("id"))
+            return jsonify({"ok": bool(removed), "error": "" if removed else "That meal is already gone.",
+                            "today": daily_summary(_email()).get("today") or {}})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)})
+
+    def api_diary_update():
+        if not _logged_in():
+            return jsonify({"ok": False, "error": "Log in to edit your log."}), 401
+        data = request.get_json(silent=True) or {}
+        fields = {}
+        if "name" in data:
+            fields["name"] = data.get("name")
+        for key in ("calories", "protein", "carbs", "fat", "sugar", "fiber"):
+            if key in data and data.get(key) not in (None, ""):
+                try:
+                    fields[key] = max(0.0, float(data.get(key)))
+                except (TypeError, ValueError):
+                    return jsonify({"ok": False, "error": "%s must be a number." % key.capitalize()})
+        if "scale" in data:
+            # One-tap "I only had half" style edit for older entries without items.
+            try:
+                factor = max(0.05, min(10.0, float(data.get("scale"))))
+            except (TypeError, ValueError):
+                return jsonify({"ok": False, "error": "Scale must be a number."})
+            from food_diary import get_meal
+            row = get_meal(_email(), data.get("id")) or {}
+            for key in ("calories", "protein", "carbs", "fat", "sugar", "fiber"):
+                if row.get(key) is not None:
+                    try:
+                        fields[key] = round(float(row[key]) * factor, 1)
+                    except (TypeError, ValueError):
+                        pass
+        try:
+            from food_diary import update_meal, daily_summary
+            row = update_meal(_email(), data.get("id"), fields)
+            if not row:
+                return jsonify({"ok": False, "error": "That meal is no longer in your log."})
+            return jsonify({"ok": True, "meal": row, "today": daily_summary(_email()).get("today") or {}})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": str(exc)})
 
     def api_add_intake():
         if not _logged_in():
@@ -337,6 +482,11 @@ def register_food_scan_routes(app, db=None, Report=None):
         ("/api/food-scan/search", "api_food_search_public", api_search, ["POST", "GET"]),
         ("/api/food-scan/photo", "api_food_photo_public", api_photo, ["POST"]),
         ("/api/food-scan/meal", "api_food_meal_public", api_meal, ["POST"]),
+        ("/api/food-scan/meal/item", "api_food_meal_item_public", api_meal_item, ["POST"]),
+        ("/api/food-scan/meal/save", "api_food_meal_save_public", api_meal_save, ["POST"]),
+        ("/api/food-scan/foods", "api_food_names_public", api_food_names, ["GET"]),
+        ("/api/food-scan/diary/delete", "api_food_diary_delete_public", api_diary_delete, ["POST"]),
+        ("/api/food-scan/diary/update", "api_food_diary_update_public", api_diary_update, ["POST"]),
         ("/api/food-scan/history", "api_food_history_public", api_history, ["GET"]),
         ("/api/food-scan/history/delete", "api_food_history_delete_public", api_delete_history, ["POST"]),
         ("/api/food-scan/intake", "api_food_intake_public", api_add_intake, ["POST"]),
