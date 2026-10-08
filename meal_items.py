@@ -236,6 +236,7 @@ def make_item(raw, flags=None):
     """Normalize one item from the vision model, the client, or the food table."""
     raw = dict(raw or {})
     name = str(raw.get('name') or 'Food').strip()[:60] or 'Food'
+    name = name[:1].upper() + name[1:]  # "tortilla chips" -> "Tortilla chips"
     base_in = raw.get('base') if isinstance(raw.get('base'), dict) else raw
     base = {
         'calories': _num(base_in.get('calories')),
