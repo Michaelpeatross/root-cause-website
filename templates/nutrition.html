@@ -7,7 +7,7 @@
 <div class="container" style="max-width:760px;">
   <p style="margin-top:1.25rem;"><a href="/scan-food">← Food Scanner</a></p>
   <h1>My nutrition history</h1>
-  <p class="hint">Saved from the Food Scanner. Estimates only — not medical advice.</p>
+  <p class="hint">Saved from the Food Scanner. Estimates only — not medical advice. To edit a meal's foods, open it from Today’s intake on the <a href="/scan-food">Food Scanner</a>.</p>
   <div id="status" class="hint">Loading…</div>
   <div id="today" class="card" hidden></div>
   <div id="list"></div>
@@ -45,8 +45,19 @@
     });
     list.innerHTML = meals.length ? meals.map(function (m) {
       var thumb = (m.thumbnail && String(m.thumbnail).indexOf('http') === 0) ? '<img src="' + esc(m.thumbnail) + '" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:8px;float:left;margin:0 12px 8px 0;">' : '';
-      return '<div class="card">' + thumb + '<p><strong>' + esc(m.name) + '</strong></p><p class="hint">' + esc(m.eaten_at || m.day || '') + '</p><p>' + num(m.calories) + ' kcal · P ' + num(m.protein) + ' · C ' + num(m.carbs) + ' · F ' + num(m.fat) + '</p>' + (m.notes ? '<p>' + esc(m.notes) + '</p>' : '') + '<div style="clear:both"></div></div>';
+      return '<div class="card">' + thumb + '<p><strong>' + esc(m.name) + '</strong></p><p class="hint">' + esc(m.eaten_at || m.day || '') + '</p><p>' + num(m.calories) + ' kcal · P ' + num(m.protein) + ' · C ' + num(m.carbs) + ' · F ' + num(m.fat) + '</p>' + (m.notes ? '<p>' + esc(m.notes) + '</p>' : '') +
+        '<p><button type="button" class="btn btn-outline del-meal" style="min-height:44px;" data-id="' + esc(m.id) + '" aria-label="Delete ' + esc(m.name) + '">Delete</button></p><div style="clear:both"></div></div>';
     }).join('') : '<p>No meals yet. <a href="/scan-food">Scan a food</a> to add one.</p>';
+    list.querySelectorAll('.del-meal').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        if (!window.confirm('Delete this meal from your log?')) return;
+        btn.disabled = true;
+        fetch('/api/food-scan/diary/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'same-origin', body: JSON.stringify({ id: btn.getAttribute('data-id') }) })
+          .then(function (r) { return r.json(); }).then(function (res) {
+            if (res && res.ok) { location.reload(); } else { btn.disabled = false; alert((res && res.error) || 'Could not delete that meal.'); }
+          }).catch(function () { btn.disabled = false; });
+      });
+    });
   }).catch(function () { status.textContent = 'Could not load your log. Check your connection and try again.'; });
 })();
 </script>

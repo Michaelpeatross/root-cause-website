@@ -53,6 +53,23 @@
       return { ok: false, error: 'The request did not finish. Check your connection and try again.' };
     });
   }
+  function track(name, params) {
+    try { if (typeof window.gtag === 'function') window.gtag('event', name, params || {}); } catch (e) {}
+  }
+  var mealEditor = null;
+  function renderMeal(data) {
+    lastFood = data;
+    resultEl.hidden = false;
+    if (!window.RCMealEditor || !window.RCMealLogic) { showError('The meal editor did not load. Refresh the page and try again.'); return; }
+    // Re-estimating the same photo keeps the same save id, so Save updates instead of duplicating.
+    if (mealEditor && data.photo_key && mealEditor.state.photoKey === data.photo_key) data.save_id = mealEditor.state.saveId;
+    mealEditor = window.RCMealEditor.mount(resultEl, data, {
+      loggedIn: loggedIn,
+      track: track,
+      onSaved: function () { if (loggedIn) { loadDiary(); loadHistory(); } else { loadGuestLog(); } }
+    });
+    if (resultEl.scrollIntoView) resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   function intakeButton(data) {
     if (!loggedIn || !data) return '';
     if (data.saved) return '<p class="hint">Added to today\'s intake.</p>';
@@ -90,12 +107,14 @@
   }
   function renderResult(data) {
     if (!data || !data.ok) { showError((data && data.error) || 'Could not estimate that item.'); return; }
+    if (data.kind === 'meal' && data.items && data.items.length) { renderMeal(data); return; }
     var p = data.product || {}; var r = data.rating || {}; var m = data.macros || {};
     var guestNote = data.guest ? '<p class="guest-cta">Create a free account to save this estimate and add it to today\'s intake.</p>' : intakeButton(data);
     lastFood = data;
     resultEl.hidden = false;
     resultEl.innerHTML = '<div class="card">' +
-      (r.score != null ? '<div class="score-ring" style="background:' + escapeHtml(r.color || '#555') + '"><div class="num">' + escapeHtml(r.score) + '</div><div>' + escapeHtml(r.label || '') + '</div></div>' : '') +
+      (r.score != null ? '<div class="score-ring" style="background:' + escapeHtml(r.color || '#555') + '" role="img" aria-label="Score ' + escapeHtml(r.score) + ' out of 100"><div class="num">' + escapeHtml(r.score) + '</div><div class="of">/ 100</div></div>' +
+        (r.label ? '<p class="score-label" style="border-color:' + escapeHtml(r.color || '#555') + '">' + escapeHtml(r.label) + '</p>' : '') : '') +
       '<h2>' + escapeHtml(p.name || 'Food') + '</h2>' +
       (r.processing_label ? '<p><strong>' + escapeHtml(r.processing_label) + '</strong></p>' : '') +
       ((r.reasons || []).length ? '<ul class="score-reasons">' + r.reasons.map(function (x) { return '<li>' + escapeHtml(x) + '</li>'; }).join('') + '</ul>' : '') +
@@ -195,27 +214,121 @@
       });
     }).catch(function () { box.textContent = 'Could not load history.'; });
   }
+  var diaryMeals = [];
+  function intakeRowHtml(m, idx, guest) {
+    var kcal = (m.calories == null ? '\u2014' : Math.round(Number(m.calories)));
+    var macro = (m.protein != null ? ' \u00b7 P ' + Math.round(Number(m.protein)) + ' g' : '') +
+      (m.carbs != null ? ' \u00b7 C ' + Math.round(Number(m.carbs)) + ' g' : '') +
+      (m.fat != null ? ' \u00b7 F ' + Math.round(Number(m.fat)) + ' g' : '');
+    return '<div class="log-row" data-idx="' + idx + '"><div class="log-main"><strong>' + escapeHtml(m.name) + '</strong><div class="meta">' +
+      escapeHtml(kcal) + ' kcal' + escapeHtml(macro) + (m.portion ? ' \u00b7 ' + escapeHtml(m.portion) : '') + '</div></div>' +
+      '<div class="log-actions">' +
+      '<button type="button" class="btn btn-outline add-intake" data-log="edit" data-idx="' + idx + '"' + (guest ? ' data-guest="1"' : '') + ' aria-label="Edit ' + escapeHtml(m.name) + '">Edit</button>' +
+      '<button type="button" class="btn btn-outline add-intake" data-log="delete" data-idx="' + idx + '"' + (guest ? ' data-guest="1"' : '') + ' aria-label="Delete ' + escapeHtml(m.name) + '">Delete</button>' +
+      '</div></div>';
+  }
+  function quickEditForm(row, m, idx) {
+    var box = document.createElement('div');
+    box.className = 'log-edit';
+    box.innerHTML = '<label>Name <input type="text" class="le-name" value="' + escapeHtml(m.name) + '"></label>' +
+      '<label>Calories <input type="number" inputmode="numeric" min="0" class="le-kcal" value="' + escapeHtml(m.calories == null ? '' : Math.round(Number(m.calories))) + '"></label>' +
+      '<div class="log-actions"><button type="button" class="btn btn-outline" data-le="half">I had \u00bd</button>' +
+      '<button type="button" class="btn btn-primary" data-le="save">Save</button>' +
+      '<button type="button" class="btn btn-outline" data-le="cancel">Cancel</button></div>';
+    row.appendChild(box);
+    box.addEventListener('click', function (e) {
+      var act = e.target && e.target.getAttribute('data-le');
+      if (!act) return;
+      if (act === 'cancel') { box.remove(); return; }
+      var body = { id: m.id };
+      if (act === 'half') body.scale = 0.5;
+      else {
+        body.name = box.querySelector('.le-name').value;
+        var k = box.querySelector('.le-kcal').value;
+        if (k !== '' && Number(k) !== Math.round(Number(m.calories))) {
+          // Scale the other macros with the calories so the entry stays consistent.
+          var cur = Number(m.calories);
+          if (isFinite(cur) && cur > 0) body.scale = Number(k) / cur;
+          else body.calories = Number(k);
+        }
+      }
+      e.target.disabled = true;
+      postJSON('/api/food-scan/diary/update', body).then(function (res) {
+        if (!res || !res.ok) { e.target.disabled = false; showError((res && res.error) || 'Could not update that meal.'); return; }
+        track('meal_item_edit', { action: 'log_edit' });
+        loadDiary();
+      });
+    });
+  }
+  function openSavedMeal(m, guest) {
+    var data = { kind: 'meal', items: m.items || [], meal_split: m.meal_split || 1, save_id: m.save_id || '', photo_key: m.photo_key || '', entry_id: guest ? '' : m.id };
+    if (guest) data.save_id = m.save_id || ('g' + m.id);
+    renderMeal(data);
+  }
+  function bindIntakeRows(box, meals, guest) {
+    box.querySelectorAll('[data-log]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var m = meals[Number(btn.getAttribute('data-idx'))];
+        if (!m) return;
+        var act = btn.getAttribute('data-log');
+        if (act === 'delete') {
+          if (!window.confirm('Delete ' + (m.name || 'this meal') + ' from today\u2019s intake?')) return;
+          if (guest) {
+            var rows = window.RCMealEditor ? window.RCMealEditor.guestMeals() : [];
+            rows = rows.filter(function (r) { return r.id !== m.id; });
+            try { window.localStorage.setItem('rc_guest_meals', JSON.stringify(rows)); } catch (e) {}
+            track('meal_item_edit', { action: 'log_delete', guest: true });
+            loadGuestLog();
+            return;
+          }
+          btn.disabled = true;
+          postJSON('/api/food-scan/diary/delete', { id: m.id }).then(function (res) {
+            if (!res || !res.ok) { btn.disabled = false; showError((res && res.error) || 'Could not delete that meal.'); return; }
+            track('meal_item_edit', { action: 'log_delete' });
+            loadDiary();
+          });
+          return;
+        }
+        if (m.items && m.items.length) { openSavedMeal(m, guest); return; }
+        if (guest) return;
+        var row = btn.closest('.log-row');
+        if (row.querySelector('.log-edit')) return;
+        quickEditForm(row, m);
+      });
+    });
+  }
+  function loadGuestLog() {
+    var box = document.getElementById('guest-log');
+    if (!box || !window.RCMealEditor) return;
+    var today = new Date().toISOString().slice(0, 10);
+    var meals = window.RCMealEditor.guestMeals().filter(function (m) { return m.day === today; });
+    var wrap = document.getElementById('guest-log-wrap');
+    if (wrap) wrap.hidden = !meals.length;
+    var kcal = meals.reduce(function (a, m) { return a + (Number(m.calories) || 0); }, 0);
+    box.innerHTML = meals.length ? '<p><strong>' + meals.length + (meals.length === 1 ? ' meal' : ' meals') + ' \u00b7 ' + Math.round(kcal) + ' kcal</strong></p>' + meals.map(function (m, i) { return intakeRowHtml(m, i, true); }).join('') : '';
+    bindIntakeRows(box, meals, true);
+  }
   function loadDiary() {
     var todayBox = document.getElementById('diary-today');
     var daysBox = document.getElementById('diary-days');
     if (!todayBox && !daysBox) return;
-    fetch('/api/food-scan/diary').then(function (r) { return r.json(); }).then(function (data) {
+    fetch('/api/food-scan/diary', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (data) {
       var today = (data && data.today) || {};
-      if (todayBox) todayBox.innerHTML = '<p><strong>' + (today.meals || 0) + ' meals · ' + (today.calories || 0) + ' kcal</strong></p>';
       var meals = (data && data.meals) || [];
       var todayMeals = meals.filter(function (m) { return (m.day || '').slice(0, 10) === (today.day || ''); });
-      if (todayBox && todayMeals.length) {
-        todayBox.innerHTML += todayMeals.map(function (m) {
-          return '<div class="log-row"><div><strong>' + escapeHtml(m.name) + '</strong><div class="meta">' +
-            escapeHtml(m.calories == null ? '—' : m.calories) + ' kcal</div></div></div>';
-        }).join('');
+      diaryMeals = todayMeals;
+      if (todayBox) {
+        todayBox.innerHTML = '<p><strong>' + (today.meals || 0) + ((today.meals === 1) ? ' meal' : ' meals') + ' \u00b7 ' + (today.calories || 0) + ' kcal</strong></p>' +
+          (todayMeals.length ? todayMeals.map(function (m, i) { return intakeRowHtml(m, i, false); }).join('') :
+            '<p class="hint">Nothing logged today. Snap a meal and tap Save meal.</p>');
+        bindIntakeRows(todayBox, todayMeals, false);
       }
       if (daysBox) {
         var days = data.days || [];
         daysBox.innerHTML = days.length ? days.map(function (d) {
           return '<div class="log-row"><div><strong>' + escapeHtml(d.day) + '</strong><div class="meta">' +
-            escapeHtml(d.meals) + ' meals · ' + escapeHtml(d.calories) + ' kcal</div></div></div>';
-        }).join('') : '<p class="hint">No meals logged yet. Use Add to today on a scan.</p>';
+            escapeHtml(d.meals) + ' meals \u00b7 ' + escapeHtml(d.calories) + ' kcal</div></div></div>';
+        }).join('') : '<p class="hint">No meals logged yet. Save a meal or use Add to today on a scan.</p>';
       }
     }).catch(function () { if (todayBox) todayBox.textContent = 'Could not load today\'s log.'; });
   }
@@ -490,7 +603,7 @@
       reader.readAsDataURL(file);
     });
   }
-  function bindPhoto(inputId, previewId, buttonId, clearId, url, loadingText) {
+  function bindPhoto(inputId, previewId, buttonId, clearId, url, loadingText, autoRun) {
     var input = document.getElementById(inputId);
     var preview = document.getElementById(previewId);
     var button = document.getElementById(buttonId);
@@ -507,6 +620,7 @@
       }
       pickedFiles[inputId] = file;
       if (preview) { preview.src = URL.createObjectURL(file); preview.hidden = false; }
+      if (autoRun && button) button.click();
     }
     if (input) {
       input.addEventListener('change', onPick);
@@ -525,14 +639,35 @@
       showLoad(loadingText);
       payloadFromFile(file).then(function (payload) {
         if (!payload.b64) { showError(photoMessages().unreadable); return; }
-        postJSON(url, { image_b64: payload.b64, mime: payload.mime || 'image/jpeg' }, 50000).then(renderResult);
+        postJSON(url, { image_b64: payload.b64, mime: payload.mime || 'image/jpeg' }, 60000).then(renderResult);
       }).catch(function (err) {
         showError((err && err.userMessage) || photoMessages().unreadable);
       });
     });
   }
   bindPhoto('photo', 'preview', 'score-photo', 'clear-photo', '/api/food-scan/photo', 'Reading the label…');
-  bindPhoto('plate', 'plate-preview', 'score-plate', 'clear-plate', '/api/food-scan/meal', 'Estimating the plate…');
+  bindPhoto('plate', 'plate-preview', 'score-plate', 'clear-plate', '/api/food-scan/meal', 'Finding each food in your photo… (about 10\u201320 seconds)', true);
+  var mealBtn = document.getElementById('meal-photo-btn');
+  var mealInput = document.getElementById('meal-photo');
+  if (mealBtn && mealInput) {
+    mealBtn.addEventListener('click', function () { mealInput.click(); });
+    function onMealPick() {
+      var file = takeChosenFile(mealInput);
+      if (!file) return;
+      var Photo = window.RCBarcodePhoto;
+      var verdict = Photo ? Photo.classifyPhotoFile(file) : { ok: file.size > 0 };
+      if (!verdict.ok) { showError(verdict.message || photoMessages().unreadable); return; }
+      if (!aiConsentOk()) { showError('Photo analysis needs your OK to send the photo to our AI provider. You can still scan barcodes or search by name.'); return; }
+      stopLiveCameraForPhoto();
+      showLoad('Finding each food in your photo\u2026 (about 10\u201320 seconds)');
+      payloadFromFile(file).then(function (payload) {
+        if (!payload.b64) { showError(photoMessages().unreadable); return; }
+        postJSON('/api/food-scan/meal', { image_b64: payload.b64, mime: payload.mime || 'image/jpeg' }, 60000).then(renderResult);
+      }).catch(function (err) { showError((err && err.userMessage) || photoMessages().unreadable); });
+    }
+    mealInput.addEventListener('change', onMealPick);
+    mealInput.addEventListener('input', onMealPick);
+  }
   var quickBtn = document.getElementById('quick-photo-btn');
   var quickInput = document.getElementById('quick-photo');
   if (quickBtn && quickInput) {
@@ -543,7 +678,7 @@
       if (!aiConsentOk()) { showError('Photo analysis needs your OK to send the photo to our AI provider. You can still scan a barcode or search by name.'); return; }
       stopLiveCameraForPhoto();
       if (camStatus) camStatus.textContent = 'Camera paused. Reading the picture…';
-      showLoad('Reading the picture and saving the estimate…');
+      showLoad('Reading the picture…');
       payloadFromFile(file).then(function (payload) {
         if (!payload.b64) { showError(photoMessages().unreadable); return; }
         postJSON('/api/food-scan/photo', { image_b64: payload.b64, mime: payload.mime || 'image/jpeg' }, 50000).then(renderResult);
@@ -619,7 +754,7 @@
   });
   var stopCam = document.getElementById('stop-cam');
   if (stopCam) stopCam.addEventListener('click', function () { running = false; try { Quagga.stop(); } catch (e) {} });
-  if (loggedIn) { loadHistory(); loadDiary(); }
+  if (loggedIn) { loadHistory(); loadDiary(); } else { loadGuestLog(); }
   var perfectBtn = document.getElementById('show-perfect');
   var perfectBox = document.getElementById('perfect-list');
   if (perfectBtn && perfectBox) {

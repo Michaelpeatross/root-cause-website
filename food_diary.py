@@ -71,7 +71,26 @@ def load_meals(email):
         _write(email, cleaned)
     return cleaned
 
+EXTRA_FIELDS = ('save_id', 'photo_key', 'items', 'meal_split', 'source')
+EDITABLE = ('name', 'calories', 'protein', 'carbs', 'fat', 'sugar', 'fiber', 'score', 'label', 'notes', 'portion')
+
+
+def _find_existing(rows, meal):
+    """Index of an earlier save of the same meal (same save_id, or same photo the same day)."""
+    save_id = str(meal.get('save_id') or '')
+    photo_key = str(meal.get('photo_key') or '')
+    today = central_now().strftime('%Y-%m-%d')
+    for idx, row in enumerate(rows):
+        if save_id and str(row.get('save_id') or '') == save_id:
+            return idx
+        if photo_key and str(row.get('photo_key') or '') == photo_key and (row.get('day') or '') == today:
+            return idx
+    return -1
+
+
 def save_meal(email, meal):
+    """Add a meal. A repeat save of the same meal (same save_id or same photo today)
+    updates the earlier entry instead of adding a duplicate; entry['replaced'] says which."""
     rows = load_meals(email)
     thumb = meal.get('thumbnail') or ''
     if not (str(thumb).startswith('http://') or str(thumb).startswith('https://')):
@@ -95,12 +114,61 @@ def save_meal(email, meal):
         'notes': meal.get('notes') or '',
         'thumbnail': thumb[:240],
     }
+    for field in EXTRA_FIELDS:
+        if meal.get(field) not in (None, ''):
+            entry[field] = meal.get(field)
     entry = _clean_row(entry)
+    replaced = False
+    idx = _find_existing(rows, meal)
+    if idx >= 0:
+        old = rows.pop(idx)
+        entry['id'] = old.get('id') or entry['id']
+        entry['eaten_at'] = old.get('eaten_at') or entry['eaten_at']
+        entry['day'] = old.get('day') or entry['day']
+        replaced = True
     key = _meal_key(entry)
     rows = [row for row in rows if _meal_key(row) != key]
     rows.insert(0, entry)
     _write(email, rows)
-    return entry
+    out = dict(entry)
+    out['replaced'] = replaced
+    return out
+
+
+def get_meal(email, meal_id):
+    for row in load_meals(email):
+        if str(row.get('id')) == str(meal_id or ''):
+            return row
+    return None
+
+
+def delete_meal(email, meal_id):
+    rows = load_meals(email)
+    kept = [row for row in rows if str(row.get('id')) != str(meal_id or '')]
+    if len(kept) == len(rows):
+        return False
+    _write(email, kept)
+    return True
+
+
+def update_meal(email, meal_id, fields):
+    """Edit a logged meal in place (name, macros, or a re-edited item list)."""
+    rows = load_meals(email)
+    for idx, row in enumerate(rows):
+        if str(row.get('id')) != str(meal_id or ''):
+            continue
+        row = dict(row)
+        for field in EDITABLE + ('items', 'meal_split'):
+            if field in (fields or {}):
+                val = fields[field]
+                if field == 'name':
+                    val = str(val or '').strip()[:80] or row.get('name') or 'Meal'
+                row[field] = val
+        rows[idx] = _clean_row(row)
+        _write(email, rows)
+        return rows[idx]
+    return None
+
 
 def _num(val):
     try:

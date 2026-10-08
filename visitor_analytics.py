@@ -63,7 +63,7 @@ APEXFORGE_PATHS = ('/agency', '/apexforge', '/business', '/ai-transformation')
 FOAM_PATHS = ('/foam', '/spray-foam')
 ORDER_PATHS = ('/buy',)
 SCANNER_PATHS = ('/scan-food', '/food-scanner')
-FOOD_SCAN_API = re.compile(r'^/api/food-scan/(barcode|search|photo|meal)/?$')
+FOOD_SCAN_API = re.compile(r'^/api/food-scan/(barcode|search|photo|meal/save|meal/item|meal)/?$')
 
 BOT_RE = re.compile(
     r'bot\b|bot/|crawl|spider|slurp|archiver|facebookexternalhit|facebot|embedly|'

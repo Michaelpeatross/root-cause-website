@@ -19,8 +19,65 @@
   #reader video, #reader canvas { width: 100% !important; height: 100% !important; object-fit: cover; }
   .preview-wrap img { max-width: 100%; max-height: 240px; border-radius: 10px; display: block; }
   .hint { font-size: .85rem; color: var(--text-muted); }
-  .score-ring { width: 132px; height: 132px; border-radius: 50%; display:flex; flex-direction:column; align-items:center; justify-content:center; margin: 0 auto 1rem; color:#fff; }
-  .score-ring .num { font-size: 2.6rem; font-weight: 800; line-height: 1; }
+  .score-ring { width: 120px; height: 120px; border-radius: 50%; display:flex; flex-direction:column; align-items:center; justify-content:center; margin: 0 auto .5rem; color:#fff; box-sizing:border-box; padding:.5rem; overflow:hidden; text-align:center; }
+  .score-ring .num { font-size: 2.5rem; font-weight: 800; line-height: 1; }
+  .score-ring .of { font-size: .8rem; opacity: .9; }
+  .score-label { display:table; margin: 0 auto 1rem; padding:.3rem .8rem; border:2px solid; border-radius:999px; font-weight:700; font-size:.95rem; text-align:center; max-width:100%; overflow-wrap:anywhere; }
+  /* Meal photo: big entry button */
+  .meal-cta { display:block; width:100%; min-height:56px; font-size:1.1rem; margin:1rem 0 .25rem; }
+  /* Meal item editor (static/js/meal_editor.js) */
+  .mi-card { padding: 1rem .85rem 0; }
+  .mi-h { margin-bottom:.25rem; }
+  .mi-banner { background:#eef6f2; border-radius:10px; padding:.7rem .85rem; margin:.6rem 0; font-size:.95rem; }
+  .mi-link { background:none; border:0; padding:.25rem 0; color:#0b3d2a; font:inherit; font-weight:700; text-decoration:underline; cursor:pointer; min-height:44px; }
+  .mi-lbl { display:block; font-size:.88rem; color:#3c4b46; margin:.5rem 0 .3rem; font-weight:600; }
+  .mi-split { margin:.6rem 0 .4rem; }
+  .mi-seg { display:flex; flex-wrap:wrap; gap:.35rem; }
+  .mi-seg button { min-width:48px; min-height:44px; padding:.4rem .7rem; border:1px solid #cfe3d8; background:#fff; color:#0b3d2a; border-radius:10px; font:inherit; font-size:1rem; cursor:pointer; -webkit-tap-highlight-color: transparent; }
+  .mi-seg button[aria-pressed="true"] { background:#0b3d2a; color:#fff; border-color:#0b3d2a; }
+  .mi-list { margin-top:.5rem; }
+  .mi-row { border:1px solid #e1ece7; border-radius:12px; padding:.7rem .75rem; margin:.55rem 0; background:#fff; }
+  .mi-row.off { background:#f6f7f7; }
+  .mi-row.off .mi-name { color:#6b7a75; text-decoration:line-through; }
+  .mi-top { display:flex; align-items:center; gap:.5rem; }
+  .mi-check { display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:48px; min-height:48px; margin:0; cursor:pointer; font-size:.7rem; color:#5c6b66; }
+  .mi-check input { width:26px; height:26px; margin:0 0 .1rem; accent-color:#0b3d2a; }
+  .mi-name { flex:1; text-align:left; background:none; border:0; padding:.35rem 0; min-height:44px; font:inherit; font-size:1.05rem; font-weight:700; color:#0b3d2a; cursor:pointer; overflow-wrap:anywhere; }
+  .mi-pen { font-weight:400; color:#7a8a85; font-size:.9rem; }
+  .mi-score { display:inline-flex; align-items:center; justify-content:center; min-width:40px; height:32px; padding:0 .4rem; border-radius:999px; color:#fff; font-weight:800; font-size:.95rem; flex:none; }
+  .mi-sub { font-size:.85rem; color:#5c6b66; margin:.1rem 0 .35rem 56px; }
+  .mi-ctrls { display:flex; flex-wrap:wrap; gap:.5rem .9rem; align-items:center; margin:.35rem 0 .25rem; }
+  .mi-size { display:flex; align-items:center; gap:.35rem; }
+  .mi-size button { width:44px; height:44px; border-radius:50%; border:1px solid #cfe3d8; background:#fff; font-size:1.3rem; color:#0b3d2a; cursor:pointer; }
+  .mi-size span { min-width:64px; text-align:center; font-size:.95rem; }
+  .mi-custom { display:flex; gap:.5rem; align-items:flex-end; width:100%; }
+  .mi-custom input { width:6rem; font-size:16px; min-height:44px; }
+  .mi-macros { font-size:.9rem; color:#26332f; }
+  .mi-edit { border-top:1px dashed #cfe3d8; margin-top:.6rem; padding-top:.4rem; }
+  .mi-edit input { width:100%; box-sizing:border-box; font-size:16px; min-height:46px; padding:.5rem .65rem; border:1px solid #cfe3d8; border-radius:10px; }
+  .mi-sugg { display:flex; flex-direction:column; gap:.25rem; margin:.35rem 0; }
+  .mi-sug { text-align:left; min-height:44px; padding:.45rem .7rem; border:1px solid #e1ece7; border-radius:10px; background:#f8fbfa; font:inherit; cursor:pointer; }
+  .mi-edit-actions { display:flex; flex-wrap:wrap; gap:.5rem; margin-top:.65rem; }
+  .mi-edit-actions .btn { min-height:46px; flex:1 1 100px; }
+  .mi-del { color:#7a1f16 !important; border-color:#e8c4bf !important; }
+  .mi-add { width:100%; min-height:50px; font-size:1rem; }
+  .mi-foot { position:sticky; bottom:0; z-index:5; background:#fff; border-top:2px solid #0b3d2a; margin:0 -.85rem; padding:.6rem .85rem calc(.6rem + env(safe-area-inset-bottom)); box-shadow:0 -6px 16px rgba(0,0,0,.06); display:grid; grid-template-columns:minmax(0,1fr) auto; gap:.6rem; align-items:center; }
+  .mi-card.mi-typing .mi-foot { position:static; }
+  .mi-tot-main { font-size:1.2rem; display:flex; flex-wrap:wrap; align-items:center; gap:.2rem .45rem; }
+  .mi-tot-main .mi-score { height:26px; min-width:34px; font-size:.85rem; }
+  .mi-tot-mac { font-size:.8rem; color:#3c4b46; margin-top:.15rem; line-height:1.3; }
+  .mi-save { min-width:128px; min-height:54px; font-size:1.1rem; margin:0; padding:.5rem 1rem; }
+  .mi-save[disabled] { opacity:.75; }
+  body.mi-open #grok-float { display:none !important; }
+  .mi-msg { margin:.6rem 0 1rem; font-weight:600; }
+  .mi-msg.ok { color:#0f6b3a; }
+  .mi-msg.err { color:#7a1f16; }
+  .log-row { flex-wrap:wrap; }
+  .log-main { flex:1 1 180px; min-width:0; }
+  .log-actions { display:flex; gap:.4rem; flex-wrap:wrap; }
+  .log-actions .btn { min-height:44px; }
+  .log-edit { width:100%; display:grid; gap:.5rem; margin-top:.5rem; }
+  .log-edit input { width:100%; box-sizing:border-box; font-size:16px; min-height:44px; }
   .macro-grid { display:grid; grid-template-columns: repeat(auto-fit,minmax(110px,1fr)); gap:.5rem; margin-top:.75rem; }
   .macro-grid div { background:#f3faf7; border-radius:8px; padding:.55rem; text-align:center; }
   .status-banner { padding:.75rem 1rem; border-radius:10px; margin:.75rem 0; }
@@ -49,6 +106,9 @@
     <p>Scores run 1&ndash;100 and are driven mainly by how processed a food is. Whole, unprocessed foods (fresh produce, eggs, plain meat and fish, beans, nuts, whole grains) score 90&ndash;100. Foods with only kitchen basics added (salt, olive oil, vinegar, spices) score 85&ndash;96. Processed foods land in the middle. Ultra-processed foods (artificial sweeteners or colors, emulsifiers, flavor enhancers, refined syrups, hydrogenated oils) stay below 40 no matter what the nutrition panel says. Nutrition values only adjust a score within its group.</p>
     <p>Scores are general educational information about food processing. They are not medical or dietary advice and do not diagnose, treat, or prevent any condition. Talk with your doctor before making medical or diet decisions.</p>
   </details>
+  <button type="button" class="btn btn-primary meal-cta" id="meal-photo-btn">&#128247; Photo of my meal</button>
+  <input type="file" id="meal-photo" accept="image/*" hidden aria-hidden="true">
+  <p class="hint" style="margin:0;">One plate or a whole table. Each food gets its own row: uncheck what you didn&rsquo;t eat, set your share, fix anything read wrong, then tap Save meal.</p>
   <p style="margin:.75rem 0 0;"><button type="button" class="btn btn-outline" id="show-perfect">Show 100 high-score foods</button></p>
   <div id="perfect-list" class="card" hidden></div>
   <div class="scan-tabs" role="tablist">
@@ -56,7 +116,7 @@
     <button type="button" data-tab="type">Type barcode</button>
     <button type="button" data-tab="search">Search name</button>
     <button type="button" data-tab="photo">Label / food photo</button>
-    <button type="button" data-tab="plate">Plate photo</button>
+    <button type="button" data-tab="plate">Meal photo</button>
   </div>
   <div id="tab-barcode" class="scan-panel active card">
     <p>Point the camera at the bars and hold still. When a code is read, the camera stops and the food appears below.</p>
@@ -68,7 +128,7 @@
     <p id="cam-status" class="hint">Camera is off until you tap Start camera.</p>
     <p><button type="button" class="btn btn-primary" id="quick-photo-btn">Take a picture and estimate</button></p>
     <input type="file" id="quick-photo" accept="image/*" hidden>
-    <p class="hint">Use this when the barcode will not read. One photo of the package or Nutrition Facts panel is estimated and saved.</p>
+    <p class="hint">Use this when the barcode will not read. One photo of the package or Nutrition Facts panel is estimated; tap Add to today&rsquo;s intake to log it. For a plate or a table of food, use Photo of my meal above.</p>
     <label for="barcode-photo">Barcode photo (JPEG, PNG, WEBP, HEIC)</label>
     <input type="file" id="barcode-photo" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,image/*">
     <div class="preview-wrap"><img id="barcode-preview" alt="Barcode photo preview" hidden></div>
@@ -96,12 +156,12 @@
        <button type="button" class="btn btn-outline" id="clear-photo">Remove photo</button></p>
   </div>
   <div id="tab-plate" class="scan-panel card">
-    <p>Photograph the meal on the plate in good light.</p>
-    <label for="plate">Plate photo — upload or use camera</label>
+    <p>Photograph the meal in good light &mdash; one plate or the whole table. Each food is listed separately so you can pick what you ate.</p>
+    <label for="plate">Meal photo &mdash; upload or use camera</label>
     <input type="file" id="plate" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,image/*">
     <p class="hint">Accepted: JPEG, PNG, WEBP, or iPhone HEIC. Keep the file under 8 MB.</p>
     <div class="preview-wrap"><img id="plate-preview" alt="Plate preview" hidden></div>
-    <p><button type="button" class="btn btn-primary" id="score-plate">Estimate this meal</button>
+    <p><button type="button" class="btn btn-primary" id="score-plate">Find the foods</button>
        <button type="button" class="btn btn-outline" id="clear-plate">Remove photo</button></p>
   </div>
   <div id="result" hidden></div>
@@ -112,9 +172,11 @@
     <select id="hist-sort"><option value="date_desc">Newest</option><option value="score_desc">Highest score</option></select>
     <div id="history-list">Loading…</div></div>
   {% else %}
+  <div class="card" id="guest-log-wrap" style="margin-top:1.5rem;" hidden><h2>Today on this device</h2><div id="guest-log"></div>
+    <p class="hint">Meals you save as a guest stay in this browser only. <a href="{{ url_for('login') }}">Log in</a> to keep your history.</p></div>
   <div class="card guest-cta" style="margin-top:1.5rem;">
     <h2>Save this to a nutrition log</h2>
-    <p>Guests can see the estimate on this page. Create a free account to keep a food diary.</p>
+    <p>Guests can save meals on this device. Create a free account to keep a food diary across devices.</p>
     <a class="btn btn-primary" href="{{ url_for('register') }}">Create a free account to save personal filters & nutrition history</a>
   </div>
   {% endif %}
@@ -123,7 +185,9 @@
 <script>window.RC_FOOD = { loggedIn: {{ 'true' if logged_in else 'false' }} };</script>
 <script src="{{ url_for('static', filename='js/vendor/quagga.min.js') }}?v=20261002scan" onerror="window.RC_QUAGGA_FAILED=true"></script>
 <script src="{{ url_for('static', filename='js/barcode_photo_logic.js') }}?v=20261002scan"></script>
-<script src="{{ url_for('static', filename='js/food_scanner.js') }}?v=20261002perfect"></script>
+<script src="{{ url_for('static', filename='js/meal_logic.js') }}?v=20261008meal"></script>
+<script src="{{ url_for('static', filename='js/meal_editor.js') }}?v=20261008meal"></script>
+<script src="{{ url_for('static', filename='js/food_scanner.js') }}?v=20261008meal"></script>
 
 <div class="card related-links" style="margin-top:2rem;">
   <h2>Related</h2>
