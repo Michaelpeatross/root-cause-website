@@ -187,7 +187,7 @@ def test_old_vision_format_still_works(monkeypatch):
     monkeypatch.setattr(meal_photo, '_vision', lambda b, m: {'name': 'Eggs and berries', 'calories': 400, 'components': [
         {'name': 'eggs', 'processing': 'minimal', 'share': 0.75}, {'name': 'blueberries', 'processing': 'whole', 'share': 0.25}]})
     out = meal_photo.analyze_plate_for_client('A' * 200)
-    assert out['ok'] and [i['name'] for i in out['items']] == ['eggs', 'blueberries']
+    assert out['ok'] and [i['name'] for i in out['items']] == ['Eggs', 'Blueberries']
     assert out['items'][0]['base']['calories'] == 300 and out['totals']['calories'] == 400
 
 
