@@ -4,10 +4,14 @@ is logged until the user taps Save meal."""
 import json, re
 
 PROCESSING_HELP = (
-    'processing must be one of: "whole" (unprocessed: fresh produce, eggs, plain meat/fish, beans, nuts, whole grains), '
+    'Name each protein from its shape. Several thick, craggy, pale breaded strips are chicken tenders, not fish. '
+    'Fish is one or two flat wide fillets. Wings show a bone. Fries in a cup are fries, not the protein. '
+    'Do not call breaded strips fish and chips. '
+    'processing must be one of: "whole" (unprocessed: fresh produce, eggs, plain meat or fish, beans, nuts, whole grains), '
     '"minimal" (whole food cooked simply with salt, herbs, olive oil or butter), '
-    '"processed" (cheese, bread, cured or canned foods, simple sauces, chips), '
-    '"ultra" (packaged snacks, soda, processed meats, fast food, sugary sauces, desserts, breaded or deep-fried items). '
+    '"processed" (breaded or deep-fried restaurant food such as chicken tenders and fries, cheese, bread, table sauces like honey mustard or barbecue), '
+    '"ultra" (only a packaged snack, soda, candy, or a product whose label lists industrial additives). '
+    'A restaurant plate is not ultra and does not contain industrial additives. '
 )
 
 PROMPT = (

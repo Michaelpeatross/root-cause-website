@@ -129,13 +129,22 @@ def extract_label_from_image(image_b64, mime='image/jpeg'):
         from health_advisor import _grok_vision_chat
     except Exception:
         return None
-    prompt = ('Read this food photo. It may be a packaged label OR an unpackaged food (fruit, vegetable, egg, meat, fish, nuts, grains). '
-              'Copy the ingredient list exactly as printed (empty string if there is no label). Nutrition values per 100 g when shown. '
+    prompt = ('Read this food photo. It may be a packaged label OR a plated meal OR an unpackaged food. '
+              'Copy the ingredient list exactly as printed (empty string if there is no label). Nutrition values per 100 g when a label is shown. '
+              'If this is a restaurant plate or homemade meal with no package, set "is_meal": true and "has_label": false. '
+              'Name the protein from its shape: several thick, craggy, pale breaded strips are chicken tenders, not fish. '
+              'Fish is one or two flat wide fillets. Wings show a bone. Fries in a cup are fries, not the protein. '
+              'Do not say fish and chips unless the protein is clearly fish. '
+              'Restaurant fried chicken, fries, and table sauces are processing "processed" with fried true. '
+              'They are not "ultra" and they do not contain industrial additives unless a package label lists those additives. '
+              'Always estimate calories and macros for the full plate in front of you. Do not leave calories null. '
               'Return JSON only: {"barcode":"digits or null","name":"","brand":"","ingredients":"","energy_kcal":null,"carbs_100g":null,'
               '"sugars_100g":null,"salt_100g":null,"sat_fat_100g":null,"fiber_100g":null,"protein_100g":null,"sodium_mg":null,'
-              '"additives":[],"organic":false,"has_label":true,"whole_food":false,'
-              '"food_type":"packaged|produce|egg|meat_fish|legume|nut_seed|whole_grain|dairy|other","nova_estimate":null}. '
-              'Set whole_food true only for a single unprocessed food with nothing added. nova_estimate is 1-4 or null.')
+              '"additives":[],"organic":false,"has_label":true,"whole_food":false,"is_meal":false,'
+              '"food_type":"packaged|meal|produce|egg|meat_fish|legume|nut_seed|whole_grain|dairy|other","nova_estimate":null,'
+              '"portion":"","calories":null,"protein_g":null,"carbs_g":null,"fat_g":null,"sugar_g":null,"fiber_g":null,"fried":false,'
+              '"components":[{"name":"","processing":"whole|minimal|processed|ultra","share":0.0,"fried":false}]}. '
+              'Set whole_food true only for a single unprocessed food with nothing added. nova_estimate is 1-4 or null, and null for a plated meal.')
     raw = _grok_vision_chat([{'type':'text','text':prompt},{'type':'image_url','image_url':{'url':'data:%s;base64,%s' % (mime, image_b64),'detail':'high'}}], system='Return valid JSON only.', temperature=0.1, timeout=50)
     if not raw:
         return None
@@ -190,15 +199,54 @@ def scan_barcode_for_client(code, scan_raw=''):
     flags = client_flags_from_scan(scan_raw)
     return {'ok': True, 'product': product, 'rating': score_product(product, flags)}
 
+def _looks_like_meal(extracted):
+    """A restaurant plate has no barcode and no printed ingredient list."""
+    if not extracted:
+        return False
+    if extracted.get('is_meal') or str(extracted.get('food_type') or '').lower() == 'meal':
+        return True
+    barcode = re.sub(r'\D+', '', str(extracted.get('barcode') or ''))
+    ingredients = (extracted.get('ingredients') or '').strip()
+    has_label = extracted.get('has_label')
+    if len(barcode) >= 8 or ingredients or has_label is True:
+        return False
+    name = (extracted.get('name') or '').lower()
+    return bool(extracted.get('components')) or bool(re.search(
+        r'\b(meal|plate|tender|fries|chips|salad|burger|wing|sandwich)\b', name
+    ))
+
+
 def scan_photo_for_client(image_b64, mime='image/jpeg', scan_raw=''):
     extracted = extract_label_from_image(image_b64, mime)
     if not extracted:
         return {'ok': False, 'error': 'Could not read that label. Try a sharper photo of ingredients + Nutrition Facts, or type the barcode.'}
     barcode = re.sub(r'\D+', '', str(extracted.get('barcode') or ''))
+    flags = client_flags_from_scan(scan_raw)
+    if len(barcode) < 8 and _looks_like_meal(extracted):
+        from meal_photo import build_plate_product
+        if not extracted.get('components'):
+            extracted = dict(extracted)
+            extracted['components'] = [{
+                'name': extracted.get('name') or 'meal',
+                'processing': 'processed',
+                'share': 1.0,
+                'fried': bool(extracted.get('fried')),
+            }]
+        extracted['ultra_processed'] = False
+        product = build_plate_product(extracted)
+        return {'ok': True, 'product': product, 'rating': score_product(product, flags), 'macros': {
+            'calories': extracted.get('calories'),
+            'protein': extracted.get('protein_g'),
+            'carbs': extracted.get('carbs_g'),
+            'fat': extracted.get('fat_g'),
+            'sugar': extracted.get('sugar_g'),
+            'fiber': extracted.get('fiber_g'),
+            'portion': extracted.get('portion') or '',
+            'notes': extracted.get('notes') or '',
+        }}
     product = lookup_barcode(barcode) if len(barcode) >= 8 else None
     if product is None:
         product = product_from_label_extract(extracted)
     if not product:
         return {'ok': False, 'error': 'Label was readable but not enough data to score.'}
-    flags = client_flags_from_scan(scan_raw)
     return {'ok': True, 'product': product, 'rating': score_product(product, flags)}
