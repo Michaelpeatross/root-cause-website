@@ -199,6 +199,12 @@ except Exception as _agency_err:
     print(f"[Root Cause] Agency routes not applied: {_agency_err}")
 
 try:
+    from lead_capture import register_lead_capture
+    register_lead_capture(app)
+except Exception as _lead_err:
+    print(f"[Root Cause] Lead capture not applied: {_lead_err}")
+
+try:
     from food_scan_routes import register_food_scan_routes
     register_food_scan_routes(app, db=db, Report=Report)
 except Exception as _food_err:
