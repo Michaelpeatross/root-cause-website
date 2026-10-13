@@ -8,6 +8,21 @@ import urllib.request
 
 from email_service import send_plain_email
 
+# Textbelt rejects messages over 1024 characters; stay under with headroom.
+SMS_MAX_CHARS = 1000
+
+
+def _cap_sms_body(message, limit=SMS_MAX_CHARS):
+    """Trim an SMS body to `limit` chars, cutting on a word boundary with an ellipsis."""
+    text = (message or '').strip()
+    if len(text) <= limit:
+        return text
+    cut = text[:limit - 1]
+    space = cut.rfind(' ')
+    if space > limit // 2:
+        cut = cut[:space]
+    return cut.rstrip(' ,;:.-') + '\u2026'
+
 
 def _textbelt_key():
     """Cheapest reliable option for low-volume SMS (textbelt.com). ~0.3¢/text vs Twilio ~0.75-1¢."""
@@ -49,6 +64,8 @@ def send_sms(to_number, message, reply_webhook_url=None, from_number=None, media
     if not to_num:
         return False, 'No phone number on file.'
 
+    message = _cap_sms_body(message)
+
     sms_from = _normalize_phone(from_number) if from_number else _normalize_phone(DEFAULT_SMS_FROM_NUMBER)
 
     textbelt_key = _textbelt_key()
@@ -60,7 +77,7 @@ def send_sms(to_number, message, reply_webhook_url=None, from_number=None, media
         try:
             data_dict = {
                 'phone': to_num,
-                'message': (message or '')[:1500],
+                'message': message,
                 'key': textbelt_key,
                 'sender': 'Root Cause',  # For regulatory compliance - set in your Textbelt key settings too
             }
@@ -103,7 +120,7 @@ def send_sms(to_number, message, reply_webhook_url=None, from_number=None, media
     body_fields = {
         'To': to_num,
         'From': from_num,
-        'Body': message[:1500],
+        'Body': message,
     }
     if media_url:
         body_fields['MediaUrl'] = media_url
