@@ -53,7 +53,7 @@
                 {% elif report.ai_recommendations %}
                 {{ report.ai_recommendations|safe }}
                 {% else %}
-                <p style="color:var(--text-muted);">Original Grok analysis not available for this report.</p>
+                <p style="color:var(--text-muted);">Original wellness analysis not available for this report.</p>
                 {% endif %}
                 </div>
             {% elif view == 'updates' %}
@@ -64,7 +64,7 @@
                 {% if report.ai_recommendations %}
                 {{ report.ai_recommendations|safe }}
                 {% else %}
-                <p style="color:var(--text-muted);">No updated analysis yet. Upload medical documents and request an updated Grok analysis.</p>
+                <p style="color:var(--text-muted);">No updated analysis yet. Upload medical documents and request an updated wellness analysis.</p>
                 {% endif %}
                 </div>
             {% else %}

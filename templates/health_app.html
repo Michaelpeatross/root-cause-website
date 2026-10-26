@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Optional Health Records Uploader | Root Cause Test{% endblock %}
-{% block meta_description %}Optional add-on: upload wearable exports, lab PDFs, visit summaries, imaging reports, or medication lists for educational wellness context next to your $99 special ($100 off $199) hair and saliva scan. Not a diagnosis. Download files yourself — we never ask for portal passwords.{% endblock %}
+{% block meta_description %}Optional add-on: upload wearable exports, lab PDFs, visit summaries, imaging reports, or medication lists for educational wellness context next to your $99 special (reg. $199) hair and saliva scan. Not a diagnosis. Download files yourself — we never ask for portal passwords.{% endblock %}
 
 {% block extra_head %}
 <style>
@@ -36,7 +36,7 @@
     {% include '_health_upload.html' %}
     <p style="margin-top:1rem;font-size:.9rem;">
       After uploading, open your <a href="{{ url_for('dashboard') }}">Dashboard</a> and choose
-      <strong>Request Updated Grok Analysis</strong> so the files can be considered with your scan.
+      <strong>Request Updated Analysis</strong> so the files can be considered with your scan.
     </p>
   </div>
   {% endif %}
