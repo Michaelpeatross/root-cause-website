@@ -70,7 +70,7 @@
     </div>
 
     <div class="card">
-        <h2>Grok Analysis</h2>
+        <h2>Wellness Analysis</h2>
         <p style="color:var(--text-muted);">Your original scan analysis is preserved. After you upload records, request an updated analysis.</p>
 
         {% include '_grok_assistant.html' %}
@@ -81,7 +81,7 @@
                 {% if recommendations.original_ai_html %}
                 {{ recommendations.original_ai_html|safe }}
                 {% else %}
-                <p style="color:var(--text-muted);">Original Grok analysis will appear when your scan report is published.</p>
+                <p style="color:var(--text-muted);">Original wellness analysis will appear when your scan report is published.</p>
                 {% endif %}
             </div>
         </details>
@@ -129,7 +129,7 @@
     {% endif %}
 
     <div class="card">
-        <h2>Upload records for Grok wellness analysis</h2>
+        <h2>Upload records for wellness analysis</h2>
         <p style="color:var(--text-muted);">Optional add-on next to your hair + saliva scan. Choose a category, drop or browse multiple files, then request an updated analysis.</p>
         <p style="font-size:.92rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.7rem .85rem;">
             <strong>Wellness information only.</strong> Files are used only for wellness analysis and are not a medical diagnosis. We never ask for MyChart, Labcorp, or Quest passwords.
@@ -165,9 +165,9 @@
     </div>
 
     <div class="card">
-        <h2>Request Updated Grok Analysis</h2>
+        <h2>Request Updated Analysis</h2>
         {% if reports %}
-            <p style="color:var(--text-muted);">After uploading records, Grok can compare them with your original bio scan and refresh the wellness analysis. This is not a diagnosis.</p>
+            <p style="color:var(--text-muted);">After uploading records, we can compare them with your original bio scan and refresh the wellness analysis. This is not a diagnosis.</p>
             {% if admin_preview %}
             <p class="admin-preview-note">Client phone: {{ user.phone or 'not set' }}</p>
             <p class="admin-preview-note">Request analysis controls hidden in admin preview.</p>
@@ -181,13 +181,13 @@
                 <button type="submit" class="btn btn-outline" style="margin-bottom:0.75rem;">Save Phone</button>
             </form>
             <form method="POST">
-                <button type="submit" name="action" value="request_analysis" class="btn btn-primary">Request Updated Grok Analysis</button>
+                <button type="submit" name="action" value="request_analysis" class="btn btn-primary">Request Updated Analysis</button>
             </form>
             {% endif %}
         {% else %}
             <p style="color:var(--text-muted);">
                 Your uploads are saved.
-                Once your practitioner publishes your bio scan report, the <strong>Request Updated Grok Analysis</strong> button will appear here so Grok can incorporate everything.
+                Once your practitioner publishes your bio scan report, the <strong>Request Updated Analysis</strong> button will appear here so we can incorporate everything.
             </p>
             <p style="font-size:0.85rem;">You currently have {{ documents|length if documents else 0 }} document(s) ready for when the report is available.</p>
         {% endif %}
