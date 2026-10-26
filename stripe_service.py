@@ -15,7 +15,7 @@ PRODUCTS = {
     'bundle_4': {
         'name': 'Root Cause 4-Scan Bundle',
         'description': 'Four bioenergetic scans — best value for ongoing monitoring',
-        'amount': 49900,
+        'amount': 34900,
     },
 }
 
