@@ -89,7 +89,6 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
 
     session_params = {
         'mode': 'payment',
-        'payment_method_types': ['card'],
         'line_items': [{
             'price_data': {
                 'currency': 'usd',
@@ -118,7 +117,6 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
         print(f'[Root Cause] Stripe checkout error: {err}')
         fallback = {
             'mode': 'payment',
-            'payment_method_types': ['card', 'link'],
             'line_items': session_params['line_items'],
             'success_url': session_params['success_url'],
             'cancel_url': session_params['cancel_url'],
