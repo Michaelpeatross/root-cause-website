@@ -12,12 +12,12 @@ def register_public_seo_routes(app):
     PAGE_SEO = {
         '/': (
             'At-Home Bioenergetic Hair & Saliva Scan – $99 Special | Root Cause Test',
-            'Order a $99 special ($100 off $199) at-home bioenergetic hair and saliva wellness scan. Collect samples at home, '
+            'Order a $99 special (reg. $199) at-home bioenergetic hair and saliva wellness scan. Collect samples at home, '
             'mail them free with a stamp, and get a prioritized wellness report. Not a diagnosis.',
         ),
         '/buy': (
-            'Order the $99 special ($100 off $199) At-Home Bioenergetic Scan | Root Cause Test',
-            'Order your $99 special ($100 off $199) bioenergetic hair and saliva wellness scan online. Secure Stripe checkout. '
+            'Order the $99 special (reg. $199) At-Home Bioenergetic Scan | Root Cause Test',
+            'Order your $99 special (reg. $199) bioenergetic hair and saliva wellness scan online. Secure Stripe checkout. '
             'Mail samples free with a stamp, add a $15 prepaid kit, or overnight for speed.',
         ),
         '/how-it-works': (
@@ -32,7 +32,7 @@ def register_public_seo_routes(app):
         ),
         '/sample-report': (
             'Sample Bioenergetic Wellness Report | Root Cause Test',
-            'See a sample bioenergetic wellness report from a $99 special ($100 off $199) hair and saliva scan: top 3 priorities, '
+            'See a sample bioenergetic wellness report from a $99 special (reg. $199) hair and saliva scan: top 3 priorities, '
             'Health Scores, and body-system cards. Placeholder data. Not a diagnosis.',
         ),
         '/blog': (
@@ -50,10 +50,15 @@ def register_public_seo_routes(app):
             'Bioenergetic hair and saliva wellness scan vs clinical food allergy testing, side by side. '
             'A wellness scan does not diagnose or rule out food allergy. See the real limits.',
         ),
+        '/blog/bioenergetic-testing-explained': ('Bioenergetic Testing Explained (2026 Guide) | Root Cause Test', 'Bioenergetic testing explained in plain language: how hair and saliva wellness scans work, what the reports cover, real limits, typical costs, and how to choose a provider.'),
+        '/blog/hair-sensitivity-test-vs-lab-tests': ('Hair Sensitivity Test vs Lab Tests: Honest Comparison | Root Cause Test', 'How at-home hair sensitivity and bioenergetic tests compare with lab blood tests, IgE allergy tests, and HTMA: what each measures, cost, accuracy limits, and when to use which.'),
+        '/blog/food-sensitivity-vs-food-allergy': ('Food Sensitivity vs Food Allergy: Key Differences | Root Cause Test', 'Food sensitivity vs food allergy vs intolerance explained: symptoms, timing, how each is tested, when to see a clinician, and how to run a simple elimination diet at home.'),
+        '/blog/how-to-collect-a-hair-sample': ('How to Collect a Hair Sample for Testing at Home | Root Cause Test', 'Step-by-step guide to collecting a hair sample and saliva sample at home for a wellness scan: how much hair, where to cut, what to avoid, and how to mail it in a regular envelope.'),
+        '/blog/bioenergetic-test-cost-comparison': ('Bioenergetic Test Cost Comparison 2026: $99 to $349+ | Root Cause Test', 'How much does bioenergetic hair and saliva testing cost in 2026? Typical full scans run $175 to $349. Compare price ranges, what is included, shipping, and what to check before you buy.'),
         '/health-app': (
             'Upload Health Records & Wearable Data | Root Cause Test',
             'Optional: upload Apple Health, Fitbit, or Garmin exports and lab PDFs you downloaded for extra '
-            'wellness context next to your $99 special ($100 off $199) scan. We never ask for portal passwords.',
+            'wellness context next to your $99 special (reg. $199) scan. We never ask for portal passwords.',
         ),
         '/export-records': (
             'How to Export MyChart, Labcorp & Quest Records | Root Cause Test',
@@ -61,8 +66,8 @@ def register_public_seo_routes(app):
             'them for optional wellness context. We never ask for portal passwords.',
         ),
         '/contact': (
-            'Contact Root Cause Test | Questions About the $99 special ($100 off $199) Scan',
-            'Questions about the $99 special ($100 off $199) at-home hair and saliva wellness scan, shipping, or the Free Food '
+            'Contact Root Cause Test | Questions About the $99 special (reg. $199) Scan',
+            'Questions about the $99 special (reg. $199) at-home hair and saliva wellness scan, shipping, or the Free Food '
             'Scanner? Text or email Root Cause Test and get a quick answer.',
         ),
         '/privacy': (
@@ -72,12 +77,12 @@ def register_public_seo_routes(app):
         ),
         '/terms': (
             'Terms of Use | Root Cause Test',
-            'Terms of use for Root Cause Test, the $99 special ($100 off $199) at-home bioenergetic hair and saliva wellness scan '
+            'Terms of use for Root Cause Test, the $99 special (reg. $199) at-home bioenergetic hair and saliva wellness scan '
             'and Free Food Scanner. Wellness information only, not medical care.',
         ),
         '/refunds': (
             'Refund Policy | Root Cause Test',
-            'Refund policy for the $99 special ($100 off $199) Root Cause Test hair and saliva wellness scan: cancellations before '
+            'Refund policy for the $99 special (reg. $199) Root Cause Test hair and saliva wellness scan: cancellations before '
             'you mail samples, and what happens once processing starts.',
         ),
     }
@@ -100,6 +105,11 @@ def register_public_seo_routes(app):
             ('Guides', '/blog'),
             ('Bioenergetic scan vs food allergy test', '/blog/bioenergetic-vs-food-allergy-test'),
         ],
+        '/blog/bioenergetic-testing-explained': [('Guides', '/blog'), ('Bioenergetic Testing Explained: What It Is and What It Is Not', '/blog/bioenergetic-testing-explained')],
+        '/blog/hair-sensitivity-test-vs-lab-tests': [('Guides', '/blog'), ('Hair Sensitivity Test vs Lab Tests: An Honest Comparison', '/blog/hair-sensitivity-test-vs-lab-tests')],
+        '/blog/food-sensitivity-vs-food-allergy': [('Guides', '/blog'), ('Food Sensitivity vs Food Allergy: What Is the Difference?', '/blog/food-sensitivity-vs-food-allergy')],
+        '/blog/how-to-collect-a-hair-sample': [('Guides', '/blog'), ('How to Collect a Hair Sample at Home (Step by Step)', '/blog/how-to-collect-a-hair-sample')],
+        '/blog/bioenergetic-test-cost-comparison': [('Guides', '/blog'), ('How Much Does Bioenergetic Testing Cost? 2026 Price Comparison', '/blog/bioenergetic-test-cost-comparison')],
         '/export-records': [('Export your records', '/export-records')],
         '/health-app': [('Health records', '/health-app')],
     }
@@ -145,6 +155,21 @@ def register_public_seo_routes(app):
     def blog_vs_allergy():
         return render_template('blog/vs_allergy.html')
 
+    def _guide_bioenergetic_testing_explained():
+        return render_template('blog/bioenergetic_testing_explained.html')
+
+    def _guide_hair_sensitivity_test_vs_lab_tests():
+        return render_template('blog/hair_sensitivity_test_vs_lab_tests.html')
+
+    def _guide_food_sensitivity_vs_food_allergy():
+        return render_template('blog/food_sensitivity_vs_food_allergy.html')
+
+    def _guide_how_to_collect_a_hair_sample():
+        return render_template('blog/how_to_collect_a_hair_sample.html')
+
+    def _guide_bioenergetic_test_cost_comparison():
+        return render_template('blog/bioenergetic_test_cost_comparison.html')
+
     def robots_txt():
         body = (
             "User-agent: *\n"
@@ -174,6 +199,11 @@ def register_public_seo_routes(app):
             ('/blog', 'monthly', '0.6'),
             ('/blog/what-is-bioenergetic-hair-saliva-scan', 'monthly', '0.7'),
             ('/blog/bioenergetic-vs-food-allergy-test', 'monthly', '0.7'),
+            ('/blog/bioenergetic-testing-explained', 'monthly', '0.7'),
+            ('/blog/hair-sensitivity-test-vs-lab-tests', 'monthly', '0.7'),
+            ('/blog/food-sensitivity-vs-food-allergy', 'monthly', '0.7'),
+            ('/blog/how-to-collect-a-hair-sample', 'monthly', '0.7'),
+            ('/blog/bioenergetic-test-cost-comparison', 'monthly', '0.7'),
             ('/health-app', 'monthly', '0.5'),
             ('/export-records', 'monthly', '0.5'),
             ('/privacy', 'yearly', '0.3'),
@@ -218,6 +248,11 @@ def register_public_seo_routes(app):
         ('/how-it-works', 'how_it_works', how_it_works),
         ('/blog/what-is-bioenergetic-hair-saliva-scan', 'blog_what_is_scan', blog_what_is_scan),
         ('/blog/bioenergetic-vs-food-allergy-test', 'blog_vs_allergy', blog_vs_allergy),
+        ('/blog/bioenergetic-testing-explained', 'guide_bioenergetic_testing_explained', _guide_bioenergetic_testing_explained),
+        ('/blog/hair-sensitivity-test-vs-lab-tests', 'guide_hair_sensitivity_test_vs_lab_tests', _guide_hair_sensitivity_test_vs_lab_tests),
+        ('/blog/food-sensitivity-vs-food-allergy', 'guide_food_sensitivity_vs_food_allergy', _guide_food_sensitivity_vs_food_allergy),
+        ('/blog/how-to-collect-a-hair-sample', 'guide_how_to_collect_a_hair_sample', _guide_how_to_collect_a_hair_sample),
+        ('/blog/bioenergetic-test-cost-comparison', 'guide_bioenergetic_test_cost_comparison', _guide_bioenergetic_test_cost_comparison),
         ('/og-scan.jpg', 'og_scan_jpg', og_scan_jpg),
     ]
     existing = {rule.endpoint for rule in app.url_map.iter_rules()}
@@ -230,7 +265,7 @@ def register_public_seo_routes(app):
     app.view_functions['sitemap'] = sitemap
 
     def buy_page():
-        """Public $99 special ($100 off $199) landing page with shipping copy. Checkout stays POST /create-checkout-session."""
+        """Public $99 special (reg. $199) landing page with shipping copy. Checkout stays POST /create-checkout-session."""
         return render_template('buy.html')
 
     app.view_functions['buy'] = buy_page
@@ -395,6 +430,39 @@ def register_public_seo_routes(app):
                     'itemListElement': items,
                 }, ensure_ascii=True)
                 extra += f'<script type="application/ld+json">{crumb_json}</script>'
+            if canon_path.startswith('/blog/') and seo_title and not noindex and '"Article"' not in html:
+                import json as _jart
+                art = _jart.dumps({
+                    '@context': 'https://schema.org', '@type': 'Article',
+                    'headline': seo_title.split(' | ')[0][:110], 'description': seo_desc,
+                    'mainEntityOfPage': canon, 'image': OG_IMG,
+                    'datePublished': '2026-10-26', 'dateModified': '2026-10-26',
+                    'author': {'@type': 'Organization', 'name': 'Root Cause Test', 'url': SITE + '/'},
+                    'publisher': {'@type': 'Organization', 'name': 'Root Cause Test', 'url': SITE + '/'},
+                }, ensure_ascii=True)
+                extra += f'<script type="application/ld+json">{art}</script>'
+            if '"Organization"' not in html and not noindex:
+                import json as _jorg
+                org = _jorg.dumps({
+                    '@context': 'https://schema.org', '@type': 'Organization',
+                    'name': 'Root Cause Test', 'legalName': 'ROOTCAUSE LLC', 'url': SITE + '/',
+                    'email': 'test@root-cause-test.com',
+                }, ensure_ascii=True)
+                extra += f'<script type="application/ld+json">{org}</script>'
+            if (not noindex and path not in ('/buy', '/contact', '/login', '/register')
+                    and 'rc-sticky-cta' not in html and '</body>' in html):
+                sticky = (
+                    '<div class="rc-sticky-cta" role="region" aria-label="Order">'
+                    '<span><s>$199</s> <strong>$99</strong> at-home scan</span>'
+                    '<a href="/buy" class="btn btn-primary">Order — $99</a></div>'
+                    '<style>.rc-sticky-cta{display:none}@media(max-width:720px){'
+                    '.rc-sticky-cta{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:2147483000;'
+                    'align-items:center;justify-content:space-between;gap:.75rem;padding:.6rem .9rem;'
+                    'background:#fff;border-top:1px solid #dfe6e9;box-shadow:0 -4px 16px rgba(0,0,0,.08)}'
+                    '.rc-sticky-cta .btn{margin:0;padding:.6rem 1rem}'
+                    '#grok-float{bottom:76px!important}}</style>'
+                )
+                html = html.replace('</body>', sticky + '</body>', 1)
             if path in ('/login', '/register', '/buy', '/contact', '/checkout/success'):
                 html = html.replace('<body>', '<body class="rc-form-page">', 1)
                 extra += '<style>.rc-form-page #grok-label,.rc-form-page #grok-bubble-label{display:none!important}</style>'
