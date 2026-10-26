@@ -10,7 +10,7 @@ PRODUCTS = {
     'single': {
         'name': 'Root Cause Bioenergetic Scan',
         'description': 'One personalized hair + saliva bioenergetic analysis',
-        'amount': 19900,
+        'amount': 9900,
     },
     'bundle_4': {
         'name': 'Root Cause 4-Scan Bundle',
@@ -19,7 +19,7 @@ PRODUCTS = {
     },
 }
 
-DEFAULT_PRICE_CENTS = 19900
+DEFAULT_PRICE_CENTS = 9900
 
 DEFAULT_CHECKOUT_DOMAINS = (
     'www.root-cause-test.com',
@@ -81,7 +81,7 @@ def create_checkout_session(site_url, customer_email=None, coupon_code=None, pro
     product = PRODUCTS.get(product_key, PRODUCTS['single'])
     amount = product['amount']
     if product_key == 'single' and (coupon_code or '').lower() == 'welcome50':
-        amount = 19900
+        amount = 9900
 
     base = site_url.rstrip('/')
     success_url = f'{base}/checkout/success?session_id={{CHECKOUT_SESSION_ID}}'

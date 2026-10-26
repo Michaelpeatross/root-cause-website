@@ -11,13 +11,13 @@ def register_public_seo_routes(app):
     # Keyword map: docs/seo-keywords.md. Keep wellness framing — no medical claims.
     PAGE_SEO = {
         '/': (
-            'At-Home Bioenergetic Hair & Saliva Scan – $199 | Root Cause Test',
-            'Order a $199 at-home bioenergetic hair and saliva wellness scan. Collect samples at home, '
+            'At-Home Bioenergetic Hair & Saliva Scan – $99 Special | Root Cause Test',
+            'Order a $99 special ($100 off $199) at-home bioenergetic hair and saliva wellness scan. Collect samples at home, '
             'mail them free with a stamp, and get a prioritized wellness report. Not a diagnosis.',
         ),
         '/buy': (
-            'Order the $199 At-Home Bioenergetic Scan | Root Cause Test',
-            'Order your $199 bioenergetic hair and saliva wellness scan online. Secure Stripe checkout. '
+            'Order the $99 special ($100 off $199) At-Home Bioenergetic Scan | Root Cause Test',
+            'Order your $99 special ($100 off $199) bioenergetic hair and saliva wellness scan online. Secure Stripe checkout. '
             'Mail samples free with a stamp, add a $15 prepaid kit, or overnight for speed.',
         ),
         '/how-it-works': (
@@ -32,7 +32,7 @@ def register_public_seo_routes(app):
         ),
         '/sample-report': (
             'Sample Bioenergetic Wellness Report | Root Cause Test',
-            'See a sample bioenergetic wellness report from a $199 hair and saliva scan: top 3 priorities, '
+            'See a sample bioenergetic wellness report from a $99 special ($100 off $199) hair and saliva scan: top 3 priorities, '
             'Health Scores, and body-system cards. Placeholder data. Not a diagnosis.',
         ),
         '/blog': (
@@ -53,7 +53,7 @@ def register_public_seo_routes(app):
         '/health-app': (
             'Upload Health Records & Wearable Data | Root Cause Test',
             'Optional: upload Apple Health, Fitbit, or Garmin exports and lab PDFs you downloaded for extra '
-            'wellness context next to your $199 scan. We never ask for portal passwords.',
+            'wellness context next to your $99 special ($100 off $199) scan. We never ask for portal passwords.',
         ),
         '/export-records': (
             'How to Export MyChart, Labcorp & Quest Records | Root Cause Test',
@@ -61,8 +61,8 @@ def register_public_seo_routes(app):
             'them for optional wellness context. We never ask for portal passwords.',
         ),
         '/contact': (
-            'Contact Root Cause Test | Questions About the $199 Scan',
-            'Questions about the $199 at-home hair and saliva wellness scan, shipping, or the Free Food '
+            'Contact Root Cause Test | Questions About the $99 special ($100 off $199) Scan',
+            'Questions about the $99 special ($100 off $199) at-home hair and saliva wellness scan, shipping, or the Free Food '
             'Scanner? Text or email Root Cause Test and get a quick answer.',
         ),
         '/privacy': (
@@ -72,12 +72,12 @@ def register_public_seo_routes(app):
         ),
         '/terms': (
             'Terms of Use | Root Cause Test',
-            'Terms of use for Root Cause Test, the $199 at-home bioenergetic hair and saliva wellness scan '
+            'Terms of use for Root Cause Test, the $99 special ($100 off $199) at-home bioenergetic hair and saliva wellness scan '
             'and Free Food Scanner. Wellness information only, not medical care.',
         ),
         '/refunds': (
             'Refund Policy | Root Cause Test',
-            'Refund policy for the $199 Root Cause Test hair and saliva wellness scan: cancellations before '
+            'Refund policy for the $99 special ($100 off $199) Root Cause Test hair and saliva wellness scan: cancellations before '
             'you mail samples, and what happens once processing starts.',
         ),
     }
@@ -230,7 +230,7 @@ def register_public_seo_routes(app):
     app.view_functions['sitemap'] = sitemap
 
     def buy_page():
-        """Public $199 landing page with shipping copy. Checkout stays POST /create-checkout-session."""
+        """Public $99 special ($100 off $199) landing page with shipping copy. Checkout stays POST /create-checkout-session."""
         return render_template('buy.html')
 
     app.view_functions['buy'] = buy_page
@@ -243,7 +243,7 @@ def register_public_seo_routes(app):
         '<div class="footer-col"><h4>Product</h4>'
         '<a href="/how-it-works">How it works</a>'
         '<a href="/sample-report">Sample report</a>'
-        '<a href="/buy">Order — $199</a></div>'
+        '<a href="/buy">Order — <s>$199</s> $99</a></div>'
         '<div class="footer-col"><h4>Tools</h4>'
         '<a href="/scan-food">Food Scanner</a>'
         '<a href="/health-app">Health records</a>'
@@ -402,10 +402,10 @@ def register_public_seo_routes(app):
                 html = html.replace('</head>', extra + '</head>', 1)
             # Prefer clear product language site-wide
             html = html.replace('>Get Analysis</a>', '>Order</a>')
-            html = html.replace('Get Your Analysis — $199', 'Order your scan — $199')
+            html = html.replace('Get Your Analysis — $199', 'Order your scan — <s>$199</s> $99 special')
             html = html.replace('Get Your Analysis', 'Order your scan')
             html = html.replace('>Scan Food</a>', '>Food Scanner</a>')
-            html = html.replace('>Buy $199</a>', '>Order — $199</a>')
+            html = html.replace('>Buy $199</a>', '>Order — <s>$199</s> $99</a>')
             if 'href="/scan-food"' not in html:
                 NAV = (
                     '<a href="/how-it-works">How it works</a> '
