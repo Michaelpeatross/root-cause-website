@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}At-Home Bioenergetic Hair & Saliva Scan – $99 | Root Cause Test{% endblock %}
 {% block og_title %}At-Home Bioenergetic Hair & Saliva Scan – $99 | Root Cause Test{% endblock %}
-{% block meta_description %}Order a $99 special ($100 off $199) at-home bioenergetic hair and saliva wellness scan. Collect samples at home, mail them free with a stamp, and get a prioritized wellness report. Not a diagnosis.{% endblock %}
+{% block meta_description %}Order a $99 special (reg. $199) at-home bioenergetic hair and saliva wellness scan. Collect samples at home, mail them free with a stamp, and get a prioritized wellness report. Not a diagnosis.{% endblock %}
 
 {% block extra_head %}
 <script type="application/ld+json">
@@ -79,7 +79,7 @@
           "name": "How much does it cost?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "The Root Cause Bioenergetic Scan is $99 special ($100 off $199), paid securely through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required."
+            "text": "The Root Cause Bioenergetic Scan is $99 special (reg. $199), paid securely through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required."
           }
         }
       ]
@@ -97,10 +97,10 @@
     <h1>At-home bioenergetic hair &amp; saliva wellness scan</h1>
     <p class="tagline">A clear, prioritized wellness report from hair and saliva samples you collect at home. No clinic visit. <s>$199</s> $99 special.</p>
     <div class="hero-actions">
-        <a href="{{ url_for('buy') }}" class="btn btn-primary">Order your scan — $99</a>
-        <a href="/scan-food" class="btn btn-ghost">Free Food Scanner</a>
-        <a href="{{ url_for('login') }}" class="btn btn-ghost">Log in</a>
+        <a href="{{ url_for('buy') }}" class="btn btn-primary">Order your scan — <s>$199</s> $99</a>
+        <a href="/sample-report" class="btn btn-ghost">See a sample report</a>
     </div>
+    <p class="hero-trust" style="margin:1rem 0 0;font-size:.9rem;opacity:.9">Secure Stripe checkout · Free standard mail with a stamp · Clear refund policy · Wellness information, not a medical test</p>
 </section>
 
 <div class="container home-page">
@@ -267,6 +267,14 @@
             <li><a href="/scan-food">Free Food Scanner</a> (barcode, label, or plate photo)</li>
         </ul>
     </div>
+
+    <h2 class="section-title">Guides</h2>
+    <ul style="max-width:720px;margin:0 auto 2rem;line-height:1.8">
+      <li><a href="/blog/bioenergetic-testing-explained">Bioenergetic testing explained</a></li>
+      <li><a href="/blog/food-sensitivity-vs-food-allergy">Food sensitivity vs food allergy</a></li>
+      <li><a href="/blog/how-to-collect-a-hair-sample">How to collect a hair sample at home</a></li>
+      <li><a href="/blog/bioenergetic-test-cost-comparison">Bioenergetic test cost comparison</a></li>
+    </ul>
 
     <div class="home-cta">
         <a href="{{ url_for('buy') }}" class="btn btn-primary">Order your scan — $99</a>
