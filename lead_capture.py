@@ -113,6 +113,7 @@ WIDGET = '''
 #rc-lead-card button[type="submit"]{background:#1b4332;color:#fff}
 #rc-lead-close{background:#eef3f0;color:#14241d}
 .rc-lead-hp{position:absolute;left:-9999px;height:0;width:0;opacity:0}
+@media(max-width:600px){#rc-lead{left:auto;right:12px;bottom:84px;transition:opacity .2s}#rc-lead-open{padding:8px 12px;font-size:.8rem;min-height:36px}#rc-lead-card{left:auto;right:0;bottom:44px}#rc-lead.rc-hide{opacity:0;pointer-events:none}}
 </style>
 <script>
 (function () {
@@ -120,6 +121,8 @@ WIDGET = '''
   if (!root) return;
   var card = document.getElementById('rc-lead-card');
   var status = document.getElementById('rc-lead-status');
+  function hide() { root.classList.toggle('rc-hide', window.innerWidth <= 600 && window.scrollY < 700 && card.hidden); }
+  hide(); window.addEventListener('scroll', hide, {passive:true}); window.addEventListener('resize', hide);
   document.getElementById('rc-lead-open').addEventListener('click', function () { card.hidden = false; });
   document.getElementById('rc-lead-close').addEventListener('click', function () { card.hidden = true; });
   card.addEventListener('submit', function (evt) {
