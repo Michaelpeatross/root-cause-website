@@ -12,7 +12,7 @@
     {"@type":"Question","name":"How long does the report take?","acceptedAnswer":{"@type":"Answer","text":"Typical turnaround is 7-14 days after hair and saliva samples arrive. For the fastest turnaround, place samples in an envelope and overnight it to the collection site."}},
     {"@type":"Question","name":"Do I need a clinic visit?","acceptedAnswer":{"@type":"Answer","text":"No. You collect hair and saliva at home and ship the samples."}},
     {"@type":"Question","name":"Is this a medical or allergy test?","acceptedAnswer":{"@type":"Answer","text":"No. This is a wellness scan. It is not a medical diagnosis, not an allergy test, and not intended to detect or treat disease."}},
-    {"@type":"Question","name":"How much does it cost?","acceptedAnswer":{"@type":"Answer","text":"The Root Cause Bioenergetic Scan is $199 through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required."}}
+    {"@type":"Question","name":"How much does it cost?","acceptedAnswer":{"@type":"Answer","text":"The Root Cause Bioenergetic Scan is $99 special ($100 off $199) through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required."}}
   ]
 }
 </script>
@@ -22,10 +22,10 @@
 <div class="container" style="max-width:800px;">
   <p style="color:var(--text-muted); font-size:.85rem; margin:1.5rem 0 .5rem;"><a href="{{ url_for('index') }}">Home</a> · How it works</p>
   <h1>How the at-home hair &amp; saliva scan works</h1>
-  <p>Four steps from order to wellness report. No clinic visit. $199 for one Root Cause Bioenergetic Scan.</p>
+  <p>Four steps from order to wellness report. No clinic visit. <s>$199</s> $99 special for one Root Cause Bioenergetic Scan.</p>
 
   <div class="card"><h2>1. Order</h2>
-    <p>Pay $199 on the secure Stripe checkout. You do not need an account to pay. Create a free account after purchase so collection instructions and your dashboard are ready.</p></div>
+    <p>Pay <s>$199</s> $99 special on the secure Stripe checkout. You do not need an account to pay. Create a free account after purchase so collection instructions and your dashboard are ready.</p></div>
   <div class="card"><h2>2. Collect hair + saliva</h2>
     <p>Use the instructions in your portal. Take hair from a clean, product-light area and collect saliva as directed. Do not send extra items that are not requested. Keep samples labeled with the name that matches your order.</p></div>
   <div class="card"><h2>3. Ship</h2>
@@ -55,7 +55,7 @@
     <details><summary>How long does the report take?</summary><p>Typical turnaround is 7–14 days after hair and saliva samples arrive. For the fastest turnaround, place samples in an envelope and overnight it to the collection site.</p></details>
     <details><summary>Do I need a clinic visit?</summary><p>No. You collect hair and saliva at home and ship the samples.</p></details>
     <details><summary>Is this a medical or allergy test?</summary><p>No. This is a wellness scan. It is not a medical diagnosis, not an allergy test, and not intended to detect or treat disease.</p></details>
-    <details><summary>How much does it cost?</summary><p>The Root Cause Bioenergetic Scan is $199 through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required.</p></details>
+    <details><summary>How much does it cost?</summary><p>The Root Cause Bioenergetic Scan is <s>$199</s> $99 special through Stripe checkout. Standard letter mail is free. An optional prepaid collection kit is $15 if you want that convenience — it is not required.</p></details>
   </div>
 
   <div class="card">
@@ -69,7 +69,7 @@
   </div>
 
   <div style="text-align:center; margin:2.5rem 0;">
-    <a href="{{ url_for('buy') }}" class="btn btn-primary">Order your scan — $199</a>
+    <a href="{{ url_for('buy') }}" class="btn btn-primary">Order your scan — $99</a>
   </div>
 </div>
 {% endblock %}
