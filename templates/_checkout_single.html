@@ -1,11 +1,11 @@
-{# One-click checkout — single $199 scan only #}
+{# One-click checkout — single $99 scan only #}
 <form method="POST" action="{{ url_for('create_checkout') }}" class="checkout-single-form">
     <input type="hidden" name="product" value="single">
     {% if user_email %}
     <input type="hidden" name="email" value="{{ user_email }}">
     {% endif %}
     <button type="submit" class="btn btn-primary checkout-single-btn">
-        {{ button_text or 'Continue to Secure Checkout — $199' }}
+        {{ button_text or 'Continue to Secure Checkout — $99' }}
     </button>
 </form>
 <p class="purchase-methods">

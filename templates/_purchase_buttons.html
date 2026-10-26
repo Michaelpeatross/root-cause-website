@@ -23,7 +23,7 @@
         </div>
         {% endif %}
         <button type="submit" name="product" value="single" class="btn btn-primary purchase-btn-primary">
-            {% if button_label_single %}{{ button_label_single }}{% else %}Pay Securely — $199 (1 Scan){% endif %}
+            {% if button_label_single %}{{ button_label_single }}{% else %}Pay Securely — $99 (1 Scan){% endif %}
         </button>
         <button type="submit" name="product" value="bundle_4" class="btn btn-secondary purchase-btn-bundle">
             {% if button_label_bundle %}{{ button_label_bundle }}{% else %}4 Scans Bundle — $499{% endif %}
@@ -34,7 +34,7 @@
     {% if not stripe_ready %}
     <div class="purchase-email-order">
         <p class="purchase-methods">Or order by email right now:</p>
-        <a href="mailto:michael@root-cause-test.com?subject=Order%20Root%20Cause%20Bio%20Scan%20%24199" class="btn btn-outline purchase-btn-primary">Email Order — 1 Scan ($199)</a>
+        <a href="mailto:michael@root-cause-test.com?subject=Order%20Root%20Cause%20Bio%20Scan%20%2499" class="btn btn-outline purchase-btn-primary">Email Order — 1 Scan ($99 special)</a>
         <a href="mailto:michael@root-cause-test.com?subject=Order%20Root%20Cause%204-Scan%20Bundle%20%24499" class="btn btn-outline purchase-btn-bundle">Email Order — 4 Scans ($499)</a>
     </div>
     {% else %}
