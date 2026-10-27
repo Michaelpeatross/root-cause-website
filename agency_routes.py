@@ -101,6 +101,24 @@ def register_agency_routes(app):
     _business_page = _static_agency_page("business.html", "Business")
     _ai_page = _static_agency_page("ai_transformation.html", "AI Transformation")
 
+    def _k12_page():
+        """K-12 tuition scholarship page: coming soon, no donations, noindex."""
+        path = os.path.join(app.root_path, "templates", "k12_scholarships.html")
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                html = fh.read()
+            status = 200
+        except Exception as exc:
+            print(f"[K12] k12_scholarships.html unavailable: {exc}")
+            html = ("<!DOCTYPE html><html><head><meta name=\"robots\" content=\"noindex\"></head>"
+                    "<body><h1>K-12 Tuition Scholarships</h1><p>Coming soon. Not accepting donations yet.</p>"
+                    "</body></html>")
+            status = 503
+        resp = Response(html, status=status, mimetype="text/html")
+        resp.headers["Content-Type"] = "text/html; charset=utf-8"
+        resp.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return resp
+
     def _foam_page():
         """Foam Insulation, LLC spray foam offer page (separate business; no Root Cause chrome)."""
         path = os.path.join(app.root_path, "templates", "foam.html")
@@ -126,6 +144,7 @@ def register_agency_routes(app):
         ("/ai-transformation", "apexforge_ai_transformation", _ai_page),
         ("/foam", "foam_insulation_offer", _foam_page),
         ("/spray-foam", "foam_insulation_spray_foam_alias", _foam_page),
+        ("/k12-scholarships", "k12_scholarships_coming_soon", _k12_page),
     ]
     existing = {rule.endpoint for rule in app.url_map.iter_rules()}
     for path, endpoint, view in routes:
@@ -136,7 +155,7 @@ def register_agency_routes(app):
     # Root Cause seo_routes injects footer/nav into all HTML. Skip that for ApexForge pages.
     agency_paths = {
         "/agency", "/apexforge", "/business", "/ai-transformation",
-        "/foam", "/spray-foam",
+        "/foam", "/spray-foam", "/k12-scholarships",
     }
 
     def _wrap_seo_processors():
@@ -167,6 +186,6 @@ def register_agency_routes(app):
     n = _wrap_seo_processors()
     print(
         "[ApexForge] Registered /agency, /apexforge, /business, /ai-transformation, "
-        "/foam, /spray-foam "
+        "/foam, /spray-foam, /k12-scholarships "
         f"(marketing agency landing; SEO chrome wrappers={n})"
     )
