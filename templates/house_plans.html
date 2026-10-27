@@ -32,8 +32,8 @@ header.top{background:var(--paper);border-bottom:1px solid var(--line)}
 header.top .wrap{display:flex;justify-content:space-between;align-items:center;gap:12px;padding-top:12px;padding-bottom:12px}
 .logo{font-weight:800;color:var(--green);font-size:18px;text-decoration:none;display:flex;align-items:center;gap:8px}
 .logo svg{flex:none}
-.top nav a{color:var(--green);text-decoration:none;font-weight:600;font-size:15px;margin-left:16px}
-.top nav a.cta-sm{background:var(--clay);color:#fff;padding:8px 14px;border-radius:8px}
+.top .hp-nav a{color:var(--green);text-decoration:none;font-weight:600;font-size:15px;margin-left:16px}
+.top .hp-nav a.cta-sm{background:var(--clay);color:#fff;padding:8px 14px;border-radius:8px}
 .hero{background:linear-gradient(160deg,var(--green),var(--green2));color:#fff;padding:54px 0 58px;position:relative;overflow:hidden}
 .hero:after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}
 .hero .wrap{position:relative;z-index:1}
@@ -101,7 +101,7 @@ footer a{color:var(--gray)}
  .cards,.pick,.steps,.sheets{grid-template-columns:1fr}
  .btn.ghost{margin:10px 0 0}
  .hero .btn{display:block;text-align:center;margin-left:0}
- .top nav a:not(.cta-sm){display:none}
+ .top .hp-nav a:not(.cta-sm){display:none}
  section{padding:40px 0}
  h2{font-size:27px}
  .sticky{display:block;position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));background:rgba(255,253,248,.97);border-top:1px solid var(--line);z-index:50}
@@ -112,7 +112,7 @@ footer a{color:var(--gray)}
 <body>
 <header class="top"><div class="wrap">
  <a class="logo" href="/house-plans"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path d="M3 12 13 3l10 9v11H3z" fill="none" stroke="#1d3b2f" stroke-width="2.4" stroke-linejoin="round"/><path d="M10 23v-6h6v6" fill="none" stroke="#c8643b" stroke-width="2.4"/></svg>House Plans / Drafting</a>
- <nav><a href="#packages">Packages</a><a href="#whats-in">What's in a set</a><a href="#how">How it works</a><a href="#faq">FAQ</a><a class="cta-sm" href="mailto:michaelpeatross@gmail.com?bcc=michaelpeatross%40gmail.com&amp;subject=House%20plans%20kickoff%3A%20Floor%20Plan%20Concept&amp;body=Hi%2C%20I%27d%20like%20to%20start%20the%20Floor%20Plan%20Concept.%0A%0AHeated%20square%20feet%20%28about%29%3A%0ABedrooms%20/%20bathrooms%3A%0AStories%20%281%20or%202%29%3A%0ALot%20location%20%28city%2C%20parish/county%2C%20state%29%3A%0AStyle%20%28e.g.%20Acadian%2C%20farmhouse%2C%20modern%2C%20craftsman%29%3A%0ABuilding%20budget%20%28about%29%3A%0AGarage%20/%20porch%20/%20other%20must-haves%3A%0AWhen%20I%27d%20like%20to%20build%3A%0A%0APhone%20%28optional%29%3A%0APhotos%20or%20sketches%3A%20attach%20any%20you%20have.%0A">Start</a></nav>
+ <div class="hp-nav" role="navigation" aria-label="Page sections"><a href="#packages">Packages</a><a href="#whats-in">What's in a set</a><a href="#how">How it works</a><a href="#faq">FAQ</a><a class="cta-sm" href="mailto:michaelpeatross@gmail.com?bcc=michaelpeatross%40gmail.com&amp;subject=House%20plans%20kickoff%3A%20Floor%20Plan%20Concept&amp;body=Hi%2C%20I%27d%20like%20to%20start%20the%20Floor%20Plan%20Concept.%0A%0AHeated%20square%20feet%20%28about%29%3A%0ABedrooms%20/%20bathrooms%3A%0AStories%20%281%20or%202%29%3A%0ALot%20location%20%28city%2C%20parish/county%2C%20state%29%3A%0AStyle%20%28e.g.%20Acadian%2C%20farmhouse%2C%20modern%2C%20craftsman%29%3A%0ABuilding%20budget%20%28about%29%3A%0AGarage%20/%20porch%20/%20other%20must-haves%3A%0AWhen%20I%27d%20like%20to%20build%3A%0A%0APhone%20%28optional%29%3A%0APhotos%20or%20sketches%3A%20attach%20any%20you%20have.%0A">Start</a></div>
 </div></header>
 
 <div class="hero"><div class="wrap">
