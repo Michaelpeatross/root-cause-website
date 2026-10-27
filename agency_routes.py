@@ -119,6 +119,13 @@ def register_agency_routes(app):
         resp.headers["X-Robots-Tag"] = "noindex, nofollow"
         return resp
 
+    def _k12_og_image():
+        import base64
+        from k12_og_image import PNG_B64
+        resp = Response(base64.b64decode("".join(PNG_B64)), mimetype="image/png")
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
+
     def _foam_page():
         """Foam Insulation, LLC spray foam offer page (separate business; no Root Cause chrome)."""
         path = os.path.join(app.root_path, "templates", "foam.html")
@@ -145,6 +152,7 @@ def register_agency_routes(app):
         ("/foam", "foam_insulation_offer", _foam_page),
         ("/spray-foam", "foam_insulation_spray_foam_alias", _foam_page),
         ("/k12-scholarships", "k12_scholarships_coming_soon", _k12_page),
+        ("/k12-og.png", "k12_scholarships_og_image", _k12_og_image),
     ]
     existing = {rule.endpoint for rule in app.url_map.iter_rules()}
     for path, endpoint, view in routes:
