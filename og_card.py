@@ -155,6 +155,8 @@ def register_og_card(app):
             path = request.path or "/"
             if path.rstrip("/") == "/k12-scholarships":
                 return response  # page sets its own share image (/k12-og.png)
+            if path.rstrip("/") == "/house-plans":
+                return response  # page sets its own share image (/house-plans-og.png)
             canon = SITE + ("/" if path == "/" else path)
             html = html.replace("https://www.root-cause-test.com/og-scan.jpg", OG_IMG)
             html = html.replace("http://www.root-cause-test.com/og-scan.jpg", OG_IMG)

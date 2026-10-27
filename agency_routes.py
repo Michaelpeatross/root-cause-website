@@ -126,6 +126,32 @@ def register_agency_routes(app):
         resp.headers["Cache-Control"] = "public, max-age=86400"
         return resp
 
+    def _house_plans_page():
+        """House plans / drafting offer page (separate look; not ApexForge, not Root Cause)."""
+        path = os.path.join(app.root_path, "templates", "house_plans.html")
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                html = fh.read()
+            status = 200
+        except Exception as exc:
+            print(f"[HousePlans] house_plans.html unavailable: {exc}")
+            html = ("<!DOCTYPE html><html><body><h1>Custom House Plans</h1>"
+                    "<p>Page temporarily unavailable. Email "
+                    '<a href="mailto:michaelpeatross@gmail.com?bcc=michaelpeatross%40gmail.com'
+                    '&amp;subject=House%20plans">michaelpeatross@gmail.com</a>.</p>'
+                    "</body></html>")
+            status = 503
+        resp = Response(html, status=status, mimetype="text/html")
+        resp.headers["Content-Type"] = "text/html; charset=utf-8"
+        return resp
+
+    def _house_plans_og_image():
+        import base64
+        from house_plans_og_image import PNG_B64
+        resp = Response(base64.b64decode("".join(PNG_B64)), mimetype="image/png")
+        resp.headers["Cache-Control"] = "public, max-age=86400"
+        return resp
+
     def _foam_page():
         """Foam Insulation, LLC spray foam offer page (separate business; no Root Cause chrome)."""
         path = os.path.join(app.root_path, "templates", "foam.html")
@@ -153,6 +179,8 @@ def register_agency_routes(app):
         ("/spray-foam", "foam_insulation_spray_foam_alias", _foam_page),
         ("/k12-scholarships", "k12_scholarships_coming_soon", _k12_page),
         ("/k12-og.png", "k12_scholarships_og_image", _k12_og_image),
+        ("/house-plans", "house_plans_offer", _house_plans_page),
+        ("/house-plans-og.png", "house_plans_og_image", _house_plans_og_image),
     ]
     existing = {rule.endpoint for rule in app.url_map.iter_rules()}
     for path, endpoint, view in routes:
@@ -163,7 +191,7 @@ def register_agency_routes(app):
     # Root Cause seo_routes injects footer/nav into all HTML. Skip that for ApexForge pages.
     agency_paths = {
         "/agency", "/apexforge", "/business", "/ai-transformation",
-        "/foam", "/spray-foam", "/k12-scholarships",
+        "/foam", "/spray-foam", "/k12-scholarships", "/house-plans",
     }
 
     def _wrap_seo_processors():
@@ -194,6 +222,6 @@ def register_agency_routes(app):
     n = _wrap_seo_processors()
     print(
         "[ApexForge] Registered /agency, /apexforge, /business, /ai-transformation, "
-        "/foam, /spray-foam, /k12-scholarships "
+        "/foam, /spray-foam, /k12-scholarships, /house-plans "
         f"(marketing agency landing; SEO chrome wrappers={n})"
     )

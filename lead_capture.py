@@ -195,6 +195,8 @@ def register_lead_capture(app):
                 return resp
             if path.rstrip('/') == '/k12-scholarships':
                 return resp  # coming-soon nonprofit page: no Root Cause callback form
+            if path.rstrip('/') == '/house-plans':
+                return resp  # house plans offer page: separate business, no Root Cause callback form
             if 'html' not in (resp.headers.get('Content-Type') or ''):
                 return resp
             data = resp.get_data(as_text=True)
