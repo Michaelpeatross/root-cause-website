@@ -9,11 +9,19 @@
   .app-header { text-align: center; margin-bottom: 1.25rem; }
   .app-header h1 { font-size: 1.6rem; margin: 0 0 .4rem; color: #0b3d2a; }
   .btn-big { display: inline-block; padding: 14px 18px; font-size: 1.05rem; }
+  .ha-subnav { display:flex; gap:.4rem; flex-wrap:wrap; justify-content:center; margin:0 0 1rem; }
+  .ha-subnav a { border:1px solid #cfe3d8; background:#fff; color:#0b3d2a; padding:.5rem .9rem; border-radius:999px; text-decoration:none; font-weight:600; min-height:44px; display:inline-flex; align-items:center; }
+  .ha-subnav a.active { background:#0b3d2a; color:#fff; border-color:#0b3d2a; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="app-container">
+  <nav class="ha-subnav" aria-label="Health App">
+    <a href="/health-app" class="active" aria-current="page">Health records</a>
+    <a href="/health-app/tongue-scanner">Tongue Scanner</a>
+    <a href="/scan-food">Food Scanner</a>
+  </nav>
   <div class="app-header">
     <h1>Optional health records</h1>
     <p>Upload wearable exports and records you already downloaded for extra wellness context. <strong>Not required</strong> for the <s>$199</s> $99 special hair + saliva scan.</p>
@@ -24,6 +32,14 @@
     <p style="font-size:.92rem;color:#5c4316;background:#fff6e8;border:1px solid #f1d7a6;border-radius:10px;padding:.7rem .85rem;">
       <strong>Wellness information only.</strong> Files are used only for educational wellness analysis alongside your scan. This is not a medical diagnosis, not treatment, and not a substitute for a licensed clinician.
     </p>
+  </div>
+
+  <div class="card" style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;">
+    <div style="flex:1 1 240px;">
+      <p style="margin:0;"><strong>New: Tongue Scanner</strong></p>
+      <p style="margin:.3rem 0 0;">Snap a photo of your tongue for a free wellness read on color, coating, shape, and surface, with simple everyday ideas. Log in to compare scans over time.</p>
+    </div>
+    <a href="/health-app/tongue-scanner" class="btn btn-primary btn-big">Open Tongue Scanner</a>
   </div>
 
   {% if not session.get('user_id') %}

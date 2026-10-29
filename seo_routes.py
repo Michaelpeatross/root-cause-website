@@ -55,6 +55,16 @@ def register_public_seo_routes(app):
         '/blog/food-sensitivity-vs-food-allergy': ('Food Sensitivity vs Food Allergy: Key Differences | Root Cause Test', 'Food sensitivity vs food allergy vs intolerance explained: symptoms, timing, how each is tested, when to see a clinician, and how to run a simple elimination diet at home.'),
         '/blog/how-to-collect-a-hair-sample': ('How to Collect a Hair Sample for Testing at Home | Root Cause Test', 'Step-by-step guide to collecting a hair sample and saliva sample at home for a wellness scan: how much hair, where to cut, what to avoid, and how to mail it in a regular envelope.'),
         '/blog/bioenergetic-test-cost-comparison': ('Bioenergetic Test Cost Comparison 2026: $99 to $349+ | Root Cause Test', 'How much does bioenergetic hair and saliva testing cost in 2026? Typical full scans run $175 to $349. Compare price ranges, what is included, shipping, and what to check before you buy.'),
+        '/tongue-scanner': (
+            'Free Tongue Scanner: Wellness Tongue Check | Root Cause Test',
+            'Take a photo of your tongue and get a friendly wellness report on color, coating, shape, cracks, '
+            'edges, and moisture, plus simple hydration, sleep, and food ideas. Free. Not medical advice.',
+        ),
+        '/health-app/tongue-scanner': (
+            'Free Tongue Scanner: Wellness Tongue Check | Root Cause Test',
+            'Take a photo of your tongue and get a friendly wellness report on color, coating, shape, cracks, '
+            'edges, and moisture, plus simple hydration, sleep, and food ideas. Free. Not medical advice.',
+        ),
         '/health-app': (
             'Upload Health Records & Wearable Data | Root Cause Test',
             'Optional: upload Apple Health, Fitbit, or Garmin exports and lab PDFs you downloaded for extra '
@@ -112,6 +122,8 @@ def register_public_seo_routes(app):
         '/blog/bioenergetic-test-cost-comparison': [('Guides', '/blog'), ('How Much Does Bioenergetic Testing Cost? 2026 Price Comparison', '/blog/bioenergetic-test-cost-comparison')],
         '/export-records': [('Export your records', '/export-records')],
         '/health-app': [('Health records', '/health-app')],
+        '/tongue-scanner': [('Tongue Scanner', '/tongue-scanner')],
+        '/health-app/tongue-scanner': [('Health App', '/health-app'), ('Tongue Scanner', '/health-app/tongue-scanner')],
     }
 
     def privacy():
@@ -204,6 +216,7 @@ def register_public_seo_routes(app):
             ('/blog/food-sensitivity-vs-food-allergy', 'monthly', '0.7'),
             ('/blog/how-to-collect-a-hair-sample', 'monthly', '0.7'),
             ('/blog/bioenergetic-test-cost-comparison', 'monthly', '0.7'),
+            ('/tongue-scanner', 'weekly', '0.7'),
             ('/health-app', 'monthly', '0.5'),
             ('/export-records', 'monthly', '0.5'),
             ('/privacy', 'yearly', '0.3'),
@@ -281,6 +294,7 @@ def register_public_seo_routes(app):
         '<a href="/buy">Order — <s>$199</s> $99</a></div>'
         '<div class="footer-col"><h4>Tools</h4>'
         '<a href="/scan-food">Food Scanner</a>'
+        '<a href="/tongue-scanner">Tongue Scanner</a>'
         '<a href="/health-app">Health records</a>'
         '<a href="/export-records">Export records</a>'
         '<a href="/blog">Guides</a></div>'

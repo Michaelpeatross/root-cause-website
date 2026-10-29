@@ -213,6 +213,14 @@ except Exception as _food_err:
     traceback.print_exc()
 
 try:
+    from tongue_scan import register_tongue_scan_routes
+    register_tongue_scan_routes(app)
+except Exception as _tongue_err:
+    print(f"[Root Cause] Tongue scanner routes not applied: {_tongue_err}")
+    import traceback
+    traceback.print_exc()
+
+try:
     from account_deletion import register_account_deletion_routes
     register_account_deletion_routes(
         app, db, User, Report=Report, ClientDocument=ClientDocument, ReportScanPdf=ReportScanPdf,
