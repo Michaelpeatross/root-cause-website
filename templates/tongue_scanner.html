@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}Free Tongue Scanner: Wellness Tongue Check | Root Cause Test{% endblock %}
+{% block og_title %}Tongue Scanner | Root Cause Test{% endblock %}
+{% block meta_description %}Free tongue scanner. Take a photo of your tongue and get a friendly wellness report on color, coating, shape, cracks, edges, and moisture, with simple hydration, sleep, food, and oral care ideas. Not medical advice.{% endblock %}
+{% block extra_head %}
+<style>
+  .ts-wrap { max-width: 760px; margin: 0 auto; padding: 0 16px calc(2rem + env(safe-area-inset-bottom)); }
+  .ts-subnav { display:flex; gap:.4rem; flex-wrap:wrap; margin:1rem 0 .5rem; }
+  .ts-subnav a { border:1px solid #cfe3d8; background:#fff; color:#0b3d2a; padding:.5rem .9rem; border-radius:999px; text-decoration:none; font-weight:600; min-height:44px; display:inline-flex; align-items:center; }
+  .ts-subnav a.active { background:#0b3d2a; color:#fff; border-color:#0b3d2a; }
+  .ts-tips { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:.5rem; margin:.75rem 0 1rem; padding:0; list-style:none; }
+  .ts-tips li { background:#f3faf7; border-radius:10px; padding:.65rem .75rem; font-size:.92rem; }
+  .ts-tips strong { display:block; color:#0b3d2a; }
+  .ts-actions { display:flex; gap:.6rem; flex-wrap:wrap; }
+  .ts-actions .btn { flex:1 1 160px; min-height:54px; font-size:1.05rem; text-align:center; }
+  .ts-preview { margin-top:1rem; text-align:center; }
+  .ts-preview img { max-width:100%; max-height:280px; border-radius:14px; }
+  .ts-status { padding:.75rem 1rem; border-radius:10px; margin:.9rem 0; }
+  .ts-status.load { background:#eef6f2; color:#0b3d2a; }
+  .ts-status.err { background:#fdecea; color:#7a1f16; }
+  .ts-report h2 { margin:.2rem 0 .2rem; color:#0b3d2a; }
+  .ts-card { background:#fff; border:1px solid #e3eee9; border-radius:18px; padding:1.1rem 1rem; margin:1rem 0; box-shadow:0 4px 18px rgba(11,61,42,.05); }
+  .ts-card h3 { margin:0 0 .25rem; font-size:1.1rem; color:#0b3d2a; }
+  .ts-card .sub { font-size:.88rem; color:#5c6b66; margin:0 0 .8rem; }
+  .ts-profile { display:grid; grid-template-columns: 140px 1fr; gap:1rem; align-items:center; }
+  @media (max-width:560px){ .ts-profile { grid-template-columns:1fr; justify-items:center; } }
+  .ts-ring { position:relative; width:132px; height:132px; }
+  .ts-ring svg { width:132px; height:132px; transform:rotate(-90deg); }
+  .ts-ring .c { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+  .ts-ring .n { font-size:2.3rem; font-weight:800; color:#0b3d2a; line-height:1; }
+  .ts-ring .l { font-size:.72rem; color:#5c6b66; margin-top:.2rem; max-width:96px; }
+  .ts-band { text-align:center; font-weight:700; color:#1a8c7a; margin-top:.35rem; font-size:.92rem; }
+  .ts-radar { width:100%; max-width:400px; display:block; margin:0 auto; }
+  .ts-legend { display:flex; gap:1rem; justify-content:center; font-size:.8rem; color:#5c6b66; margin-top:.25rem; }
+  .ts-legend i { display:inline-block; width:14px; height:3px; vertical-align:middle; margin-right:.3rem; background:#1a8c7a; }
+  .ts-legend i.prev { background:none; border-top:2px dashed #9bb5ab; }
+  .ts-dims { display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:.4rem; margin-top:.8rem; }
+  .ts-dims div { background:#f6faf8; border-radius:10px; padding:.45rem .6rem; font-size:.86rem; display:flex; justify-content:space-between; }
+  .ts-dims b { color:#0b3d2a; }
+  .ts-pills { display:flex; flex-wrap:wrap; gap:.45rem; margin:.4rem 0 .6rem; }
+  .ts-pill { background:#e8f5f1; color:#0b3d2a; border:1px solid #cfe8dd; border-radius:999px; padding:.4rem .85rem; font-size:.92rem; font-weight:600; }
+  .ts-note { font-size:.84rem; color:#5c6b66; margin:0; }
+  .ts-rows { margin:.2rem 0 0; padding:0; list-style:none; }
+  .ts-rows li { display:grid; grid-template-columns:90px 1fr; gap:.5rem; padding:.55rem 0; border-bottom:1px solid #eef3f1; font-size:.94rem; }
+  .ts-rows li:last-child { border-bottom:0; }
+  .ts-rows span { font-weight:700; color:#0b3d2a; }
+  .ts-sugg { display:grid; gap:.55rem; }
+  .ts-sugg div { background:#f6faf8; border-left:4px solid #1a8c7a; border-radius:10px; padding:.6rem .8rem; font-size:.94rem; }
+  .ts-sugg strong { display:block; color:#0b3d2a; }
+  .ts-care { background:#fff6e8; border:1px solid #f1d7a6; color:#5c4316; border-radius:12px; padding:.75rem .9rem; font-size:.93rem; }
+  .ts-disclaimer { font-size:.84rem; color:#5c4316; background:#fff6e8; border:1px solid #f1d7a6; border-radius:10px; padding:.7rem .85rem; }
+  .ts-hist-row { display:flex; gap:.7rem; align-items:center; padding:.65rem 0; border-bottom:1px solid #eef3f1; }
+  .ts-hist-row img { width:52px; height:52px; object-fit:cover; border-radius:10px; flex:none; background:#f3faf7; }
+  .ts-hist-row .m { flex:1; min-width:0; font-size:.9rem; }
+  .ts-hist-row .m small { color:#5c6b66; display:block; }
+  .ts-hist-score { font-weight:800; color:#0b3d2a; font-size:1.2rem; text-align:right; min-width:56px; }
+  .ts-hist-score small { display:block; font-size:.75rem; font-weight:600; }
+  .up { color:#0f6b3a; } .down { color:#9a4b12; }
+  .ts-del { background:none; border:0; color:#7a1f16; font:inherit; font-size:.82rem; cursor:pointer; min-height:44px; padding:0 .3rem; }
+  .guest-cta { background:#f7f3e8; border-radius:12px; padding:1rem 1.1rem; margin:.75rem 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="ts-wrap">
+  <p style="margin-top:1.25rem; font-size:.85rem;"><a href="{{ url_for('index') }}">Home</a> · <a href="/health-app">Health App</a> · Tongue Scanner</p>
+  <nav class="ts-subnav" aria-label="Health App">
+    <a href="/health-app">Health records</a>
+    <a href="/health-app/tongue-scanner" class="active" aria-current="page">Tongue Scanner</a>
+    <a href="/scan-food">Food Scanner</a>
+  </nav>
+  <h1>Tongue Scanner</h1>
+  <p>Snap a clear photo of your tongue and get a friendly wellness read on its color, coating, shape, and surface, plus simple everyday ideas. Free, no app needed.</p>
+
+  {% if not logged_in %}
+  <div class="guest-cta">
+    <p style="margin:0;"><strong>Using as a guest.</strong> You can scan freely, but guest scans aren&rsquo;t saved. Log in to keep a history and compare over time.</p>
+    <p style="margin:.6rem 0 0;"><a class="btn btn-primary" href="{{ url_for('register') }}">Create a free account</a> <a class="btn btn-outline" href="{{ url_for('login') }}">Log in</a></p>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <h2 style="margin-top:0;font-size:1.15rem;">Before you snap</h2>
+    <ul class="ts-tips">
+      <li><strong>Natural light</strong>Face a window. No flash or colored lights.</li>
+      <li><strong>Tongue all the way out</strong>Relax it, tip pointing down, fill the frame.</li>
+      <li><strong>Wait 15 minutes</strong>No food, drinks, candy, or coffee right before.</li>
+      <li><strong>Best in the morning</strong>Before brushing or scraping, for the truest look.</li>
+    </ul>
+    <div class="ts-actions">
+      <button type="button" class="btn btn-primary" id="ts-camera">&#128247; Take a photo</button>
+      <button type="button" class="btn btn-outline" id="ts-upload">Upload a photo</button>
+    </div>
+    <input type="file" id="ts-camera-input" accept="image/*" capture="user" hidden>
+    <input type="file" id="ts-upload-input" accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif,image/*" hidden>
+    <div class="ts-preview"><img id="ts-preview" alt="Your tongue photo" hidden></div>
+    <div id="ts-status" class="ts-status" hidden role="status" aria-live="polite"></div>
+  </div>
+
+  <div id="ts-report" class="ts-report" hidden></div>
+
+  <div class="card" id="ts-history-card" {% if not logged_in %}hidden{% endif %}>
+    <h2 style="margin-top:0;font-size:1.15rem;">My tongue scans</h2>
+    <p class="ts-note">Scans are saved automatically when you&rsquo;re logged in. Compare the same time of day and light for the best trend.</p>
+    <div id="ts-history"><p class="ts-note">Loading&hellip;</p></div>
+  </div>
+
+  <p class="ts-disclaimer"><strong>Not medical advice.</strong> {{ disclaimer }}</p>
+</div>
+
+<script>
+(function(){
+  var LOGGED_IN = {{ 'true' if logged_in else 'false' }};
+  var $ = function(id){ return document.getElementById(id); };
+  var statusEl = $('ts-status'), reportEl = $('ts-report'), preview = $('ts-preview');
+  var history = [];
+
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function status(msg, kind){ statusEl.hidden = !msg; statusEl.className = 'ts-status ' + (kind || 'load'); statusEl.textContent = msg || ''; }
+
+  $('ts-camera').onclick = function(){ $('ts-camera-input').click(); };
+  $('ts-upload').onclick = function(){ $('ts-upload-input').click(); };
+  $('ts-camera-input').onchange = function(e){ handle(e.target.files && e.target.files[0]); e.target.value=''; };
+  $('ts-upload-input').onchange = function(e){ handle(e.target.files && e.target.files[0]); e.target.value=''; };
+
+  function shrink(img, max, q){
+    var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+    var s = Math.min(1, max / Math.max(w, h));
+    var c = document.createElement('canvas');
+    c.width = Math.round(w * s); c.height = Math.round(h * s);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', q);
+  }
+
+  function handle(file){
+    if (!file) return;
+    if (file.type && file.type.indexOf('image/') !== 0 && !/\.(heic|heif)$/i.test(file.name || '')) {
+      status('That file is not a photo. Please choose a JPEG or PNG picture of your tongue.', 'err'); return;
+    }
+    if (file.size > 25 * 1024 * 1024) { status('That photo is too large. Please choose a smaller one.', 'err'); return; }
+    reportEl.hidden = true;
+    status('Getting your photo ready…');
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function(){
+      var full, thumb;
+      try { full = shrink(img, 1280, 0.88); thumb = shrink(img, 160, 0.7); }
+      catch (err) { status('We could not open that photo. Please try a JPEG or PNG.', 'err'); return; }
+      preview.src = full; preview.hidden = false;
+      URL.revokeObjectURL(url);
+      send(full, thumb);
+    };
+    img.onerror = function(){ status('We could not open that photo. Please try a JPEG or PNG.', 'err'); };
+    img.src = url;
+  }
+
+  function send(dataUrl, thumb){
+    status('Reading your tongue… this takes about 10–20 seconds.');
+    fetch('/api/tongue-scan', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin',
+      body: JSON.stringify({ image_b64: dataUrl, mime:'image/jpeg', thumb: thumb }) })
+      .then(function(r){ return r.json().catch(function(){ return { ok:false, error:'Something went wrong. Please try again.' }; }); })
+      .then(function(d){
+        if (!d.ok) { status(d.error || 'We could not read that photo. Please try again.', 'err'); return; }
+        status('');
+        var prev = history.length ? history[0] : null;
+        render(d, prev);
+        if (d.saved) loadHistory();
+      })
+      .catch(function(){ status('Connection problem. Please check your signal and try again.', 'err'); });
+  }
+
+  function ring(score){
+    var r = 56, c = 2 * Math.PI * r, off = c * (1 - Math.max(0, Math.min(100, score)) / 100);
+    return '<div class="ts-ring"><svg viewBox="0 0 132 132" aria-hidden="true">' +
+      '<circle cx="66" cy="66" r="' + r + '" fill="none" stroke="#e8f1ed" stroke-width="12"/>' +
+      '<circle cx="66" cy="66" r="' + r + '" fill="none" stroke="#1a8c7a" stroke-width="12" stroke-linecap="round" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/></svg>' +
+      '<div class="c"><span class="n">' + score + '</span><span class="l">Visual balance</span></div></div>';
+  }
+
+  function radar(dims, prevDims){
+    var cx = 170, cy = 150, R = 105, n = dims.length, out = '';
+    function pt(i, v){ var a = -Math.PI/2 + i * 2*Math.PI/n; return [cx + Math.cos(a) * R * v, cy + Math.sin(a) * R * v]; }
+    [0.25, 0.5, 0.75, 1].forEach(function(lv){
+      out += '<polygon points="' + dims.map(function(_, i){ return pt(i, lv).join(','); }).join(' ') + '" fill="none" stroke="#e3ece8" stroke-width="1"/>';
+    });
+    dims.forEach(function(_, i){ var p = pt(i, 1); out += '<line x1="'+cx+'" y1="'+cy+'" x2="'+p[0]+'" y2="'+p[1]+'" stroke="#e3ece8"/>'; });
+    if (prevDims && prevDims.length === n) {
+      out += '<polygon points="' + prevDims.map(function(d, i){ return pt(i, d.score/100).join(','); }).join(' ') + '" fill="none" stroke="#9bb5ab" stroke-width="2" stroke-dasharray="5 4"/>';
+    }
+    out += '<polygon points="' + dims.map(function(d, i){ return pt(i, d.score/100).join(','); }).join(' ') + '" fill="rgba(26,140,122,.22)" stroke="#1a8c7a" stroke-width="2.5"/>';
+    dims.forEach(function(d, i){
+      var p = pt(i, d.score/100); out += '<circle cx="'+p[0]+'" cy="'+p[1]+'" r="3.5" fill="#1a8c7a"/>';
+      var l = pt(i, 1.2), anchor = Math.abs(l[0]-cx) < 8 ? 'middle' : (l[0] > cx ? 'start' : 'end');
+      out += '<text x="'+l[0]+'" y="'+(l[1]+4)+'" text-anchor="'+anchor+'" font-size="15" fill="#2d3436" font-weight="600">'+esc(d.label)+'</text>';
+    });
+    return '<svg class="ts-radar" viewBox="-55 0 450 290" role="img" aria-label="Five-dimension profile chart">' + out + '</svg>';
+  }
+
+  function render(d, prev){
+    var h = '<h2>Your wellness report</h2>';
+    if (d.summary) h += '<p>' + esc(d.summary) + '</p>';
+    h += '<div class="ts-card"><h3>Five-dimension profile</h3><p class="sub">Overall visual balance of your tongue in this photo. 100 means an even, typical look.</p>' +
+      '<div class="ts-profile"><div>' + ring(d.overall) + '<div class="ts-band">' + esc(d.band) + '</div></div><div>' +
+      radar(d.dimensions, prev && prev.dimensions) +
+      (prev ? '<div class="ts-legend"><span><i></i>This scan</span><span><i class="prev"></i>Last saved (' + esc(prev.scanned_at) + ')</span></div>' : '') +
+      '</div></div><div class="ts-dims">' + d.dimensions.map(function(x){ return '<div>' + esc(x.label) + ' <b>' + x.score + '</b></div>'; }).join('') + '</div></div>';
+    h += '<div class="ts-card"><h3>Tongue observations</h3><div class="ts-pills">' +
+      d.tags.map(function(t){ return '<span class="ts-pill">' + esc(t) + '</span>'; }).join('') +
+      '</div><p class="ts-note">' + esc(d.observations_note) + '</p></div>';
+    h += '<div class="ts-card"><h3>What we see</h3><ul class="ts-rows">' +
+      d.details.map(function(r){ return '<li><span>' + esc(r.label) + '</span><div>' + esc(r.value) + '</div></li>'; }).join('') + '</ul></div>';
+    if (d.care_note) h += '<p class="ts-care">' + esc(d.care_note) + '</p>';
+    h += '<div class="ts-card"><h3>Everyday ideas</h3><p class="sub">Gentle lifestyle ideas based on what&rsquo;s visible. Small, steady changes work best.</p><div class="ts-sugg">' +
+      d.suggestions.map(function(s){ return '<div><strong>' + esc(s.title) + '</strong>' + esc(s.text) + '</div>'; }).join('') + '</div></div>';
+    if (d.saved) h += '<p class="ts-note" style="color:#0f6b3a;font-weight:600;">Saved to your scan history.</p>';
+    else if (!d.logged_in) h += '<p class="ts-note"><a href="{{ url_for('login') }}">Log in</a> to save scans and compare them over time.</p>';
+    h += '<p class="ts-disclaimer" style="margin-top:1rem;"><strong>Not medical advice.</strong> ' + esc(d.disclaimer) + '</p>';
+    reportEl.innerHTML = h; reportEl.hidden = false;
+    reportEl.scrollIntoView({ behavior:'smooth', block:'start' });
+  }
+
+  function loadHistory(){
+    if (!LOGGED_IN) return;
+    fetch('/api/tongue-scan/history', { credentials:'same-origin' }).then(function(r){ return r.json(); }).then(function(d){
+      history = (d && d.items) || [];
+      var box = $('ts-history');
+      if (!history.length) { box.innerHTML = '<p class="ts-note">No saved scans yet. Your first scan will show up here.</p>'; return; }
+      box.innerHTML = history.map(function(r, i){
+        var older = history[i+1], delta = '';
+        if (older && older.overall != null && r.overall != null) {
+          var dv = r.overall - older.overall;
+          delta = '<small class="' + (dv >= 0 ? 'up' : 'down') + '">' + (dv > 0 ? '+' : '') + dv + ' vs. before</small>';
+        }
+        return '<div class="ts-hist-row">' + (r.thumb ? '<img src="' + esc(r.thumb) + '" alt="">' : '<img alt="">') +
+          '<div class="m"><strong>' + esc(r.band || '') + '</strong><small>' + esc(r.scanned_at) + '</small><small>' + esc((r.tags || []).slice(0,4).join(' · ')) + '</small></div>' +
+          '<div class="ts-hist-score">' + esc(r.overall) + delta + '</div>' +
+          '<button type="button" class="ts-del" data-id="' + esc(r.id) + '" aria-label="Delete this scan">Delete</button></div>';
+      }).join('');
+    }).catch(function(){ $('ts-history').innerHTML = '<p class="ts-note">Could not load your history right now.</p>'; });
+  }
+  $('ts-history').addEventListener('click', function(e){
+    var b = e.target.closest('.ts-del'); if (!b) return;
+    if (!confirm('Delete this tongue scan?')) return;
+    fetch('/api/tongue-scan/history/delete', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify({ id: b.getAttribute('data-id') }) })
+      .then(function(){ loadHistory(); });
+  });
+  loadHistory();
+})();
+</script>
+{% endblock %}
