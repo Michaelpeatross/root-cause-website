@@ -79,7 +79,7 @@ def delete_account_data(email, db, User, Report=None, ClientDocument=None, Repor
     if user is not None:
         db.session.delete(user)
     db.session.commit()
-    for mod, fn in (('food_scan_history', 'delete_history'), ('food_diary', 'delete_meals')):
+    for mod, fn in (('food_scan_history', 'delete_history'), ('food_diary', 'delete_meals'), ('tongue_scan', 'delete_history')):
         try:
             getattr(__import__(mod), fn)(email)
         except Exception as exc:
