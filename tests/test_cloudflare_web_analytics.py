@@ -7,7 +7,7 @@ TOKEN = '12b0ff074f364a12be306335b118b8fe'
 BEACON = 'https://static.cloudflareinsights.com/beacon.min.js'
 INCLUDE = "{% include '_cf_web_analytics.html' %}"
 
-# Full pages that do not extend base.html and must include the beacon themselves.
+# These pages are served as raw HTML (not Jinja), so the snippet must be inlined.
 STANDALONE_PAGES = [
     'agency.html',
     'ai_transformation.html',
@@ -25,11 +25,18 @@ def test_shared_snippet_has_official_beacon():
     assert 'data-cf-beacon' in snippet
 
 
-def test_base_and_standalone_pages_include_snippet():
+def test_base_template_includes_shared_snippet():
+    text = (TEMPLATES / 'base.html').read_text()
+    assert INCLUDE in text
+    # Token lives in the include so it stays in one place for Jinja pages.
+    assert TOKEN not in text
+
+
+def test_standalone_static_pages_inline_the_beacon():
     missing = []
-    for name in ['base.html', *STANDALONE_PAGES]:
+    for name in STANDALONE_PAGES:
         text = (TEMPLATES / name).read_text()
-        if INCLUDE not in text:
+        if BEACON not in text or TOKEN not in text or INCLUDE in text:
             missing.append(name)
     assert missing == []
 
