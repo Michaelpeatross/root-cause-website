@@ -182,23 +182,47 @@ def register_public_seo_routes(app):
     def _guide_bioenergetic_test_cost_comparison():
         return render_template('blog/bioenergetic_test_cost_comparison.html')
 
+    # Search engines and AI assistants (ChatGPT, Claude, Perplexity, Gemini, Grok, Copilot, Apple)
+    # share one group so the private-path rules apply to every crawler.
+    AI_AGENTS = (
+        'GPTBot', 'OAI-SearchBot', 'ChatGPT-User', 'PerplexityBot', 'Perplexity-User',
+        'ClaudeBot', 'Claude-User', 'Claude-SearchBot', 'Google-Extended', 'Googlebot',
+        'Googlebot-Image', 'Bingbot', 'Applebot', 'Applebot-Extended', 'GrokBot',
+        'xAI-SearchBot', 'xAI-Bot', 'CCBot', 'DuckAssistBot', 'Amazonbot', 'MistralAI-User',
+        'Meta-ExternalAgent',
+    )
+    PRIVATE_PATHS = (
+        '/admin', '/dashboard', '/login', '/register', '/checkout/success', '/reports/',
+        '/documents/', '/instructions', '/api/', '/account/', '/create-checkout-session',
+    )
+
     def robots_txt():
-        body = (
-            "User-agent: *\n"
-            "Allow: /\n"
-            "Disallow: /admin\n"
-            "Disallow: /dashboard\n"
-            "Disallow: /login\n"
-            "Disallow: /register\n"
-            "Disallow: /checkout/success\n"
-            "Disallow: /reports/\n"
-            "Disallow: /documents/\n"
-            "Disallow: /instructions\n"
-            "Disallow: /api/\n"
-            "Disallow: /account/\n"
-            f"Sitemap: {SITE}/sitemap.xml\n"
-        )
-        return Response(body, mimetype='text/plain')
+        lines = [
+            '# Root Cause Test welcomes search engines and AI assistants.',
+            f'# Plain-text site summary: {SITE}/llms.txt',
+            '',
+            'User-agent: *',
+        ]
+        lines += [f'User-agent: {a}' for a in AI_AGENTS]
+        lines.append('Allow: /')
+        lines += [f'Disallow: {p}' for p in PRIVATE_PATHS]
+        lines += ['', f'Sitemap: {SITE}/sitemap.xml', '']
+        return Response('\n'.join(lines), mimetype='text/plain')
+
+    # IndexNow (Bing / Copilot, Yandex, Seznam): the key file must be served at /<key>.txt.
+    INDEXNOW_KEY = '370251a7688e29614d8f02b106229382'
+
+    def indexnow_key():
+        return Response(INDEXNOW_KEY, mimetype='text/plain')
+
+    # Bump these dates when a page's content changes (Render builds have no git history).
+    SITEMAP_LASTMOD_DEFAULT = '2026-10-26'
+    SITEMAP_LASTMOD = {
+        '/': '2026-10-26', '/buy': '2026-11-16', '/contact': '2026-10-26', '/how-it-works': '2026-10-26',
+        '/sample-report': '2026-10-26', '/scan-food': '2026-10-26', '/blog': '2026-10-26',
+        '/tongue-scanner': '2026-10-29', '/health-app': '2026-10-29', '/export-records': '2026-10-26',
+        '/foam': '2026-11-16', '/privacy': '2026-10-05', '/terms': '2026-10-26', '/refunds': '2026-10-26',
+    }
 
     def sitemap():
         pages = [
@@ -219,6 +243,7 @@ def register_public_seo_routes(app):
             ('/tongue-scanner', 'weekly', '0.7'),
             ('/health-app', 'monthly', '0.5'),
             ('/export-records', 'monthly', '0.5'),
+            ('/foam', 'monthly', '0.6'),
             ('/privacy', 'yearly', '0.3'),
             ('/terms', 'yearly', '0.3'),
             ('/refunds', 'yearly', '0.3'),
@@ -229,11 +254,70 @@ def register_public_seo_routes(app):
             loc = SITE + path
             xml.append('  <url>')
             xml.append(f'    <loc>{loc}</loc>')
+            xml.append(f'    <lastmod>{SITEMAP_LASTMOD.get(path, SITEMAP_LASTMOD_DEFAULT)}</lastmod>')
             xml.append(f'    <changefreq>{freq}</changefreq>')
             xml.append(f'    <priority>{pri}</priority>')
             xml.append('  </url>')
         xml.append('</urlset>')
         return Response('\n'.join(xml), mimetype='application/xml')
+
+
+    # /llms.txt (llmstxt.org): a plain-language summary AI assistants can quote accurately.
+    LLMS_TXT = f"""# Root Cause Test
+
+> Root Cause Test (ROOTCAUSE LLC) sells an at-home bioenergetic hair and saliva wellness scan for $99 (special price, regularly $199). You collect a small hair and saliva sample at home, mail it in, and get a prioritized wellness report in your online client portal, usually 7 to 14 days after the samples arrive. It is wellness information only: not a medical diagnosis, not an allergy test, not a DNA test, and not a replacement for a licensed clinician.
+
+Ordering: secure Stripe checkout on {SITE}/buy (cards, Apple Pay, Google Pay, Link). Mailing samples is free in a regular envelope with a postage stamp; an optional prepaid collection kit is $15; overnight shipping is the fastest option. After paying, you create a free account for collection instructions and your report. Questions: test@root-cause-test.com or the contact page.
+
+## Product
+- [Order the scan ($99 special, reg. $199)]({SITE}/buy): one at-home hair and saliva wellness scan with a prioritized report, body-system themes, and supplement and lifestyle ideas. Optional $15 prepaid kit.
+- [How it works]({SITE}/how-it-works): order, collect at home, mail, read your report 7 to 14 days after samples arrive.
+- [Sample report]({SITE}/sample-report): what the report looks like (placeholder data).
+- [Refund policy]({SITE}/refunds): cancellations before you mail samples, and what happens once processing starts.
+
+## Free tools
+- [Food Scanner]({SITE}/scan-food): scan a barcode, nutrition label, or plate photo for a 1 to 100 food processing score with calorie and macro estimates. Free, no account needed.
+- [Tongue Scanner]({SITE}/tongue-scanner): a friendly wellness check of a tongue photo (color, coating, moisture) with simple habit ideas. Free. Not medical advice.
+- [Health records upload]({SITE}/health-app) and [how to export your records]({SITE}/export-records): optional context from Apple Health, Fitbit, Garmin, MyChart, Labcorp or Quest files you download yourself. We never ask for portal passwords.
+
+## Guides
+- [What is a bioenergetic hair and saliva scan?]({SITE}/blog/what-is-bioenergetic-hair-saliva-scan)
+- [Bioenergetic scan vs food allergy test]({SITE}/blog/bioenergetic-vs-food-allergy-test)
+- [Bioenergetic testing explained]({SITE}/blog/bioenergetic-testing-explained)
+- [Hair sensitivity test vs lab tests]({SITE}/blog/hair-sensitivity-test-vs-lab-tests)
+- [Food sensitivity vs food allergy]({SITE}/blog/food-sensitivity-vs-food-allergy)
+- [How to collect a hair sample at home]({SITE}/blog/how-to-collect-a-hair-sample)
+- [Bioenergetic test cost comparison]({SITE}/blog/bioenergetic-test-cost-comparison)
+
+## Company
+- [Contact]({SITE}/contact), [Privacy]({SITE}/privacy), [Terms]({SITE}/terms)
+
+## Optional
+- [Full summary with FAQ]({SITE}/llms-full.txt)
+- [Sitemap]({SITE}/sitemap.xml)
+- [Spray foam insulation in Lafayette, LA (a separate local business hosted on this domain)]({SITE}/foam)
+"""
+
+    LLMS_FULL = LLMS_TXT.split("## Optional")[0].rstrip() + """
+
+## Prices
+- Root Cause Bioenergetic Scan: $99 (special; regular price $199). Checkout: https://www.root-cause-test.com/buy
+- Optional prepaid collection kit: $15. Not required; mailing samples in a regular envelope with a stamp is free.
+
+## FAQ
+- Is this a medical test? No. It is a wellness scan. It is not a medical diagnosis, not an allergy test, not a DNA test, and not intended to detect or treat disease.
+- How is it different from bloodwork? Bloodwork is a clinical lab service ordered with a licensed clinician. This scan produces a prioritized wellness report and supplement ideas and does not replace bloodwork or a doctor visit.
+- What do I send? A small hair sample and a saliva sample, collected at home with the instructions you get after ordering.
+- How long does it take? Usually 7 to 14 days after your samples arrive.
+- How do I pay? Stripe checkout on the Order page: credit card, Apple Pay, Google Pay, or Link.
+- Who runs it? ROOTCAUSE LLC. Email test@root-cause-test.com.
+"""
+
+    def llms_txt():
+        return Response(LLMS_TXT, mimetype='text/plain')
+
+    def llms_full_txt():
+        return Response(LLMS_FULL, mimetype='text/plain')
 
     OG_IMG = f'{SITE}/static/og-food-scanner.png'
 
@@ -276,6 +360,13 @@ def register_public_seo_routes(app):
 
     app.view_functions['robots_txt'] = robots_txt
     app.view_functions['sitemap'] = sitemap
+    for _path, _ep, _view in (
+        ('/llms.txt', 'llms_txt', llms_txt),
+        ('/llms-full.txt', 'llms_full_txt', llms_full_txt),
+        (f'/{INDEXNOW_KEY}.txt', 'indexnow_key', indexnow_key),
+    ):
+        if _ep not in app.view_functions:
+            app.add_url_rule(_path, _ep, _view)
 
     def buy_page():
         """Public $99 special (reg. $199) landing page with shipping copy. Checkout stays POST /create-checkout-session."""
@@ -455,6 +546,33 @@ def register_public_seo_routes(app):
                     'publisher': {'@type': 'Organization', 'name': 'Root Cause Test', 'url': SITE + '/'},
                 }, ensure_ascii=True)
                 extra += f'<script type="application/ld+json">{art}</script>'
+            if canon_path == '/buy' and '"Product"' not in html and not noindex:
+                import json as _jbuy
+                buy_ld = _jbuy.dumps({
+                    '@context': 'https://schema.org', '@type': 'Product', '@id': SITE + '/#scan',
+                    'name': 'Root Cause Bioenergetic Scan',
+                    'description': 'At-home bioenergetic hair and saliva wellness scan with a prioritized wellness report '
+                                   'and supplement ideas, usually 7-14 days after samples arrive. Not a medical diagnosis or allergy test.',
+                    'image': OG_IMG, 'url': SITE + '/buy',
+                    'brand': {'@type': 'Brand', 'name': 'Root Cause Test'},
+                    'offers': [
+                        {'@type': 'Offer', 'name': 'Root Cause Bioenergetic Scan ($99 special, reg. $199)',
+                         'price': '99.00', 'priceCurrency': 'USD', 'availability': 'https://schema.org/InStock',
+                         'url': SITE + '/buy', 'seller': {'@type': 'Organization', 'name': 'Root Cause Test'}},
+                        {'@type': 'Offer', 'name': 'Optional prepaid collection kit',
+                         'price': '15.00', 'priceCurrency': 'USD', 'availability': 'https://schema.org/InStock',
+                         'url': SITE + '/buy', 'seller': {'@type': 'Organization', 'name': 'Root Cause Test'}},
+                    ],
+                }, ensure_ascii=True)
+                extra += f'<script type="application/ld+json">{buy_ld}</script>'
+            if canon_path == '/' and '"WebSite"' not in html and not noindex:
+                import json as _jweb
+                web_ld = _jweb.dumps({
+                    '@context': 'https://schema.org', '@type': 'WebSite', '@id': SITE + '/#website',
+                    'name': 'Root Cause Test', 'url': SITE + '/', 'inLanguage': 'en-US',
+                    'publisher': {'@id': SITE + '/#org'},
+                }, ensure_ascii=True)
+                extra += f'<script type="application/ld+json">{web_ld}</script>'
             if '"Organization"' not in html and not noindex:
                 import json as _jorg
                 org = _jorg.dumps({
@@ -532,6 +650,8 @@ def register_public_seo_routes(app):
                 )
             elif '</body>' in html:
                 html = html.replace('</body>', FOOTER + '</body>', 1)
+            if response.status_code == 404:
+                html = html.replace('<meta name="robots" content="index, follow">', '')
             if response.status_code == 404 and 'noindex' not in html:
                 html = html.replace('<head>', '<head><meta name="robots" content="noindex, nofollow">', 1)
             response.set_data(html)
