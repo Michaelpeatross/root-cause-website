@@ -288,17 +288,17 @@ def register_public_seo_routes(app):
         '<div class="footer-inner">'
         '<div class="footer-brand"><strong>Root Cause Test</strong><span>ROOTCAUSE LLC</span></div>'
         '<div class="footer-cols">'
-        '<div class="footer-col"><h4>Product</h4>'
+        '<div class="footer-col"><p class="footer-heading">Product</p>'
         '<a href="/how-it-works">How it works</a>'
         '<a href="/sample-report">Sample report</a>'
         '<a href="/buy">Order — <s>$199</s> $99</a></div>'
-        '<div class="footer-col"><h4>Tools</h4>'
+        '<div class="footer-col"><p class="footer-heading">Tools</p>'
         '<a href="/scan-food">Food Scanner</a>'
         '<a href="/tongue-scanner">Tongue Scanner</a>'
         '<a href="/health-app">Health records</a>'
         '<a href="/export-records">Export records</a>'
         '<a href="/blog">Guides</a></div>'
-        '<div class="footer-col"><h4>Company</h4>'
+        '<div class="footer-col"><p class="footer-heading">Company</p>'
         '<a href="/contact">Contact</a>'
         '<a href="/privacy">Privacy</a>'
         '<a href="/terms">Terms</a>'
@@ -320,7 +320,7 @@ def register_public_seo_routes(app):
         '.footer-brand span{font-size:.85rem;opacity:.75}'
         '.footer-cols{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1.5rem;margin:0 0 1.5rem}'
         '.footer-col{display:flex;flex-direction:column;gap:.45rem}'
-        '.footer-col h4{margin:0 0 .35rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.55);font-weight:600}'
+        '.footer-col .footer-heading{margin:0 0 .35rem;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.55);font-weight:600}'
         '.site-footer .fine{font-size:.82rem;color:rgba(255,255,255,.7);line-height:1.55;max-width:720px;margin:0}'
         '@media(max-width:700px){.footer-cols{grid-template-columns:1fr 1fr}}'
         '@media(max-width:420px){.footer-cols{grid-template-columns:1fr}}'
@@ -480,8 +480,13 @@ def register_public_seo_routes(app):
             if path in ('/login', '/register', '/buy', '/contact', '/checkout/success'):
                 html = html.replace('<body>', '<body class="rc-form-page">', 1)
                 extra += '<style>.rc-form-page #grok-label,.rc-form-page #grok-bubble-label{display:none!important}</style>'
-            if '</head>' in html and 'rel="canonical"' not in html:
-                html = html.replace('</head>', extra + '</head>', 1)
+            if '</head>' in html:
+                inject = extra
+                if 'rel="canonical"' in html:
+                    import re as _re_can
+                    inject = _re_can.sub(r'<link rel="canonical" href="[^"]*">', '', extra, count=1)
+                if inject:
+                    html = html.replace('</head>', inject + '</head>', 1)
             # Prefer clear product language site-wide
             html = html.replace('>Get Analysis</a>', '>Order</a>')
             html = html.replace('Get Your Analysis — $199', 'Order your scan — <s>$199</s> $99 special')
@@ -532,6 +537,31 @@ def register_public_seo_routes(app):
             response.set_data(html)
         except Exception as exc:
             print(f'[Root Cause] SEO after_request skipped: {exc}')
+        return response
+
+
+    import os
+    from flask import send_from_directory
+
+    def favicon_ico():
+        icon_dir = os.path.join(app.static_folder or 'static', 'icons')
+        return send_from_directory(icon_dir, 'favicon.ico', mimetype='image/vnd.microsoft.icon', max_age=86400)
+
+    if 'favicon_ico' not in {rule.endpoint for rule in app.url_map.iter_rules()}:
+        app.add_url_rule('/favicon.ico', 'favicon_ico', favicon_ico)
+
+    SECURITY_HEADERS = {
+        'Strict-Transport-Security': 'max-age=31536000',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'SAMEORIGIN',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()',
+    }
+
+    @app.after_request
+    def _security_headers(response):
+        for key, value in SECURITY_HEADERS.items():
+            response.headers.setdefault(key, value)
         return response
 
     print('[Root Cause] Registered /privacy /terms /refunds + SEO robots/sitemap')

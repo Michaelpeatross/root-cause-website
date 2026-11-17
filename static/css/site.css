@@ -1,8 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap');
-
 :root {
   --green-dark: #0b3d2a;
-  --green: #1a8c7a;
+  --green: #198574;
   --green-light: #e8f5f1;
   --cream: #f8faf9;
   --text: #2d3436;
@@ -1382,7 +1380,7 @@ a.grok-term:focus {
   gap: 0.45rem;
 }
 
-.footer-col h4 {
+.footer-col .footer-heading {
   margin: 0 0 0.35rem;
   font-size: 0.72rem;
   letter-spacing: 0.06em;
