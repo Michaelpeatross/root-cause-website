@@ -630,5 +630,6 @@
 document.querySelectorAll('a[href*="#"]').forEach(function(a){a.addEventListener("click",function(){var h=a.getAttribute("href"),i=h.indexOf("#");if(i<0)return;var p=h.slice(0,i);if(p&&p!==location.pathname)return;var t=document.getElementById(h.slice(i+1));if(t&&t.tagName==="DETAILS")t.open=true;});});
 if(location.hash){var t=document.getElementById(location.hash.slice(1));if(t&&t.tagName==="DETAILS")t.open=true;}
 </script>
+{% include '_cf_web_analytics.html' %}
 </body>
 </html>
